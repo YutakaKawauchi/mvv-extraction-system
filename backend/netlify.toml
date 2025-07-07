@@ -1,6 +1,6 @@
 [build]
   functions = "netlify/functions"
-  publish = "../frontend/dist"
+  # Functions-only deployment - no static files
 
 [dev]
   command = "echo 'Netlify Dev Server'"
