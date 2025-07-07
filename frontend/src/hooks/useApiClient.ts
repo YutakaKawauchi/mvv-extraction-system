@@ -45,6 +45,22 @@ export const useApiClient = () => {
     }
   }, []);
 
+  const extractMVVPerplexity = useCallback(async (request: MVVExtractionRequest) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await apiClient.extractMVVPerplexity(request);
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'MVV extraction with Perplexity failed';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const extractMVVBatch = useCallback(async (requests: MVVExtractionRequest[]) => {
     setLoading(true);
     setError(null);
@@ -67,6 +83,7 @@ export const useApiClient = () => {
     clearError,
     healthCheck,
     extractMVV,
+    extractMVVPerplexity,
     extractMVVBatch
   };
 };

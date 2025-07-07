@@ -24,7 +24,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
   const [isPaused, setIsPaused] = useState(false);
   const [shouldStop, setShouldStop] = useState(false);
   
-  const { extractMVV } = useApiClient();
+  const { extractMVVPerplexity } = useApiClient();
   const { updateCompany } = useCompanyStore();
   const { addMVVData } = useMVVStore();
   const { success, error: showError } = useNotification();
@@ -56,7 +56,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
         companyDescription: company.notes
       };
 
-      const result = await extractMVV(request);
+      const result = await extractMVVPerplexity(request);
 
       if (result) {
         // Create MVV data
@@ -96,7 +96,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
       return { success: false, error: errorMessage };
     }
-  }, [extractMVV, updateCompany, addMVVData]);
+  }, [extractMVVPerplexity, updateCompany, addMVVData]);
 
   const startProcessing = useCallback(async () => {
     if (selectedCompanies.length === 0) {

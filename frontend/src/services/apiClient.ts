@@ -159,11 +159,20 @@ class ApiClient {
     });
   }
 
-  // MVV extraction
+  // MVV extraction (OpenAI)
   async extractMVV(request: MVVExtractionRequest): Promise<MVVExtractionResponse['data']> {
     return this.request({
       method: 'POST',
       url: '/extract-mvv',
+      data: request
+    });
+  }
+
+  // MVV extraction (Perplexity AI - Enhanced)
+  async extractMVVPerplexity(request: MVVExtractionRequest): Promise<MVVExtractionResponse['data']> {
+    return this.request({
+      method: 'POST',
+      url: '/extract-mvv-perplexity',
       data: request
     });
   }
@@ -198,6 +207,7 @@ export const useApiClient = () => {
   return {
     healthCheck: () => apiClient.healthCheck(),
     extractMVV: (request: MVVExtractionRequest) => apiClient.extractMVV(request),
+    extractMVVPerplexity: (request: MVVExtractionRequest) => apiClient.extractMVVPerplexity(request),
     extractMVVBatch: (requests: MVVExtractionRequest[]) => apiClient.extractMVVBatch(requests)
   };
 };
