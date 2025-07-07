@@ -1,0 +1,27 @@
+{
+  "name": "mvv-extraction-backend",
+  "version": "1.0.0",
+  "description": "Backend API for MVV Extraction System using Netlify Functions",
+  "main": "index.js",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build needed for Netlify Functions'",
+    "deploy": "netlify deploy",
+    "deploy:prod": "netlify deploy --prod"
+  },
+  "keywords": [
+    "netlify",
+    "functions",
+    "openai",
+    "mvv"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "openai": "^5.8.2"
+  },
+  "devDependencies": {
+    "netlify-cli": "^22.2.2"
+  }
+}
