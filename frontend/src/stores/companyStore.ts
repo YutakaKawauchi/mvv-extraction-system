@@ -27,7 +27,7 @@ type CompanyStore = CompanyState & CompanyActions;
 
 export const useCompanyStore = create<CompanyStore>()(
   devtools(
-    (set, get) => ({
+    (set) => ({
       // State
       companies: [],
       loading: false,

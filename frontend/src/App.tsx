@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { ErrorBoundary, NotificationToast } from './components/common';
 import { useIndexedDB } from './hooks/useIndexedDB';

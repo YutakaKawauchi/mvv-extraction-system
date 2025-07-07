@@ -12,7 +12,6 @@ import {
   Upload, 
   Download, 
   Search, 
-  Filter,
   Grid,
   List,
   Trash2

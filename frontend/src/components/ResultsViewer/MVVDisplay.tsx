@@ -1,7 +1,7 @@
 import React from 'react';
 import type { MVVData } from '../../types';
 import { formatDate, formatPercentage } from '../../utils/formatters';
-import { Badge, ProgressBar } from '../common';
+import { ProgressBar } from '../common';
 import { Brain, Target, Heart, Calendar, TrendingUp } from 'lucide-react';
 
 interface MVVDisplayProps {

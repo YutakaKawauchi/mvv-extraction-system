@@ -150,7 +150,7 @@ export class CSVProcessor {
         'errorMessage',
         'mvvVersion',
         'extractedFrom'
-      ] : {})
+      ] : [])
     ];
 
     const data = companies.map(company => {

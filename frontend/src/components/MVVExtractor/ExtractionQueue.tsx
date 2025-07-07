@@ -168,7 +168,8 @@ const CompanyQueueItem: React.FC<CompanyQueueItemProps> = ({
     queued: {
       icon: Clock,
       color: 'text-gray-600',
-      bgColor: 'bg-gray-50'
+      bgColor: 'bg-gray-50',
+      animate: false
     },
     processing: {
       icon: Loader2,
@@ -179,12 +180,14 @@ const CompanyQueueItem: React.FC<CompanyQueueItemProps> = ({
     completed: {
       icon: CheckCircle,
       color: 'text-green-600',
-      bgColor: 'bg-green-50'
+      bgColor: 'bg-green-50',
+      animate: false
     },
     failed: {
       icon: XCircle,
       color: 'text-red-600',
-      bgColor: 'bg-red-50'
+      bgColor: 'bg-red-50',
+      animate: false
     }
   };
 

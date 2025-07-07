@@ -16,7 +16,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     pending: {
       icon: Clock,
       color: 'bg-gray-100 text-gray-800',
-      label: CONSTANTS.STATUS_LABELS.pending
+      label: CONSTANTS.STATUS_LABELS.pending,
+      animate: false
     },
     processing: {
       icon: Loader2,
@@ -27,12 +28,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     completed: {
       icon: CheckCircle,
       color: 'bg-green-100 text-green-800',
-      label: CONSTANTS.STATUS_LABELS.completed
+      label: CONSTANTS.STATUS_LABELS.completed,
+      animate: false
     },
     error: {
       icon: AlertCircle,
       color: 'bg-red-100 text-red-800',
-      label: CONSTANTS.STATUS_LABELS.error
+      label: CONSTANTS.STATUS_LABELS.error,
+      animate: false
     }
   };
 

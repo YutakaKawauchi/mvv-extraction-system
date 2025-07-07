@@ -1,4 +1,5 @@
-import Dexie, { Table } from 'dexie';
+import Dexie from 'dexie';
+import type { Table } from 'dexie';
 import type { Company, MVVData, ProcessingLog } from '../types';
 import { CONSTANTS } from '../utils/constants';
 
@@ -96,10 +97,17 @@ export const companyStorage = {
 
   async update(id: string, updates: Partial<Company>): Promise<void> {
     const updateData: Partial<DBCompany> = {
-      ...updates,
+      id: updates.id,
+      name: updates.name,
+      website: updates.website,
+      category: updates.category,
+      notes: updates.notes,
+      status: updates.status,
+      errorMessage: updates.errorMessage,
       updatedAt: Date.now()
     };
     
+    // Convert Date objects to numbers
     if (updates.createdAt) {
       updateData.createdAt = updates.createdAt.getTime();
     }
@@ -158,8 +166,20 @@ export const mvvStorage = {
   },
 
   async update(id: number, updates: Partial<MVVData>): Promise<void> {
-    const updateData: Partial<DBMVVData> = { ...updates };
+    const updateData: Partial<DBMVVData> = {
+      id: updates.id,
+      companyId: updates.companyId,
+      version: updates.version,
+      mission: updates.mission,
+      vision: updates.vision,
+      values: updates.values,
+      confidenceScores: updates.confidenceScores,
+      source: updates.source,
+      isActive: updates.isActive,
+      extractedFrom: updates.extractedFrom
+    };
     
+    // Convert Date objects to numbers
     if (updates.extractedAt) {
       updateData.extractedAt = updates.extractedAt.getTime();
     }

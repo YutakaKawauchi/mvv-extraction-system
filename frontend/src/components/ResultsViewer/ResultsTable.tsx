@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { Company, MVVData } from '../../types';
 import { StatusBadge, Button } from '../common';
 import { formatShortDate, formatPercentage } from '../../utils/formatters';

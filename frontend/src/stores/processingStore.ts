@@ -33,7 +33,7 @@ const initialBatchStatus: BatchProcessingStatus = {
 
 export const useProcessingStore = create<ProcessingStore>()(
   devtools(
-    (set, get) => ({
+    (set) => ({
       // State
       batchStatus: initialBatchStatus,
       processingQueue: [],
