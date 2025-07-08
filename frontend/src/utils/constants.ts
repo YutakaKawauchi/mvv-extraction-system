@@ -5,9 +5,10 @@ export const CONSTANTS = {
   ENVIRONMENT: import.meta.env.VITE_ENVIRONMENT || 'development',
 
   // バッチ処理設定
-  BATCH_SIZE: 5,
+  BATCH_SIZE: import.meta.env.PROD ? 2 : 5, // プロダクション環境では並列数を削減
   MAX_RETRIES: 3,
   RETRY_DELAY: 1000, // ミリ秒
+  PROCESSING_DELAY: import.meta.env.PROD ? 2000 : 1000, // プロダクション環境では処理間隔を増加
 
   // ストレージ設定
   DB_NAME: 'mvv_extraction_db',

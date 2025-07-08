@@ -129,9 +129,14 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
         
         if (shouldStop) break;
 
-        // Process batch in parallel
-        const batchPromises = batch.map(async (company) => {
+        // Process batch in parallel with staggered start
+        const batchPromises = batch.map(async (company, index) => {
           if (shouldStop) return { success: false };
+          
+          // Stagger requests to reduce simultaneous load
+          if (index > 0) {
+            await delay(500 * index); // 500ms stagger between requests
+          }
           
           addToProcessing(company.id);
           
@@ -172,7 +177,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
         // Delay between batches to avoid overwhelming the API
         if (!shouldStop && batches.indexOf(batch) < batches.length - 1) {
-          await delay(CONSTANTS.RETRY_DELAY);
+          await delay(CONSTANTS.PROCESSING_DELAY);
         }
       }
 

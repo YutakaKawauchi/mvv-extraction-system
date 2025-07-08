@@ -15,7 +15,7 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: CONSTANTS.API_BASE_URL,
-      timeout: 30000, // 30秒タイムアウト
+      timeout: 45000, // 45秒タイムアウト（プロダクション環境の負荷を考慮）
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': CONSTANTS.API_SECRET
@@ -151,6 +151,33 @@ class ApiClient {
     }
   }
 
+  private async requestWithRetry<T>(config: AxiosRequestConfig, retries = CONSTANTS.MAX_RETRIES): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        return await this.request<T>(config);
+      } catch (error: any) {
+        lastError = error;
+        
+        // 最後の試行または致命的エラーの場合はリトライしない
+        if (attempt === retries || (error.code && !['NETWORK_ERROR', 'SERVER_ERROR', 'TIMEOUT'].includes(error.code))) {
+          break;
+        }
+        
+        // リトライ前の待機時間
+        const delay = CONSTANTS.RETRY_DELAY * Math.pow(2, attempt); // 指数バックオフ
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        if (CONSTANTS.ENVIRONMENT === 'development') {
+          console.log(`Retrying request (attempt ${attempt + 1}/${retries + 1}) after ${delay}ms...`);
+        }
+      }
+    }
+    
+    throw lastError;
+  }
+
   // Health check
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     return this.request({
@@ -168,9 +195,9 @@ class ApiClient {
     });
   }
 
-  // MVV extraction (Perplexity AI - Enhanced)
+  // MVV extraction (Perplexity AI - Enhanced with retry)
   async extractMVVPerplexity(request: MVVExtractionRequest): Promise<MVVExtractionResponse['data']> {
-    return this.request({
+    return this.requestWithRetry({
       method: 'POST',
       url: '/extract-mvv-perplexity',
       data: request
