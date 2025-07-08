@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CompanyList } from '../CompanyManager';
 import { BatchProcessor, ExtractionQueue, ProcessingStatus, CompanySelector } from '../MVVExtractor';
 import { ResultsTable, MVVDisplay } from '../ResultsViewer';
+import { MVVAnalysisDashboard } from '../MVVAnalysis';
 import { Modal, Button } from '../common';
 import { SessionStatus } from '../auth';
 import { useCompanyStore } from '../../stores/companyStore';
@@ -13,7 +14,8 @@ import {
   Building2, 
   Brain, 
   BarChart3, 
-  Zap
+  Zap,
+  Network
 } from 'lucide-react';
 
 type ActiveTab = 'companies' | 'extraction' | 'results' | 'analytics';
@@ -88,6 +90,12 @@ export const Dashboard: React.FC = () => {
       name: '結果表示',
       icon: BarChart3,
       description: '抽出結果の確認・エクスポート'
+    },
+    {
+      id: 'analytics' as const,
+      name: 'AI分析',
+      icon: Network,
+      description: 'MVV類似度・業界分析'
     }
   ];
 
@@ -254,6 +262,12 @@ export const Dashboard: React.FC = () => {
               }}
               onExport={handleExportResults}
             />
+          </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <div>
+            <MVVAnalysisDashboard />
           </div>
         )}
       </div>
