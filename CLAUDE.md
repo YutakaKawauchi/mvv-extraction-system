@@ -142,6 +142,128 @@ netlify env:set NODE_ENV "production"
 - 日本語での対話可
 - コミットメッセージにClaude署名は不要
 
+## Git Workflow & Branch Strategy
+
+### Branch Strategy (GitHub Flow Based)
+
+**Main Branch Protection**
+- `main` branch is protected and represents production-ready code
+- All changes must go through Pull Request review process
+- Direct pushes to `main` are not allowed
+
+**Branch Naming Convention**
+```bash
+feature/feature-name          # New features
+fix/bug-description          # Bug fixes  
+refactor/refactoring-scope   # Code refactoring
+docs/documentation-update    # Documentation updates
+test/test-description        # Test additions
+perf/performance-improvement # Performance optimizations
+```
+
+### Development Workflow
+
+#### 1. Creating Feature Branch
+```bash
+# Ensure main is up to date
+git checkout main
+git pull origin main
+
+# Create and checkout feature branch
+git checkout -b feature/csv-import-enhancement
+
+# Work on your feature...
+# Make commits with clear messages
+git add .
+git commit -m "Add duplicate checking for CSV import"
+```
+
+#### 2. Pull Request Process
+```bash
+# Push feature branch to remote
+git push -u origin feature/csv-import-enhancement
+
+# Create Pull Request via GitHub web interface
+# Include description of changes, testing done, and any notes
+```
+
+#### 3. Pull Request Requirements
+- **Clear Description**: What was changed and why
+- **Testing Evidence**: Screenshots, test results, or manual testing notes
+- **Breaking Changes**: Document any breaking changes
+- **Performance Impact**: Note any performance implications
+
+#### 4. Review & Merge Process
+- **Code Review**: At least one review required (can be self-review for solo development)
+- **Testing**: Verify feature works in local environment
+- **Documentation**: Update relevant documentation if needed
+- **Merge**: Use "Squash and merge" to keep clean history
+
+#### 5. Post-Merge Cleanup
+```bash
+# Switch back to main and pull latest
+git checkout main
+git pull origin main
+
+# Delete local feature branch
+git branch -d feature/csv-import-enhancement
+
+# Delete remote feature branch (if not auto-deleted)
+git push origin --delete feature/csv-import-enhancement
+```
+
+### Deployment Strategy
+
+**Staging Environment (Development)**
+- All feature branches tested in local development environment
+- Manual testing with sample datasets (30-company and 100-company)
+- Performance validation before merge
+
+**Production Environment**
+- Only `main` branch deployed to production
+- Automatic deployment via GitHub Actions on push to main
+- Monitor performance metrics after deployment
+
+### Emergency Procedures
+
+**Hotfix Process**
+```bash
+# Create hotfix branch from main
+git checkout main
+git checkout -b fix/critical-bug-fix
+
+# Make minimal fix
+git add .
+git commit -m "Fix critical bug in API endpoint"
+
+# Push and create urgent PR
+git push -u origin fix/critical-bug-fix
+# Create PR with "URGENT" label
+```
+
+**Rollback Process**
+```bash
+# If production issue detected, rollback to previous version
+git checkout main
+git revert HEAD  # Revert last commit
+git push origin main  # Deploy rollback
+```
+
+### Quality Assurance
+
+**Pre-Merge Checklist**
+- [ ] Feature tested locally with sample data
+- [ ] No console errors or warnings
+- [ ] Performance impact assessed
+- [ ] Documentation updated if needed
+- [ ] Breaking changes documented
+
+**Post-Merge Monitoring**
+- [ ] Production deployment successful
+- [ ] API endpoints responding normally
+- [ ] Performance metrics within expected range
+- [ ] No error spikes in logs
+
 ### Logging System
 - **Development**: Colorful console output + file logging in `/backend/logs/`
 - **Production**: Structured JSON logging for monitoring
