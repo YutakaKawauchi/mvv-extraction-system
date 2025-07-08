@@ -6,3 +6,4 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { Modal } from './Modal';
 export { ProgressBar } from './ProgressBar';
 export { StatusBadge } from './StatusBadge';
+export { ScrollToTopButton } from './ScrollToTopButton';

@@ -125,14 +125,6 @@ export const CompanyList: React.FC = () => {
     return filtered;
   }, [companies, searchQuery, selectedCategory, selectedStatus, sortField, sortOrder]);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  };
 
   const handleAddCompany = async (formData: any) => {
     try {
@@ -285,36 +277,47 @@ export const CompanyList: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">企業管理</h2>
-          <p className="text-gray-600 mt-1">
-            {filteredCompanies.length} / {companies.length} 件の企業
-          </p>
-        </div>
+      <div className="flex flex-col space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">企業管理</h2>
+            <p className="text-gray-600 mt-1">
+              {filteredCompanies.length} / {companies.length} 件の企業
+            </p>
+          </div>
 
-        {/* Actions */}
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={openAddForm}>
-            <Plus className="w-4 h-4 mr-2" />
-            企業追加
-          </Button>
-          <Button variant="outline" onClick={() => setShowCSVImporter(true)}>
-            <Upload className="w-4 h-4 mr-2" />
-            CSV インポート
-          </Button>
+          {/* Primary Actions - Mobile Optimized */}
+          <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
+            <Button onClick={openAddForm} className="w-full sm:w-auto">
+              <Plus className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">企業追加</span>
+              <span className="sm:hidden">追加</span>
+            </Button>
+            <Button variant="outline" onClick={() => setShowCSVImporter(true)} className="w-full sm:w-auto">
+              <Upload className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">CSV インポート</span>
+              <span className="sm:hidden">インポート</span>
+            </Button>
+          </div>
+        </div>
+        
+        {/* Secondary Actions - Collapsible on Mobile */}
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button 
             variant="outline" 
             onClick={exportToCSV}
             disabled={filteredCompanies.length === 0}
+            className="w-full sm:w-auto"
           >
             <Download className="w-4 h-4 mr-2" />
-            CSV エクスポート
+            <span className="hidden sm:inline">CSV エクスポート</span>
+            <span className="sm:hidden">エクスポート</span>
           </Button>
           {companies.length > 0 && (
-            <Button variant="danger" onClick={handleDeleteAll}>
+            <Button variant="danger" onClick={handleDeleteAll} className="w-full sm:w-auto">
               <Trash2 className="w-4 h-4 mr-2" />
-              全削除
+              <span className="hidden sm:inline">全削除</span>
+              <span className="sm:hidden">削除</span>
             </Button>
           )}
         </div>
@@ -386,29 +389,29 @@ export const CompanyList: React.FC = () => {
 
       {/* Filters and Search */}
       <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="企業名、ウェブサイト、備考で検索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="企業名、ウェブサイト、備考で検索..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+          />
+        </div>
 
+        {/* Filters Row - Stacked on Mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Category Filter */}
-          <div className="min-w-0 lg:w-48">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">カテゴリー</label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
-              <option value="">全カテゴリー</option>
+              <option value="">全て</option>
               {CONSTANTS.COMPANY_CATEGORIES.map(category => (
                 <option key={category} value={category}>{category}</option>
               ))}
@@ -416,13 +419,14 @@ export const CompanyList: React.FC = () => {
           </div>
 
           {/* Status Filter */}
-          <div className="min-w-0 lg:w-32">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">ステータス</label>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value as CompanyStatus | '')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
-              <option value="">全ステータス</option>
+              <option value="">全て</option>
               <option value="pending">未処理</option>
               <option value="processing">処理中</option>
               <option value="completed">完了</option>
@@ -430,48 +434,68 @@ export const CompanyList: React.FC = () => {
             </select>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex border border-gray-300 rounded-md">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+          {/* Sort Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">並び順</label>
+            <select
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value as SortField)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
-              <Grid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              <List className="w-4 h-4" />
-            </button>
+              <option value="name">企業名</option>
+              <option value="category">カテゴリー</option>
+              <option value="status">ステータス</option>
+              <option value="updatedAt">更新日時</option>
+            </select>
+          </div>
+
+          {/* View Controls */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">表示</label>
+            <div className="flex gap-2">
+              {/* Sort Direction */}
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                title={`${sortOrder === 'asc' ? '昇順' : '降順'}に並び替え`}
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </button>
+              
+              {/* View Mode Toggle */}
+              <div className="flex border border-gray-300 rounded-md">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                  title="グリッド表示"
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                  title="リスト表示"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Sort Controls */}
-        <div className="flex flex-wrap gap-2 text-sm">
-          <span className="text-gray-500">並び順:</span>
-          {[
-            { field: 'name' as SortField, label: '企業名' },
-            { field: 'category' as SortField, label: 'カテゴリー' },
-            { field: 'status' as SortField, label: 'ステータス' },
-            { field: 'updatedAt' as SortField, label: '更新日時' }
-          ].map(({ field, label }) => (
-            <button
-              key={field}
-              onClick={() => handleSort(field)}
-              className={`px-2 py-1 rounded ${
-                sortField === field 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+        {/* Clear Filters Button */}
+        {(searchQuery || selectedCategory || selectedStatus || sortField !== 'updatedAt' || sortOrder !== 'desc') && (
+          <div className="flex justify-center pt-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleClearFilters}
+              className="text-gray-600"
             >
-              {label}
-              {sortField === field && (
-                <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-              )}
-            </button>
-          ))}
-        </div>
+              フィルターをリセット
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Company List */}

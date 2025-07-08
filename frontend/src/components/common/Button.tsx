@@ -6,6 +6,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   children: React.ReactNode;
+  ariaLabel?: string;
+  ariaDescribedBy?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -15,9 +17,11 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   children,
   className = '',
+  ariaLabel,
+  ariaDescribedBy,
   ...props
 }) => {
-  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] min-w-[44px] touch-manipulation';
   
   const variantClasses = {
     primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500',
@@ -38,9 +42,12 @@ export const Button: React.FC<ButtonProps> = ({
     <button
       className={classes}
       disabled={disabled || loading}
+      aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
+      aria-busy={loading}
       {...props}
     >
-      {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+      {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />}
       {children}
     </button>
   );
