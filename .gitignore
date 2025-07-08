@@ -96,3 +96,8 @@ private/
 confidential/
 api-keys/
 credentials/
+
+# Sample data files (may contain sensitive company information)
+data/sample-data/*.csv
+healthcare_companies*.csv
+sample-companies*.csv
