@@ -1,16 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProgressBar } from '../common';
 import { useProcessingStore } from '../../stores/processingStore';
+import { useCompanyStore } from '../../stores/companyStore';
 import { formatDuration, formatDate } from '../../utils/formatters';
 import { 
   Activity, 
   Clock, 
   CheckCircle, 
-  Zap
+  Zap,
+  AlertTriangle,
+  TrendingUp
 } from 'lucide-react';
 
 export const ProcessingStatus: React.FC = () => {
-  const { batchStatus } = useProcessingStore();
+  const { batchStatus, currentlyProcessing } = useProcessingStore();
+  const { companies } = useCompanyStore();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second for real-time calculations
+  useEffect(() => {
+    if (batchStatus.inProgress) {
+      const interval = setInterval(() => {
+        setCurrentTime(new Date());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [batchStatus.inProgress]);
+
+  // Get currently processing companies
+  const processingCompanies = currentlyProcessing
+    .map(id => companies.find(c => c.id === id))
+    .filter((company): company is NonNullable<typeof company> => company !== undefined);
 
   if (batchStatus.total === 0) {
     return (
@@ -35,11 +55,23 @@ export const ProcessingStatus: React.FC = () => {
       return null;
     }
 
-    const elapsedTime = Date.now() - batchStatus.startTime.getTime();
+    const elapsedTime = currentTime.getTime() - batchStatus.startTime.getTime();
     const averageTimePerItem = elapsedTime / batchStatus.processed;
     const remainingItems = batchStatus.total - batchStatus.processed;
     
     return remainingItems * averageTimePerItem;
+  })();
+
+  // Calculate processing efficiency
+  const efficiency = (() => {
+    if (!batchStatus.startTime || batchStatus.processed === 0) return null;
+    
+    const elapsedTime = currentTime.getTime() - batchStatus.startTime.getTime();
+    const elapsedMinutes = elapsedTime / (1000 * 60);
+    return {
+      itemsPerMinute: (batchStatus.processed / elapsedMinutes).toFixed(1),
+      averageTimePerItem: elapsedTime / batchStatus.processed
+    };
   })();
 
   return (
@@ -131,6 +163,93 @@ export const ProcessingStatus: React.FC = () => {
         </div>
       </div>
 
+      {/* Currently Processing */}
+      {processingCompanies.length > 0 && (
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
+            <Zap className="w-4 h-4 mr-2 text-blue-600" />
+            現在処理中 ({processingCompanies.length}件)
+          </h4>
+          <div className="space-y-2">
+            {processingCompanies.slice(0, 3).map(company => (
+              <div 
+                key={company.id} 
+                className="flex items-center justify-between bg-blue-50 p-2 rounded text-sm"
+              >
+                <span className="font-medium text-blue-900">{company.name}</span>
+                <div className="flex items-center text-blue-600">
+                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse mr-2"></div>
+                  処理中...
+                </div>
+              </div>
+            ))}
+            {processingCompanies.length > 3 && (
+              <div className="text-xs text-gray-500 text-center">
+                他 {processingCompanies.length - 3} 件...
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Efficiency & Performance Insights */}
+      {efficiency && (
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
+            <TrendingUp className="w-4 h-4 mr-2 text-green-600" />
+            効率性指標
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="bg-green-50 p-3 rounded-lg text-center">
+              <div className="text-lg font-bold text-green-700">
+                {efficiency.itemsPerMinute}
+              </div>
+              <div className="text-green-600">件/分</div>
+            </div>
+            <div className="bg-blue-50 p-3 rounded-lg text-center">
+              <div className="text-lg font-bold text-blue-700">
+                {formatDuration(efficiency.averageTimePerItem)}
+              </div>
+              <div className="text-blue-600">平均処理時間</div>
+            </div>
+            <div className="bg-purple-50 p-3 rounded-lg text-center">
+              <div className={`text-lg font-bold ${
+                successRate >= 90 ? 'text-green-700' : 
+                successRate >= 80 ? 'text-yellow-700' : 'text-red-700'
+              }`}>
+                {successRate.toFixed(1)}%
+              </div>
+              <div className="text-purple-600">成功率</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recommendations */}
+      {batchStatus.failed > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <AlertTriangle className="w-5 h-5 text-yellow-600 mr-3 mt-0.5 flex-shrink-0" />
+            <div>
+              <h4 className="text-sm font-medium text-yellow-800 mb-1">
+                パフォーマンス推奨事項
+              </h4>
+              <div className="text-sm text-yellow-700 space-y-1">
+                {successRate < 80 && (
+                  <div>• エラー率が高いです。ネットワーク接続を確認してください</div>
+                )}
+                {batchStatus.failed >= 3 && (
+                  <div>• 複数のエラーが発生しています。バッチサイズを小さくすることをお勧めします</div>
+                )}
+                {efficiency && efficiency.averageTimePerItem > 30000 && (
+                  <div>• 処理時間が長めです。同時実行数を調整することをお勧めします</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Time Information */}
       <div className="bg-white p-4 rounded-lg border border-gray-200">
         <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
@@ -162,7 +281,7 @@ export const ProcessingStatus: React.FC = () => {
               <span className="text-gray-600">経過時間:</span>
               <span className="text-gray-900 font-medium">
                 {formatDuration(
-                  (batchStatus.endTime || new Date()).getTime() - 
+                  (batchStatus.endTime || currentTime).getTime() - 
                   batchStatus.startTime.getTime()
                 )}
               </span>

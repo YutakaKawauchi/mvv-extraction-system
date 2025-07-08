@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CompanyList } from '../CompanyManager';
-import { BatchProcessor, ExtractionQueue, ProcessingStatus } from '../MVVExtractor';
+import { BatchProcessor, ExtractionQueue, ProcessingStatus, CompanySelector } from '../MVVExtractor';
 import { ResultsTable, MVVDisplay } from '../ResultsViewer';
 import { Modal, Button } from '../common';
 import { useCompanyStore } from '../../stores/companyStore';
@@ -26,17 +26,30 @@ export const Dashboard: React.FC = () => {
   } | null>(null);
 
   const { companies } = useCompanyStore();
-  const { mvvDataMap } = useMVVStore();
+  const { mvvDataMap, loadMVVData } = useMVVStore();
   const { exportCombinedData } = useCSVProcessor();
   const { success } = useNotification();
 
-  // Auto-select completed companies for processing display
+  // Load MVV data on component mount
   useEffect(() => {
-    const completedCompanies = companies.filter(c => c.status === 'completed');
-    if (completedCompanies.length !== selectedCompanies.length) {
-      setSelectedCompanies(completedCompanies);
+    loadMVVData();
+  }, [loadMVVData]);
+
+  // Clear selections when switching tabs (except when coming from companies tab with pending items)
+  useEffect(() => {
+    if (activeTab === 'extraction') {
+      // Only auto-select if no companies are currently selected
+      if (selectedCompanies.length === 0) {
+        const pendingCompanies = companies.filter(c => c.status === 'pending');
+        if (pendingCompanies.length > 0) {
+          setSelectedCompanies(pendingCompanies);
+        }
+      }
+    } else {
+      // Clear selections when not on extraction tab
+      setSelectedCompanies([]);
     }
-  }, [companies]);
+  }, [activeTab, companies]);
 
   const handleTabChange = (tab: ActiveTab) => {
     setActiveTab(tab);
@@ -199,6 +212,12 @@ export const Dashboard: React.FC = () => {
 
         {activeTab === 'extraction' && (
           <div className="space-y-6">
+            {/* Company Selection */}
+            <CompanySelector
+              selectedCompanies={selectedCompanies}
+              onSelectionChange={setSelectedCompanies}
+            />
+            
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
                 <BatchProcessor 
@@ -235,7 +254,7 @@ export const Dashboard: React.FC = () => {
       {/* MVV Details Modal */}
       {viewingMVVData && (
         <Modal
-          isOpen={true}
+          isOpen={!!viewingMVVData}
           onClose={() => setViewingMVVData(null)}
           title="MVV詳細"
           size="xl"

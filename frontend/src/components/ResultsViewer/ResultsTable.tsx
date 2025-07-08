@@ -250,9 +250,15 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onViewDetails(company, mvvData)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onViewDetails(company, mvvData);
+                      }}
+                      title="詳細を表示"
                     >
                       <Eye className="w-4 h-4" />
+                      <span className="ml-1">詳細</span>
                     </Button>
                     <Button
                       variant="outline"

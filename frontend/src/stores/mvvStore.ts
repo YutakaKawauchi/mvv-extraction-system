@@ -34,9 +34,19 @@ export const useMVVStore = create<MVVStore>()(
       loadMVVData: async () => {
         set({ loading: true, error: null });
         try {
-          // Note: This would need to be implemented to load all MVV data
-          // For now, we'll load it on demand per company
-          set({ loading: false });
+          const allMVVData = await mvvStorage.getAll();
+          const mvvDataMap = new Map<string, MVVData>();
+          
+          // Create a map for quick lookup by companyId
+          allMVVData.forEach(mvv => {
+            mvvDataMap.set(mvv.companyId, mvv);
+          });
+          
+          set({ 
+            mvvData: allMVVData,
+            mvvDataMap,
+            loading: false 
+          });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to load MVV data';
           set({ error: errorMessage, loading: false });

@@ -148,6 +148,17 @@ export const mvvStorage = {
     return await db.mvvData.add(toDBMVVData(mvvData));
   },
 
+  async getAll(activeOnly = true): Promise<MVVData[]> {
+    if (activeOnly) {
+      const allData = await db.mvvData.toArray();
+      const activeData = allData.filter(mvv => mvv.isActive);
+      return activeData.map(fromDBMVVData);
+    }
+    
+    const dbMVVData = await db.mvvData.toArray();
+    return dbMVVData.map(fromDBMVVData);
+  },
+
   async getByCompanyId(companyId: string, activeOnly = true): Promise<MVVData[]> {
     let query = db.mvvData.where('companyId').equals(companyId);
     

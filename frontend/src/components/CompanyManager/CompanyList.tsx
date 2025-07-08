@@ -14,7 +14,10 @@ import {
   Search, 
   Grid,
   List,
-  Trash2
+  Trash2,
+  RotateCcw,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 type ViewMode = 'grid' | 'list';
@@ -57,6 +60,19 @@ export const CompanyList: React.FC = () => {
       clearError();
     }
   }, [error, showError, clearError]);
+
+  // Helper functions for quick actions
+  const errorCompanies = useMemo(() => {
+    return companies.filter(company => company.status === 'error');
+  }, [companies]);
+
+  const completedCompanies = useMemo(() => {
+    return companies.filter(company => company.status === 'completed');
+  }, [companies]);
+
+  const pendingCompanies = useMemo(() => {
+    return companies.filter(company => company.status === 'pending');
+  }, [companies]);
 
   // Filtered and sorted companies
   const filteredCompanies = useMemo(() => {
@@ -213,6 +229,50 @@ export const CompanyList: React.FC = () => {
     setShowCompanyForm(true);
   };
 
+  // Quick action handlers
+  const handleRetryErrorCompanies = async () => {
+    if (errorCompanies.length === 0) return;
+    
+    try {
+      // Reset error companies to pending status
+      const updatePromises = errorCompanies.map(company => 
+        updateCompany(company.id, { 
+          status: 'pending', 
+          errorMessage: undefined 
+        })
+      );
+      
+      await Promise.all(updatePromises);
+      success('成功', `${errorCompanies.length}件のエラー企業を再実行待ちに設定しました`);
+    } catch (error) {
+      showError('エラー', '一括操作中にエラーが発生しました');
+    }
+  };
+
+  const handleSelectStatusFilter = (status: CompanyStatus | '') => {
+    setSelectedStatus(status);
+  };
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('');
+    setSelectedStatus('');
+    setSortField('updatedAt');
+    setSortOrder('desc');
+  };
+
+  const handleRetryCompany = async (company: Company) => {
+    try {
+      await updateCompany(company.id, { 
+        status: 'pending', 
+        errorMessage: undefined 
+      });
+      success('成功', `「${company.name}」を再実行待ちに設定しました`);
+    } catch (error) {
+      showError('エラー', '企業ステータスの更新に失敗しました');
+    }
+  };
+
   if (loading && companies.length === 0) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -258,6 +318,70 @@ export const CompanyList: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Quick Actions Bar */}
+      {(errorCompanies.length > 0 || completedCompanies.length > 0 || pendingCompanies.length > 0) && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h3 className="text-sm font-medium text-blue-900 mb-2">クイックアクション</h3>
+              <div className="flex flex-wrap gap-4 text-sm text-blue-700">
+                <div className="flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span>エラー: {errorCompanies.length}件</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <span>完了: {completedCompanies.length}件</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-gray-400 rounded-full"></div>
+                  <span>未処理: {pendingCompanies.length}件</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              {errorCompanies.length > 0 && (
+                <Button 
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRetryErrorCompanies}
+                  className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  エラー企業を再実行 ({errorCompanies.length}件)
+                </Button>
+              )}
+              <Button 
+                size="sm"
+                variant="outline"
+                onClick={() => handleSelectStatusFilter('error')}
+                className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+              >
+                <AlertCircle className="w-4 h-4 mr-2" />
+                エラーのみ表示
+              </Button>
+              <Button 
+                size="sm"
+                variant="outline"
+                onClick={() => handleSelectStatusFilter('pending')}
+                className="bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+              >
+                未処理のみ表示
+              </Button>
+              <Button 
+                size="sm"
+                variant="outline"
+                onClick={handleClearFilters}
+                className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+              >
+                フィルターリセット
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters and Search */}
       <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-4">
@@ -371,6 +495,7 @@ export const CompanyList: React.FC = () => {
               company={company}
               onEdit={openEditForm}
               onDelete={handleDeleteCompany}
+              onRetry={handleRetryCompany}
             />
           ))}
         </div>

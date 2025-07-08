@@ -62,10 +62,11 @@ AI技術を活用して日本のヘルスケア企業30社のMission（使命）
 ### 技術スタック
 - **Framework**: React 18 + TypeScript
 - **Build Tool**: Vite
-- **UI Framework**: Tailwind CSS
+- **UI Framework**: Tailwind CSS v4
 - **State Management**: Zustand
 - **Local Database**: Dexie (IndexedDB wrapper)
 - **HTTP Client**: Fetch API
+- **Icons**: Lucide React
 - **Deployment**: GitHub Pages
 
 ### コンポーネント設計
@@ -97,12 +98,14 @@ interface MVVExtractor {
     BatchProcessor: () => JSX.Element;    // バッチ処理制御
     ExtractionQueue: () => JSX.Element;   // キュー管理
     ProcessingStatus: () => JSX.Element;  // 進行状況表示
+    CompanySelector: () => JSX.Element;   // 企業選択UI
   };
   features: [
     'Parallel Processing (5 concurrent)',
     'AI Provider Selection',
     'Real-time Progress',
-    'Error Recovery'
+    'Error Recovery',
+    'Flexible Company Selection'
   ];
 }
 ```
@@ -418,6 +421,16 @@ graph TD
 - **AI API rate limits**: Perplexity 200 RPM, OpenAI 500 RPM（実測）
 - **Function timeout**: 30秒設定（本番環境最適値）
 - **Network latency**: GitHub Pages ↔ Netlify 間の遅延（50-100ms）
+
+### UI/UX改善実績（2025年7月追加）
+- ✅ **Tailwind CSS v4**: PostCSS設定最適化による完全なスタイル適用
+- ✅ **モーダル表示**: 中央配置修正（inline style使用）
+- ✅ **データ永続化**: サーバー再起動後のIndexedDBデータ自動復元
+- ✅ **企業選択UI**: CompanySelectorコンポーネントによる柔軟な選択機能
+  - 未処理のみ選択
+  - エラーのみ選択
+  - 完了済みを選択（再実行用）
+  - すべて選択/選択解除
 
 ### 負荷分散アルゴリズム
 ```javascript

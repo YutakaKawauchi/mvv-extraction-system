@@ -2,20 +2,22 @@ import React from 'react';
 import type { Company } from '../../types';
 import { StatusBadge, Button } from '../common';
 import { formatShortDate } from '../../utils/formatters';
-import { ExternalLink, Edit, Trash2, Globe } from 'lucide-react';
+import { ExternalLink, Edit, Trash2, Globe, RotateCcw } from 'lucide-react';
 
 interface CompanyCardProps {
   company: Company;
   onEdit: (company: Company) => void;
   onDelete: (company: Company) => void;
   onSelect?: (company: Company) => void;
+  onRetry?: (company: Company) => void;
 }
 
 export const CompanyCard: React.FC<CompanyCardProps> = ({
   company,
   onEdit,
   onDelete,
-  onSelect
+  onSelect,
+  onRetry
 }) => {
   const handleWebsiteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -89,6 +91,20 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
 
       {/* Actions */}
       <div className="flex justify-end space-x-2">
+        {company.status === 'error' && onRetry && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRetry(company);
+            }}
+            className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+          >
+            <RotateCcw className="w-4 h-4 mr-1" />
+            再実行
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
