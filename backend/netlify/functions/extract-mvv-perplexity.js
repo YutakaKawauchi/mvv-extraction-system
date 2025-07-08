@@ -1,5 +1,5 @@
 const { handleCors } = require('../../utils/cors');
-const { validateApiKey } = require('../../utils/auth');
+const { validateApiAccess } = require('../../utils/auth');
 const { rateLimiter, getRateLimitHeaders } = require('../../utils/rateLimiter');
 const { logger } = require('../../utils/logger');
 
@@ -169,18 +169,24 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Validate API key
-    const authResult = validateApiKey(event);
+    // Validate API access (API key or JWT token)
+    const authResult = validateApiAccess(event);
     if (!authResult.valid) {
       return {
         statusCode: 401,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
         body: JSON.stringify({ 
           success: false, 
-          error: authResult.error 
+          error: authResult.error || 'Authentication required'
         })
       };
     }
+
+    // Log authentication type
+    logger.info('Request authenticated', { 
+      type: authResult.type,
+      user: authResult.user?.username || 'api_key'
+    });
 
     // Rate limiting
     const clientId = getClientId(event);

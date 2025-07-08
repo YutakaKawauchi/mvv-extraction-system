@@ -19,7 +19,8 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
-    "openai": "^5.8.2"
+    "openai": "^5.8.2",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "netlify-cli": "^22.2.2"

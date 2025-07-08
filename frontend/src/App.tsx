@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { ErrorBoundary, NotificationToast, ScrollToTopButton } from './components/common';
+import { AuthGuard } from './components/auth';
 import { useIndexedDB } from './hooks/useIndexedDB';
 import { useNotification } from './hooks/useNotification';
 import { useCompanyStore } from './stores/companyStore';
@@ -61,26 +62,28 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="App">
-        <Dashboard />
-        
-        {/* Notifications */}
-        <div className="fixed top-4 right-4 z-50 space-y-2">
-          {notifications.map((notification) => (
-            <NotificationToast
-              key={notification.id}
-              type={notification.type}
-              title={notification.title}
-              message={notification.message}
-              duration={notification.duration}
-              onClose={() => removeNotification(notification.id)}
-            />
-          ))}
-        </div>
+      <AuthGuard>
+        <div className="App">
+          <Dashboard />
+          
+          {/* Notifications */}
+          <div className="fixed top-4 right-4 z-50 space-y-2">
+            {notifications.map((notification) => (
+              <NotificationToast
+                key={notification.id}
+                type={notification.type}
+                title={notification.title}
+                message={notification.message}
+                duration={notification.duration}
+                onClose={() => removeNotification(notification.id)}
+              />
+            ))}
+          </div>
 
-        {/* Scroll to Top Button */}
-        <ScrollToTopButton />
-      </div>
+          {/* Scroll to Top Button */}
+          <ScrollToTopButton />
+        </div>
+      </AuthGuard>
     </ErrorBoundary>
   );
 }

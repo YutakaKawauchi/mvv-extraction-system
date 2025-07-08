@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## IMPORTANT INSTRUCTIONS FOR CLAUDE
+
+### Commit Messages
+- **NO Claude signatures in commit messages** - User preference: keep commits clean without AI attribution
+
+### Security Guidelines
+- **NEVER commit passwords, API keys, or secrets to version control**
+- **NEVER include actual credentials in documentation or comments**
+- **ALWAYS use environment variables for sensitive data**
+- **Use placeholder values in documentation (e.g., "your-password", "your-api-key")**
+- **Double-check CLAUDE.md before commits - no real passwords/secrets should be visible**
+
 ## Project Overview
 
 AI-powered system for extracting Mission, Vision, and Values (MVV) from 30 Japanese healthcare companies using OpenAI GPT-4o and Perplexity APIs. Architecture: React frontend on GitHub Pages + Netlify Functions backend.
@@ -15,7 +27,14 @@ AI-powered system for extracting Mission, Vision, and Values (MVV) from 30 Japan
 - ✅ Enhanced CSV import system with duplicate checking
 - ✅ Improved UI/UX with better error handling
 - ✅ Zero production errors - excellent stability
-- 🔄 Continuous feature improvements and optimizations
+- ✅ **Netlify Functions Authentication System (Production Ready)**
+  - JWT-based authentication with 24h token expiration
+  - Rate limiting (5 attempts/15min) for security
+  - Mobile-responsive login interface with UX improvements
+  - Automatic session management and refresh
+  - Dual authentication support (API key + JWT)
+  - Production credentials: Set via environment variables (secure)
+- ✅ **Production deployment completed with authentication (2025-07-08)**
 
 ## Common Commands
 
@@ -54,6 +73,7 @@ cd backend && netlify deploy --prod
 # Frontend: Create .env.local with:
 VITE_API_BASE_URL=http://localhost:8888/.netlify/functions
 VITE_API_SECRET=your-development-secret
+VITE_ENVIRONMENT=development
 
 # Backend Local: Create .env with:
 NODE_ENV=development
@@ -62,12 +82,25 @@ PERPLEXITY_API_KEY=your-perplexity-key
 MVP_API_SECRET=your-development-secret
 ALLOWED_ORIGINS=http://localhost:5173,http://<WSL_IP>:5173
 
+# Authentication Configuration
+AUTH_USERNAME=admin
+AUTH_PASSWORD=dev_password_2025!
+JWT_SECRET=development-jwt-secret-key-256-bits
+JWT_EXPIRATION=24h
+LOGIN_RATE_LIMIT=10
+
 # Backend Production: Set via Netlify CLI or Dashboard
 netlify env:set OPENAI_API_KEY "your-key"
 netlify env:set PERPLEXITY_API_KEY "your-key"  
 netlify env:set MVP_API_SECRET "your-secret"
 netlify env:set ALLOWED_ORIGINS "https://your-username.github.io"
 netlify env:set NODE_ENV "production"
+
+# Authentication (Production) - Set via Netlify Dashboard for security
+netlify env:set AUTH_USERNAME "admin"
+netlify env:set AUTH_PASSWORD "your-secure-password"  # Do not commit actual password
+netlify env:set JWT_SECRET "your-secure-jwt-secret-256-bits-minimum"  # Generate secure random key
+netlify env:set JWT_EXPIRATION "24h"
 ```
 
 ## Architecture & Key Components
@@ -78,32 +111,48 @@ netlify env:set NODE_ENV "production"
   - **CompanyManager/**: Company CRUD operations with mobile-optimized layouts
   - **ResultsViewer/**: Responsive data display (dual mobile/desktop views)
   - **MVVExtractor/**: Batch processing interfaces
-  - **Dashboard/**: Main navigation and overview
+  - **Dashboard/**: Main navigation and overview with session status
+  - **auth/**: Authentication components (Login, AuthGuard, SessionStatus)
 - **src/services/**: API clients (api.ts, indexedDB.ts)
-- **src/stores/**: Zustand state management
-- **src/types/**: TypeScript interfaces
-- **src/utils/**: Helper functions
+- **src/stores/**: Zustand state management (companies, MVV data, authentication)
+- **src/types/**: TypeScript interfaces (including auth types)
+- **src/utils/**: Helper functions (formatters, authApi.ts)
 
 ### Backend Structure (`/backend`)
 - **netlify/functions/**: Serverless endpoints
-  - `extract-mvv.js`: OpenAI GPT-4o extraction endpoint
-  - `extract-mvv-perplexity.js`: Perplexity AI extraction endpoint (web search)
+  - `extract-mvv.js`: OpenAI GPT-4o extraction endpoint (auth protected)
+  - `extract-mvv-perplexity.js`: Perplexity AI extraction endpoint (auth protected)
   - `health.js`: Health check endpoint
+  - **Authentication endpoints**:
+    - `auth-login.js`: JWT token generation with comprehensive rate limiting and logging
+    - `auth-login-v2.js`: Simplified JWT token generation (clean implementation)
+    - `auth-validate.js`: JWT token validation with detailed error handling
+    - `auth-validate-v2.js`: Simplified JWT token validation
+    - `auth-refresh.js`: JWT token refresh with age validation
+    - `auth-refresh-v2.js`: Simplified JWT token refresh
 - **utils/**: Shared utilities
   - `cors.js`: CORS configuration
-  - `rateLimiter.js`: Rate limiting (100 req/15min)
-  - `auth.js`: API key validation
+  - `rateLimiter.js`: Enhanced rate limiting (API + auth rate limiting)
+  - `auth.js`: Dual authentication (API key + JWT validation)
+  - `jwt.js`: JWT token generation, validation, and refresh
   - `logger.js`: Comprehensive logging system
 
 ### Key Technologies
 - **Frontend**: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB)
-- **Backend**: Netlify Functions + OpenAI 5.8.2 + Perplexity AI
-- **Security**: CORS protection, API key auth, rate limiting, sensitive data masking
+- **Backend**: Netlify Functions + OpenAI 5.8.2 + Perplexity AI + jsonwebtoken 9.0.2 (JWT authentication)
+- **Authentication**: JWT-based with environment variable credentials
+- **Security**: CORS protection, dual authentication (API key + JWT), rate limiting, sensitive data masking
 - **Logging**: Environment-aware logging (console + file output)
 - **Accessibility**: WCAG 2.1 AA compliance, ARIA labels, screen reader support, keyboard navigation
 - **Mobile**: Responsive design, touch-friendly (44px+ targets), mobile-first layouts
-- **Performance**: Throttled scroll events, smooth animations, optimized re-renders
-- **Runtime**: Node.js 22.17.0 LTS
+
+### Authentication Features
+- **Login Interface**: Mobile-responsive login with password visibility toggle
+- **Session Management**: Automatic token refresh, session status display, logout functionality
+- **Rate Limiting**: 5 login attempts per 15 minutes per IP
+- **Token Security**: 24-hour JWT expiration with secure generation
+- **Route Protection**: AuthGuard component protects entire application
+- **Dual Auth**: Backward compatibility with existing API key authentication
 
 ### Core Features
 1. **Company Management**: CSV import/export with duplicate checking, CRUD operations, status tracking
@@ -116,9 +165,16 @@ netlify env:set NODE_ENV "production"
 8. **Performance**: Optimized rendering, throttled events, 60fps smooth interactions
 
 ### API Endpoints
-- `POST /.netlify/functions/extract-mvv`: OpenAI GPT-4o extraction
-- `POST /.netlify/functions/extract-mvv-perplexity`: Perplexity AI extraction (web search)
-- `GET /.netlify/functions/health`: Health check
+- `POST /.netlify/functions/extract-mvv`: OpenAI GPT-4o extraction (auth protected)
+- `POST /.netlify/functions/extract-mvv-perplexity`: Perplexity AI extraction with web search (auth protected)
+- `GET /.netlify/functions/health`: Health check (public)
+- **Authentication endpoints**:
+  - `POST /.netlify/functions/auth-login-v2`: JWT token generation (production)
+  - `POST /.netlify/functions/auth-validate-v2`: JWT token validation (production)
+  - `POST /.netlify/functions/auth-refresh-v2`: JWT token refresh (production)
+  - `POST /.netlify/functions/auth-login`: JWT token generation (comprehensive logging)
+  - `POST /.netlify/functions/auth-validate`: JWT token validation (comprehensive logging)
+  - `POST /.netlify/functions/auth-refresh`: JWT token refresh (comprehensive logging)
 
 ### API Response Format
 ```json
@@ -148,10 +204,9 @@ netlify env:set NODE_ENV "production"
 - Backend requires Netlify CLI for local development
 - Environment variables must be set in both frontend (.env.local) and backend (.env for local, Netlify for prod)
 - CORS origins must match deployment URL (including WSL IP for local dev)
-- Rate limiting: 100 requests per 15 minutes per IP
+- Rate limiting: 100 requests per 15 minutes per IP (API), 5 auth attempts per 15 minutes per IP (authentication)
 - WSL2 compatible with network configuration
 - 日本語での対話可
-- コミットメッセージにClaude署名は不要
 
 ### UX/UI Guidelines
 - **Mobile-First**: Design for mobile first, then enhance for desktop

@@ -3,6 +3,7 @@ import { CompanyList } from '../CompanyManager';
 import { BatchProcessor, ExtractionQueue, ProcessingStatus, CompanySelector } from '../MVVExtractor';
 import { ResultsTable, MVVDisplay } from '../ResultsViewer';
 import { Modal, Button } from '../common';
+import { SessionStatus } from '../auth';
 import { useCompanyStore } from '../../stores/companyStore';
 import { useMVVStore } from '../../stores/mvvStore';
 import { useCSVProcessor } from '../../hooks/useCSVProcessor';
@@ -114,7 +115,7 @@ export const Dashboard: React.FC = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between py-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
                 MVV抽出システム
@@ -124,23 +125,29 @@ export const Dashboard: React.FC = () => {
               </p>
             </div>
             
-            {/* Quick Stats */}
-            <div className="hidden lg:flex space-x-6 text-sm">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{stats.totalCompanies}</div>
-                <div className="text-gray-600">総企業数</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{stats.completedCompanies}</div>
-                <div className="text-gray-600">完了</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{stats.processingCompanies}</div>
-                <div className="text-gray-600">処理中</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">{stats.pendingCompanies}</div>
-                <div className="text-gray-600">待機中</div>
+            {/* Session Status and Quick Stats */}
+            <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-6 mt-4 lg:mt-0">
+              {/* Session Status */}
+              <SessionStatus showDetails={false} />
+              
+              {/* Quick Stats */}
+              <div className="hidden lg:flex space-x-6 text-sm">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900">{stats.totalCompanies}</div>
+                  <div className="text-gray-600">総企業数</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{stats.completedCompanies}</div>
+                  <div className="text-gray-600">完了</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{stats.processingCompanies}</div>
+                  <div className="text-gray-600">処理中</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-600">{stats.pendingCompanies}</div>
+                  <div className="text-gray-600">待機中</div>
+                </div>
               </div>
             </div>
           </div>
