@@ -9,7 +9,11 @@ import { Upload, Download, AlertCircle, CheckCircle } from 'lucide-react';
 interface CSVImporterProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (companies: CompanyImportData[]) => void;
+  onImport: (companies: CompanyImportData[]) => Promise<{ 
+    imported: number; 
+    skipped: number; 
+    duplicates: Array<{ name: string; website: string }> 
+  }>;
   loading?: boolean;
 }
 
@@ -24,6 +28,11 @@ export const CSVImporter: React.FC<CSVImporterProps> = ({
     data: CompanyImportData[];
     errors: string[];
     warnings: string[];
+  } | null>(null);
+  const [importResult, setImportResult] = useState<{
+    imported: number;
+    skipped: number;
+    duplicates: Array<{ name: string; website: string }>;
   } | null>(null);
 
   const downloadTemplate = useCallback(() => {
@@ -157,15 +166,21 @@ export const CSVImporter: React.FC<CSVImporterProps> = ({
     }
   }, [processCSV]);
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (parseResult?.data.length) {
-      onImport(parseResult.data);
-      setParseResult(null);
+      try {
+        const result = await onImport(parseResult.data);
+        setImportResult(result);
+        setParseResult(null);
+      } catch (error) {
+        console.error('Import failed:', error);
+      }
     }
   };
 
   const handleClose = () => {
     setParseResult(null);
+    setImportResult(null);
     onClose();
   };
 
@@ -292,6 +307,41 @@ export const CSVImporter: React.FC<CSVImporterProps> = ({
           </div>
         )}
 
+        {/* Import Results */}
+        {importResult && (
+          <div className="space-y-3">
+            <div className="bg-green-50 border border-green-200 rounded-md p-3">
+              <div className="flex items-center mb-2">
+                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                <h4 className="text-sm font-medium text-green-900">インポート完了</h4>
+              </div>
+              <div className="text-sm text-green-700 space-y-1">
+                <div>✅ {importResult.imported}件の企業をインポートしました</div>
+                {importResult.skipped > 0 && (
+                  <div>⚠️ {importResult.skipped}件の企業をスキップしました（重複のため）</div>
+                )}
+              </div>
+              
+              {/* Duplicate Details */}
+              {importResult.duplicates.length > 0 && (
+                <div className="mt-3">
+                  <h5 className="text-xs font-medium text-green-800 mb-2">スキップされた企業（重複）:</h5>
+                  <div className="max-h-32 overflow-y-auto bg-green-100 rounded p-2">
+                    <div className="text-xs text-green-700 space-y-1">
+                      {importResult.duplicates.map((duplicate, index) => (
+                        <div key={index} className="flex justify-between">
+                          <span className="font-medium">{duplicate.name}</span>
+                          <span className="text-green-600 truncate ml-2">{duplicate.website}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex justify-end space-x-3 pt-4">
           <Button
@@ -299,15 +349,17 @@ export const CSVImporter: React.FC<CSVImporterProps> = ({
             onClick={handleClose}
             disabled={loading}
           >
-            キャンセル
+            {importResult ? '閉じる' : 'キャンセル'}
           </Button>
-          <Button
-            onClick={handleImport}
-            loading={loading}
-            disabled={loading || !parseResult?.data.length || parseResult.errors.length > 0}
-          >
-            {parseResult?.data.length || 0}件をインポート
-          </Button>
+          {!importResult && (
+            <Button
+              onClick={handleImport}
+              loading={loading}
+              disabled={loading || !parseResult?.data.length || parseResult.errors.length > 0}
+            >
+              {parseResult?.data.length || 0}件をインポート
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

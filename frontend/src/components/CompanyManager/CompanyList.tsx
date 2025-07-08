@@ -173,19 +173,11 @@ export const CompanyList: React.FC = () => {
   const handleImportCompanies = async (importData: any[]) => {
     try {
       const result = await addCompanies(importData);
-      setShowCSVImporter(false);
-      
-      // 結果に応じてメッセージを表示
-      if (result.skipped > 0) {
-        success(
-          'インポート完了（重複あり）', 
-          `${result.imported}件をインポート、${result.skipped}件をスキップしました（重複のため）`
-        );
-      } else {
-        success('インポート完了', `${result.imported}件の企業をインポートしました`);
-      }
+      // CSVImporter内で詳細結果を表示するため、ここでは閉じない
+      return result;
     } catch (error) {
       // Error is handled by the store and notification hook
+      throw error;
     }
   };
 
