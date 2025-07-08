@@ -53,10 +53,16 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   };
 
   return (
-    <span className={`inline-flex items-center font-medium rounded-full ${config.color} ${sizeClasses[size]}`}>
+    <span 
+      className={`inline-flex items-center font-medium rounded-full ${config.color} ${sizeClasses[size]}`}
+      role="status"
+      aria-label={`ステータス: ${config.label}`}
+    >
       <Icon 
-        className={`mr-1 ${iconSizeClasses[size]} ${config.animate ? 'animate-spin' : ''}`} 
+        className={`mr-1 ${iconSizeClasses[size]} ${config.animate ? 'animate-spin' : ''}`}
+        aria-hidden="true"
       />
+      <span className="sr-only">ステータス:</span>
       {config.label}
     </span>
   );

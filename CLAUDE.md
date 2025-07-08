@@ -74,6 +74,11 @@ netlify env:set NODE_ENV "production"
 
 ### Frontend Structure (`/frontend`)
 - **src/components/**: UI components organized by feature (Company/, MVV/, Results/)
+  - **common/**: Reusable UI components with accessibility support (Button, LoadingSpinner, StatusBadge, ScrollToTopButton)
+  - **CompanyManager/**: Company CRUD operations with mobile-optimized layouts
+  - **ResultsViewer/**: Responsive data display (dual mobile/desktop views)
+  - **MVVExtractor/**: Batch processing interfaces
+  - **Dashboard/**: Main navigation and overview
 - **src/services/**: API clients (api.ts, indexedDB.ts)
 - **src/stores/**: Zustand state management
 - **src/types/**: TypeScript interfaces
@@ -91,18 +96,24 @@ netlify env:set NODE_ENV "production"
   - `logger.js`: Comprehensive logging system
 
 ### Key Technologies
-- Frontend: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB)
-- Backend: Netlify Functions + OpenAI 5.8.2 + Perplexity AI
-- Security: CORS protection, API key auth, rate limiting, sensitive data masking
-- Logging: Environment-aware logging (console + file output)
-- Runtime: Node.js 22.17.0 LTS
+- **Frontend**: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB)
+- **Backend**: Netlify Functions + OpenAI 5.8.2 + Perplexity AI
+- **Security**: CORS protection, API key auth, rate limiting, sensitive data masking
+- **Logging**: Environment-aware logging (console + file output)
+- **Accessibility**: WCAG 2.1 AA compliance, ARIA labels, screen reader support, keyboard navigation
+- **Mobile**: Responsive design, touch-friendly (44px+ targets), mobile-first layouts
+- **Performance**: Throttled scroll events, smooth animations, optimized re-renders
+- **Runtime**: Node.js 22.17.0 LTS
 
 ### Core Features
 1. **Company Management**: CSV import/export with duplicate checking, CRUD operations, status tracking
 2. **MVV Extraction**: Batch processing (5 parallel), confidence scoring, real-time progress
 3. **Data Persistence**: IndexedDB for local storage
 4. **Results Management**: Filter/search, manual editing, CSV/JSON export
-5. **Enhanced UI/UX**: Improved error handling, detailed import results, better notifications
+5. **Responsive Design**: Mobile-first approach with adaptive layouts (card/table views)
+6. **Accessibility**: Full WCAG 2.1 AA compliance with screen reader and keyboard support
+7. **Enhanced UX**: Smooth scroll-to-top, improved error handling, detailed feedback
+8. **Performance**: Optimized rendering, throttled events, 60fps smooth interactions
 
 ### API Endpoints
 - `POST /.netlify/functions/extract-mvv`: OpenAI GPT-4o extraction
@@ -141,6 +152,15 @@ netlify env:set NODE_ENV "production"
 - WSL2 compatible with network configuration
 - 日本語での対話可
 - コミットメッセージにClaude署名は不要
+
+### UX/UI Guidelines
+- **Mobile-First**: Design for mobile first, then enhance for desktop
+- **Touch Targets**: Minimum 44px for all interactive elements
+- **Responsive Breakpoints**: sm (640px), md (768px), lg (1024px), xl (1280px)
+- **Accessibility**: Always include ARIA labels, roles, and keyboard navigation
+- **Performance**: Use throttled scroll events, avoid layout thrashing
+- **Feedback**: Provide clear loading states and error messages
+- **Component Structure**: Reusable components in `/common/` with full accessibility support
 
 ## Git Workflow & Branch Strategy
 

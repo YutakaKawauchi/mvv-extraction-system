@@ -109,23 +109,145 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex justify-between items-center">
+      <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
           <div>
             <h3 className="text-lg font-medium text-gray-900">抽出結果</h3>
             <p className="text-sm text-gray-600 mt-1">
               {companies.length}件の企業データ
             </p>
           </div>
-          <Button onClick={onExport} variant="outline" size="sm">
+          <Button onClick={onExport} variant="outline" size="sm" className="w-full sm:w-auto">
             <Download className="w-4 h-4 mr-2" />
             エクスポート
           </Button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Mobile View */}
+      <div className="block lg:hidden">
+        {sortedCompanies.map((company) => {
+          const mvvData = mvvDataMap.get(company.id);
+          const confidence = getConfidenceScore(company);
+          
+          return (
+            <div key={company.id} className="border-b border-gray-200 p-4 space-y-3">
+              {/* Company Header */}
+              <div className="flex justify-between items-start">
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-medium text-gray-900 truncate">
+                    {company.name}
+                  </h4>
+                  <div className="flex items-center text-xs text-gray-500 mt-1">
+                    <Globe className="w-3 h-3 mr-1 flex-shrink-0" />
+                    <a
+                      href={company.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-blue-600 truncate"
+                    >
+                      {company.website}
+                    </a>
+                    <ExternalLink className="w-3 h-3 ml-1 flex-shrink-0" />
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 ml-3">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    {company.category}
+                  </span>
+                  <StatusBadge status={company.status} size="sm" />
+                </div>
+              </div>
+
+              {/* Confidence and MVV Status */}
+              {mvvData ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">信頼度</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatPercentage(confidence)}
+                      </span>
+                      <div className="w-16 bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${
+                            confidence >= 0.8 ? 'bg-green-500' :
+                            confidence >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${confidence * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="flex items-center">
+                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                        mvvData.mission ? 'bg-green-400' : 'bg-red-400'
+                      }`} />
+                      <span className="text-gray-600">Mission</span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                        mvvData.vision ? 'bg-green-400' : 'bg-red-400'
+                      }`} />
+                      <span className="text-gray-600">Vision</span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                        mvvData.values.length > 0 ? 'bg-green-400' : 'bg-red-400'
+                      }`} />
+                      <span className="text-gray-600">Values ({mvvData.values.length})</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">MVVデータ未抽出</div>
+              )}
+
+              {/* Error Message */}
+              {company.errorMessage && (
+                <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                  {company.errorMessage}
+                </div>
+              )}
+
+              {/* Actions and Date */}
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-xs text-gray-500">
+                  {formatShortDate(company.updatedAt)}
+                </span>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onViewDetails(company, mvvData);
+                    }}
+                    className="flex items-center"
+                  >
+                    <Eye className="w-4 h-4 mr-1" />
+                    <span className="hidden sm:inline">詳細</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(company)}
+                    className="flex items-center"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
-import { ErrorBoundary, NotificationToast } from './components/common';
+import { ErrorBoundary, NotificationToast, ScrollToTopButton } from './components/common';
 import { useIndexedDB } from './hooks/useIndexedDB';
 import { useNotification } from './hooks/useNotification';
 import { useCompanyStore } from './stores/companyStore';
@@ -77,6 +77,9 @@ function App() {
             />
           ))}
         </div>
+
+        {/* Scroll to Top Button */}
+        <ScrollToTopButton />
       </div>
     </ErrorBoundary>
   );
