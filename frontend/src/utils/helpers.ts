@@ -74,5 +74,24 @@ export const devHelpers = {
     console.log('- CompanyCard: エラーメッセージ枠が非表示になる');
     console.log('- ExtractionQueue: エラーメッセージが表示されない');  
     console.log('- ResultsTable: エラーメッセージ行が表示されない');
+  },
+
+  testDuplicateImportInstructions() {
+    if (import.meta.env.PROD) {
+      console.warn('このヘルパーは開発環境でのみ使用できます');
+      return;
+    }
+    
+    console.log('💡 重複チェック機能をテストする手順:');
+    console.log('1. 企業管理画面で既存企業の名前とURLを確認');
+    console.log('2. 同じ名前とURLを含むCSVファイルを作成');
+    console.log('3. CSVインポートを実行');
+    console.log('4. "インポート完了（重複あり）"メッセージを確認');
+    console.log('5. 既存企業が重複して追加されていないことを確認');
+    console.log('');
+    console.log('📋 重複判定条件:');
+    console.log('- 企業名とURLが完全一致（大文字小文字無視）');
+    console.log('- 前後の空白文字は自動で除去');
+    console.log('- 重複した場合はスキップ（既存データは保持）');
   }
 };
