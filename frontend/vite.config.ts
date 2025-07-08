@@ -7,6 +7,7 @@ export default defineConfig({
   base: process.env.NODE_ENV === 'production' ? '/mvv-extraction-system/' : '/',
   server: {
     port: 5173,
+    host: '0.0.0.0', // Allow access from any IP
     proxy: {
       '/.netlify/functions': {
         target: 'http://localhost:8888',

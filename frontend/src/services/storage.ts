@@ -97,15 +97,16 @@ export const companyStorage = {
 
   async update(id: string, updates: Partial<Company>): Promise<void> {
     const updateData: Partial<DBCompany> = {
-      id: updates.id,
-      name: updates.name,
-      website: updates.website,
-      category: updates.category,
-      notes: updates.notes,
-      status: updates.status,
-      errorMessage: updates.errorMessage,
       updatedAt: Date.now()
     };
+    
+    // Only include defined fields
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.website !== undefined) updateData.website = updates.website;
+    if (updates.category !== undefined) updateData.category = updates.category;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.errorMessage !== undefined) updateData.errorMessage = updates.errorMessage;
     
     // Convert Date objects to numbers
     if (updates.createdAt) {

@@ -11,7 +11,7 @@ export interface MVVData {
     values: number;
   };
   extractedAt: Date;
-  source: 'openai' | 'manual';
+  source: 'openai' | 'perplexity' | 'manual';
   isActive: boolean;
   extractedFrom?: string;
 }

@@ -51,7 +51,7 @@ export const useMVVStore = create<MVVStore>()(
         set({ loading: true, error: null });
         try {
           const id = await mvvStorage.create(mvvData);
-          const newMVVData = { ...mvvData, id };
+          const newMVVData = { ...mvvData, id: Number(id) };
           
           set(state => {
             const updatedData = [...state.mvvData.filter(m => m.companyId !== mvvData.companyId), newMVVData];
@@ -67,6 +67,7 @@ export const useMVVStore = create<MVVStore>()(
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to add MVV data';
           set({ error: errorMessage, loading: false });
+          throw error;
         }
       },
 

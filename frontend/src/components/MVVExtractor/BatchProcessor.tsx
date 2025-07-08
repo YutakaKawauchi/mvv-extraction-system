@@ -68,7 +68,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
           values: result.values,
           confidenceScores: result.confidence_scores,
           extractedAt: new Date(),
-          source: 'openai',
+          source: 'perplexity',
           isActive: true,
           extractedFrom: result.extracted_from
         };
@@ -200,6 +200,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
     selectedCompanies,
     shouldStop,
     isPaused,
+    extractMVVPerplexity,
     processCompany,
     startBatchProcessing,
     updateProgress,
