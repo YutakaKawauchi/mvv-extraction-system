@@ -55,3 +55,24 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
     return false;
   }
 };
+
+// 開発用デバッグヘルパー（プロダクションでは使用しない）
+export const devHelpers = {
+  testErrorMessageClearInstructions() {
+    if (import.meta.env.PROD) {
+      console.warn('このヘルパーは開発環境でのみ使用できます');
+      return;
+    }
+    
+    console.log('💡 エラーメッセージクリア機能をテストする手順:');
+    console.log('1. 企業管理画面でエラー状態の企業を確認');
+    console.log('2. MVV抽出画面でその企業を選択して再実行');
+    console.log('3. 成功後、企業カードでエラーメッセージが消えることを確認');
+    console.log('4. 結果表示画面でもエラーメッセージが表示されないことを確認');
+    console.log('');
+    console.log('📋 確認ポイント:');
+    console.log('- CompanyCard: エラーメッセージ枠が非表示になる');
+    console.log('- ExtractionQueue: エラーメッセージが表示されない');  
+    console.log('- ResultsTable: エラーメッセージ行が表示されない');
+  }
+};

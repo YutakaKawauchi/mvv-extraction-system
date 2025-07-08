@@ -106,7 +106,6 @@ export const companyStorage = {
     if (updates.category !== undefined) updateData.category = updates.category;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
     if (updates.status !== undefined) updateData.status = updates.status;
-    if (updates.errorMessage !== undefined) updateData.errorMessage = updates.errorMessage;
     
     // Convert Date objects to numbers
     if (updates.createdAt) {
@@ -116,7 +115,24 @@ export const companyStorage = {
       updateData.lastProcessed = updates.lastProcessed.getTime();
     }
     
-    await db.companies.update(id, updateData);
+    // Handle errorMessage explicitly - clear if undefined, set if defined
+    if ('errorMessage' in updates) {
+      if (updates.errorMessage === undefined || updates.errorMessage === null) {
+        // First update other fields, then clear errorMessage using modify
+        if (Object.keys(updateData).length > 1) { // More than just updatedAt
+          await db.companies.update(id, updateData);
+        }
+        await db.companies.where('id').equals(id).modify((company: DBCompany) => {
+          delete company.errorMessage;
+          company.updatedAt = Date.now();
+        });
+      } else {
+        updateData.errorMessage = updates.errorMessage;
+        await db.companies.update(id, updateData);
+      }
+    } else {
+      await db.companies.update(id, updateData);
+    }
   },
 
   async delete(id: string): Promise<void> {
