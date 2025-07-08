@@ -1,10 +1,14 @@
 [build]
   functions = "netlify/functions"
-  # Functions-only deployment - no static files
+
+[functions]
+  "extract-mvv-perplexity" = { timeout = 30 }
+  "extract-mvv" = { timeout = 30 }
 
 [dev]
-  command = "echo 'Netlify Dev Server'"
   port = 8888
+  targetPort = 8888
+  host = "0.0.0.0"
 
 [[redirects]]
   from = "/api/*"

@@ -41,6 +41,20 @@ lerna-debug.log*
 .DS_Store
 Thumbs.db
 
+# Windows Zone.Identifier files
+*:Zone.Identifier
+*.Zone.Identifier
+
+# Sample file copies and temporary files
+*sample* - コピー*
+*sample*_copy*
+*sample*copy*
+*sample* (コピー)*
+*sample*(copy)*
+*- コピー.*
+*(コピー)*
+*(copy)*
+
 # Misc
 *.pem
 .cache/

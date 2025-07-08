@@ -1,11 +1,12 @@
-const { handleCors } = require('../../utils/cors');
+const { handleCors, corsHeaders } = require('../../utils/cors');
 
 exports.handler = async (event, context) => {
   // Handle CORS
   const corsResult = handleCors(event);
-  if (corsResult.statusCode) {
-    return corsResult;
-  }
+  if (corsResult) return corsResult;
+
+  // Get CORS headers for all responses
+  const headers = corsHeaders(event.headers.origin || event.headers.Origin);
 
   try {
     const response = {
@@ -21,7 +22,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 200,
       headers: {
-        ...corsResult.headers,
+        ...headers,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(response)
@@ -32,7 +33,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 500,
       headers: {
-        ...corsResult.headers,
+        ...headers,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

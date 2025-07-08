@@ -29,7 +29,7 @@ const handleCors = (event) => {
     };
   }
   
-  return { headers };
+  return null; // Return null for non-preflight requests
 };
 
 module.exports = { handleCors, corsHeaders };

@@ -1,7 +1,8 @@
 const OpenAI = require('openai');
-const { handleCors } = require('../../utils/cors');
+const { handleCors, corsHeaders } = require('../../utils/cors');
 const { validateApiKey } = require('../../utils/auth');
 const { rateLimiter, getRateLimitHeaders } = require('../../utils/rateLimiter');
+const { logger } = require('../../utils/logger');
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -41,11 +42,18 @@ const getClientId = (event) => {
 };
 
 const extractMVVFromCompany = async (companyInfo) => {
+  const startTime = Date.now();
+  
   try {
     const prompt = EXTRACTION_PROMPT.replace(
       '{companyDescription}', 
       `企業名: ${companyInfo.companyName}\nウェブサイト: ${companyInfo.companyWebsite}\n追加情報: ${companyInfo.companyDescription || 'なし'}`
     );
+
+    logger.debug(`Starting OpenAI API call for ${companyInfo.companyName}`, {
+      model: 'gpt-4o',
+      promptLength: prompt.length
+    });
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -66,6 +74,13 @@ const extractMVVFromCompany = async (companyInfo) => {
 
     const result = JSON.parse(completion.choices[0].message.content);
     
+    const processingTime = Date.now() - startTime;
+    logger.info(`OpenAI API call completed for ${companyInfo.companyName}`, {
+      processingTime,
+      tokensUsed: completion.usage?.total_tokens || 0,
+      success: true
+    });
+    
     // Validate and sanitize the result
     return {
       mission: result.mission || null,
@@ -79,24 +94,34 @@ const extractMVVFromCompany = async (companyInfo) => {
       extracted_from: result.extracted_from || 'OpenAI GPT-4o analysis'
     };
   } catch (error) {
-    console.error('OpenAI API Error:', error);
+    const processingTime = Date.now() - startTime;
+    logger.error(`OpenAI API call failed for ${companyInfo.companyName}`, {
+      error: error.message,
+      processingTime,
+      success: false
+    });
     throw new Error(`MVV extraction failed: ${error.message}`);
   }
 };
 
 exports.handler = async (event, context) => {
+  const requestStartTime = Date.now();
+  
+  logger.apiRequest(event.httpMethod, event.path, event.headers, event.body);
+  
   // Handle CORS
   const corsResult = handleCors(event);
-  if (corsResult.statusCode) {
-    return corsResult;
-  }
+  if (corsResult) return corsResult;
+
+  // Get CORS headers for all responses
+  const corsHeadersObj = corsHeaders(event.headers.origin || event.headers.Origin);
 
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
       headers: {
-        ...corsResult.headers,
+        ...corsHeadersObj,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -113,7 +138,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 401,
         headers: {
-          ...corsResult.headers,
+          ...corsHeadersObj,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -132,7 +157,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 429,
         headers: {
-          ...corsResult.headers,
+          ...corsHeadersObj,
           ...rateLimitHeaders,
           'Content-Type': 'application/json'
         },
@@ -151,7 +176,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 400,
         headers: {
-          ...corsResult.headers,
+          ...corsHeadersObj,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -167,7 +192,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 400,
         headers: {
-          ...corsResult.headers,
+          ...corsHeadersObj,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -178,19 +203,24 @@ exports.handler = async (event, context) => {
     }
 
     // Extract MVV
-    const startTime = Date.now();
+    logger.info(`Starting MVV extraction for company: ${companyName}`, {
+      companyId,
+      hasDescription: !!companyDescription
+    });
+    
     const extractedData = await extractMVVFromCompany({
       companyId,
       companyName,
       companyWebsite,
       companyDescription
     });
-    const processingTime = Date.now() - startTime;
-
-    return {
+    
+    const totalProcessingTime = Date.now() - requestStartTime;
+    
+    const response = {
       statusCode: 200,
       headers: {
-        ...corsResult.headers,
+        ...corsHeadersObj,
         ...rateLimitHeaders,
         'Content-Type': 'application/json'
       },
@@ -198,19 +228,28 @@ exports.handler = async (event, context) => {
         success: true,
         data: extractedData,
         metadata: {
-          processingTime,
+          processingTime: totalProcessingTime,
           timestamp: new Date().toISOString()
         }
       })
     };
+    
+    logger.apiResponse(200, extractedData, totalProcessingTime);
+    return response;
 
   } catch (error) {
-    console.error('Extract MVV Error:', error);
+    const totalProcessingTime = Date.now() - requestStartTime;
     
-    return {
+    logger.error('Extract MVV Error', {
+      error: error.message,
+      stack: error.stack,
+      processingTime: totalProcessingTime
+    });
+    
+    const response = {
       statusCode: 500,
       headers: {
-        ...corsResult.headers,
+        ...corsHeadersObj,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -218,5 +257,8 @@ exports.handler = async (event, context) => {
         error: 'Internal server error'
       })
     };
+    
+    logger.apiResponse(500, { error: 'Internal server error' }, totalProcessingTime);
+    return response;
   }
 };
