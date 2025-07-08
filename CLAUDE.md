@@ -138,7 +138,7 @@ netlify env:set JWT_EXPIRATION "24h"
   - `logger.js`: Comprehensive logging system
 
 ### Key Technologies
-- **Frontend**: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB)
+- **Frontend**: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB) + TinySegmenter (Japanese morphological analysis)
 - **Backend**: Netlify Functions + OpenAI 5.8.2 + Perplexity AI + jsonwebtoken 9.0.2 (JWT authentication)
 - **Authentication**: JWT-based with environment variable credentials
 - **Security**: CORS protection, dual authentication (API key + JWT), rate limiting, sensitive data masking
@@ -157,12 +157,13 @@ netlify env:set JWT_EXPIRATION "24h"
 ### Core Features
 1. **Company Management**: CSV import/export with duplicate checking, CRUD operations, status tracking
 2. **MVV Extraction**: Batch processing (5 parallel), confidence scoring, real-time progress
-3. **Data Persistence**: IndexedDB for local storage
-4. **Results Management**: Filter/search, manual editing, CSV/JSON export
-5. **Responsive Design**: Mobile-first approach with adaptive layouts (card/table views)
-6. **Accessibility**: Full WCAG 2.1 AA compliance with screen reader and keyboard support
-7. **Enhanced UX**: Smooth scroll-to-top, improved error handling, detailed feedback
-8. **Performance**: Optimized rendering, throttled events, 60fps smooth interactions
+3. **AI Similarity Analysis**: 62-company similarity analysis, interactive dashboard, Japanese morphological analysis
+4. **Data Persistence**: IndexedDB for local storage
+5. **Results Management**: Filter/search, manual editing, CSV/JSON export
+6. **Responsive Design**: Mobile-first approach with adaptive layouts (card/table views)
+7. **Accessibility**: Full WCAG 2.1 AA compliance with screen reader and keyboard support
+8. **Enhanced UX**: Smooth scroll-to-top, improved error handling, detailed feedback
+9. **Performance**: Optimized rendering, throttled events, 60fps smooth interactions
 
 ### API Endpoints
 - `POST /.netlify/functions/extract-mvv`: OpenAI GPT-4o extraction (auth protected)
@@ -398,9 +399,54 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
 
 ### Current Roadmap (Updated 2025-07-08)
 1. **✅ Production Deploy**: Completed - System fully operational with zero errors
-2. **✅ Stability Optimization**: Completed - Zero error rate achieved (100% success rate)
+2. **✅ Stability Optimization**: Completed - Zero error rate achieved (100% success rate)  
 3. **✅ Enhanced UI/UX**: Completed - CSV import improvements and better error handling
-4. **📋 Feature Enhancement**: Multi-language support (English companies)
-5. **🤖 AI Function Evolution**: Hybrid processing (GPT-4o + Perplexity result integration)
-6. **📊 Enterprise Features**: SLA management, multi-tenant support, advanced analytics
-7. **🔄 Continuous Improvement**: Ongoing feature enhancements and optimizations
+4. **✅ Authentication System**: JWT-based authentication deployed to production
+5. **✅ AI Analysis System Phase 1**: Static data visualization completed
+   - ✅ 62 companies similarity analysis with OpenAI Embeddings (text-embedding-3-small)
+   - ✅ Interactive dashboard with 4-tab interface
+   - ✅ Japanese morphological analysis with TinySegmenter
+   - ✅ Color-coded similarity explanations (Mission/Vision/Values)
+   - ✅ Real-time keyword extraction and matching
+   - ✅ Development debug tools for analysis validation
+6. **🔄 AI Analysis System Phase 2**: Hybrid API architecture (IN PROGRESS)
+   - 📋 Netlify Functions for dynamic analysis
+   - 📋 AI-powered insights generation with GPT-4o-mini
+   - 📋 Custom company addition and real-time analysis
+   - 📋 Enhanced interactive visualizations
+7. **📊 Future Enhancements**: Multi-language support, enterprise features, advanced analytics
+
+### AI Analysis System (Updated 2025-07-08)
+
+#### Phase 1: Static Data Visualization (✅ COMPLETED)
+- **Location**: 
+  - Analysis Scripts: `/scripts/ai-analysis/` - Data preprocessing and embedding generation
+  - Frontend Integration: `/frontend/src/components/MVVAnalysis/` - React components
+  - Static Data: `/frontend/public/mvv-analysis-data.json` - 13MB preprocessed analysis data
+- **Key Features**:
+  - **Similarity Analysis**: 62 companies with complete MVV data
+  - **Japanese Morphological Analysis**: TinySegmenter (@birchill/tiny-segmenter) for keyword extraction
+  - **Interactive Dashboard**: 4-tab interface (Overview, Company Finder, Industry Analysis, Insights)
+  - **Similarity Explanation**: Visual breakdown of why companies are similar
+  - **Color-coded Analysis**: Mission(green), Vision(blue), Values(purple), Industry(orange)
+  - **Development Debug**: Detailed morphological analysis results (dev environment only)
+- **Technical Implementation**:
+  - **Embedding Model**: OpenAI text-embedding-3-small
+  - **Similarity Metric**: Cosine similarity with 62×62 matrix
+  - **Frontend Processing**: Real-time keyword extraction and matching
+  - **Data Compression**: 72% compression ratio (13MB from 36MB raw)
+- **Key Results**:
+  - Highest similarity: Terumo ⟷ Medtronic Japan (0.8466)
+  - Average similarity: 0.6466
+  - Industry clustering: Medical devices show highest internal coherence
+  - Performance: Instant load time with static data
+
+#### Phase 2: Hybrid API Architecture (🔄 NEXT)
+- **Strategy**: Combine static data (fast) + dynamic APIs (flexible)
+- **Static Data Usage**: Existing 62-company analysis via `/frontend/public/mvv-analysis-data.json`
+- **Dynamic API Usage**: New company analysis, custom queries, AI insights via Netlify Functions
+- **Planned Features**:
+  - AI-generated insights with GPT-4o-mini
+  - Custom company addition and analysis
+  - Real-time similarity calculation for new MVV data
+  - Enhanced visualization with interactive charts

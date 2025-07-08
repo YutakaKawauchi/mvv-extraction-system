@@ -101,3 +101,9 @@ credentials/
 data/sample-data/*.csv
 healthcare_companies*.csv
 sample-companies*.csv
+
+# Analysis data files (contains real company MVV data - NEVER commit!)
+data/analysis-data/*.csv
+data/analysis-data/*.json
+data/analysis-data/processed/
+mvv-data-*.csv
