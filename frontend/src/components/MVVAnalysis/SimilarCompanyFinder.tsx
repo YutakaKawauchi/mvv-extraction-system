@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { Search, Building2, TrendingUp, Eye, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
-import type { AnalysisCompany } from '../../types/analysis';
+import type { HybridCompany } from '../../services/hybridDataLoader';
 import { TinySegmenter } from '@birchill/tiny-segmenter';
 
 const SimilarCompanyFinder: React.FC = () => {
@@ -9,13 +9,18 @@ const SimilarCompanyFinder: React.FC = () => {
     getFilteredCompanies, 
     getSimilarCompanies, 
     selectedCompany, 
-    setSelectedCompany 
+    setSelectedCompany,
+    getCacheStats,
+    data,
+    filters
   } = useAnalysisStore();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSimilarity, setExpandedSimilarity] = useState<string | null>(null);
   
   const companies = getFilteredCompanies();
+  
+  
   const filteredCompanies = companies.filter(company =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     company.category.toLowerCase().includes(searchTerm.toLowerCase())
@@ -25,18 +30,21 @@ const SimilarCompanyFinder: React.FC = () => {
     ? getSimilarCompanies(selectedCompany.id, 10)
     : [];
 
-  const handleCompanySelect = (company: AnalysisCompany) => {
+  const handleCompanySelect = (company: HybridCompany) => {
     setSelectedCompany(company);
     setSearchTerm('');
   };
 
-  const formatConfidenceScore = (scores: AnalysisCompany['confidenceScores']) => {
+  const formatConfidenceScore = (scores: HybridCompany['confidenceScores']) => {
+    if (!scores || typeof scores !== 'object') {
+      return '0.00';
+    }
     const avg = (scores.mission + scores.vision + scores.values) / 3;
     return avg.toFixed(2);
   };
 
   // 形態素解析を使ったテキスト類似度分析
-  const analyzeTextSimilarity = (company1: AnalysisCompany, company2: AnalysisCompany) => {
+  const analyzeTextSimilarity = (company1: HybridCompany, company2: HybridCompany) => {
     const calculateWordOverlap = (text1: string, text2: string) => {
       // TinySegmenterのインスタンス作成
       const segmenter = new TinySegmenter();
@@ -198,7 +206,7 @@ const SimilarCompanyFinder: React.FC = () => {
   };
 
   // 類似度の理由を説明
-  const explainSimilarity = (company1: AnalysisCompany, company2: AnalysisCompany, similarity: number) => {
+  const explainSimilarity = (company1: HybridCompany, company2: HybridCompany, similarity: number) => {
     const analysis = analyzeTextSimilarity(company1, company2);
     const reasons = [];
 
@@ -256,6 +264,7 @@ const SimilarCompanyFinder: React.FC = () => {
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+
 
             {/* 企業リスト */}
             <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -334,19 +343,19 @@ const SimilarCompanyFinder: React.FC = () => {
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <div className="text-lg font-semibold text-blue-600">
-                        {selectedCompany.confidenceScores.mission.toFixed(2)}
+                        {selectedCompany.confidenceScores?.mission?.toFixed(2) || '0.00'}
                       </div>
                       <div className="text-xs text-gray-500">Mission</div>
                     </div>
                     <div>
                       <div className="text-lg font-semibold text-green-600">
-                        {selectedCompany.confidenceScores.vision.toFixed(2)}
+                        {selectedCompany.confidenceScores?.vision?.toFixed(2) || '0.00'}
                       </div>
                       <div className="text-xs text-gray-500">Vision</div>
                     </div>
                     <div>
                       <div className="text-lg font-semibold text-purple-600">
-                        {selectedCompany.confidenceScores.values.toFixed(2)}
+                        {selectedCompany.confidenceScores?.values?.toFixed(2) || '0.00'}
                       </div>
                       <div className="text-xs text-gray-500">Values</div>
                     </div>
@@ -498,48 +507,6 @@ const SimilarCompanyFinder: React.FC = () => {
                               </div>
                             )}
 
-                            {/* デバッグ情報（開発環境のみ表示） */}
-                            {process.env.NODE_ENV === 'development' && (
-                              <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                                <details>
-                                  <summary className="cursor-pointer font-medium text-yellow-800">
-                                    🔧 デバッグ情報（形態素解析結果）
-                                  </summary>
-                                  <div className="mt-2 space-y-2">
-                                    <div className="text-xs text-yellow-700 mb-2">
-                                      ※ 開発環境でのみ表示される情報です
-                                    </div>
-                                    
-                                    <div className="bg-white p-2 rounded border">
-                                      <strong className="text-green-700">Mission分析:</strong>
-                                      <div className="text-gray-600 text-xs mt-1">
-                                        <div><strong>{selectedCompany.name}:</strong> [{textAnalysis.mission.words1?.join(', ')}]</div>
-                                        <div><strong>{similar.company.name}:</strong> [{textAnalysis.mission.words2?.join(', ')}]</div>
-                                        <div className="text-green-600 mt-1"><strong>共通語:</strong> [{textAnalysis.mission.commonWords?.join(', ') || 'なし'}]</div>
-                                      </div>
-                                    </div>
-                                    
-                                    <div className="bg-white p-2 rounded border">
-                                      <strong className="text-blue-700">Vision分析:</strong>
-                                      <div className="text-gray-600 text-xs mt-1">
-                                        <div><strong>{selectedCompany.name}:</strong> [{textAnalysis.vision.words1?.join(', ')}]</div>
-                                        <div><strong>{similar.company.name}:</strong> [{textAnalysis.vision.words2?.join(', ')}]</div>
-                                        <div className="text-blue-600 mt-1"><strong>共通語:</strong> [{textAnalysis.vision.commonWords?.join(', ') || 'なし'}]</div>
-                                      </div>
-                                    </div>
-                                    
-                                    <div className="bg-white p-2 rounded border">
-                                      <strong className="text-purple-700">Values分析:</strong>
-                                      <div className="text-gray-600 text-xs mt-1">
-                                        <div><strong>{selectedCompany.name}:</strong> [{textAnalysis.values.words1?.join(', ')}]</div>
-                                        <div><strong>{similar.company.name}:</strong> [{textAnalysis.values.words2?.join(', ')}]</div>
-                                        <div className="text-purple-600 mt-1"><strong>共通語:</strong> [{textAnalysis.values.commonWords?.join(', ') || 'なし'}]</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </details>
-                              </div>
-                            )}
                             
                             {/* 全理由リスト */}
                             <div className="mt-2">
@@ -609,9 +576,19 @@ const SimilarCompanyFinder: React.FC = () => {
                   );
                 })}
                 
-                {similarCompanies.length === 0 && (
+                {similarCompanies.length === 0 && selectedCompany && (
                   <div className="text-center py-8 text-gray-500">
-                    類似企業データがありません
+                    {selectedCompany.source === 'api' ? (
+                      <div>
+                        <div className="mb-2">🔄 新しく追加された企業です</div>
+                        <div className="text-sm">
+                          類似度マトリックスは次回のシステム更新時に計算されます。<br />
+                          現在は形態素解析による共通語分析のみ利用可能です。
+                        </div>
+                      </div>
+                    ) : (
+                      '類似企業データがありません'
+                    )}
                   </div>
                 )}
               </div>

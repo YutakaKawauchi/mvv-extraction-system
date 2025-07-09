@@ -12,7 +12,7 @@ export const CONSTANTS = {
 
   // ストレージ設定
   DB_NAME: 'mvv_extraction_db',
-  DB_VERSION: 1,
+  DB_VERSION: 2,
 
   // UI設定
   DEFAULT_PAGE_SIZE: 20,
@@ -33,7 +33,10 @@ export const CONSTANTS = {
   STATUS_LABELS: {
     pending: '未処理',
     processing: '処理中',
-    completed: '完了',
+    mvv_extracted: 'MVV抽出済み',
+    fully_completed: '完全完了',
+    mvv_extraction_error: 'MVV抽出エラー',
+    embeddings_generation_error: 'Embeddings生成エラー',
     error: 'エラー'
   }
 } as const;

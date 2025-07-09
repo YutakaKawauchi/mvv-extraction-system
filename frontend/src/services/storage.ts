@@ -25,10 +25,34 @@ class MVVDatabase extends Dexie {
   constructor() {
     super(CONSTANTS.DB_NAME);
     
-    this.version(CONSTANTS.DB_VERSION).stores({
+    // Version 1 - Initial schema
+    this.version(1).stores({
       companies: 'id, name, status, category, createdAt, updatedAt',
       mvvData: '++id, companyId, version, isActive, extractedAt',
       processingLogs: '++id, companyId, status, timestamp'
+    });
+    
+    // Version 2 - Add embeddings and MVV fields to companies
+    this.version(2).stores({
+      companies: 'id, name, status, category, createdAt, updatedAt, mission, vision, values, embeddings',
+      mvvData: '++id, companyId, version, isActive, extractedAt',
+      processingLogs: '++id, companyId, status, timestamp'
+    }).upgrade(tx => {
+      return tx.table('companies').toCollection().modify(company => {
+        // Initialize new fields if they don't exist
+        if (!company.hasOwnProperty('embeddings')) {
+          company.embeddings = undefined;
+        }
+        if (!company.hasOwnProperty('mission')) {
+          company.mission = undefined;
+        }
+        if (!company.hasOwnProperty('vision')) {
+          company.vision = undefined;
+        }
+        if (!company.hasOwnProperty('values')) {
+          company.values = undefined;
+        }
+      });
     });
   }
 }
@@ -106,6 +130,14 @@ export const companyStorage = {
     if (updates.category !== undefined) updateData.category = updates.category;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
     if (updates.status !== undefined) updateData.status = updates.status;
+    
+    // Handle MVV fields
+    if (updates.mission !== undefined) updateData.mission = updates.mission;
+    if (updates.vision !== undefined) updateData.vision = updates.vision;
+    if (updates.values !== undefined) updateData.values = updates.values;
+    
+    // Handle embeddings array
+    if (updates.embeddings !== undefined) updateData.embeddings = updates.embeddings;
     
     // Convert Date objects to numbers
     if (updates.createdAt) {

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { CompanyStatus } from '../../types';
-import { CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, Loader2, Sparkles, XCircle } from 'lucide-react';
 import { CONSTANTS } from '../../utils/constants';
 
 interface StatusBadgeProps {
@@ -25,10 +25,28 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       label: CONSTANTS.STATUS_LABELS.processing,
       animate: true
     },
-    completed: {
+    mvv_extracted: {
+      icon: Sparkles,
+      color: 'bg-orange-100 text-orange-800',
+      label: CONSTANTS.STATUS_LABELS.mvv_extracted,
+      animate: false
+    },
+    fully_completed: {
       icon: CheckCircle,
       color: 'bg-green-100 text-green-800',
-      label: CONSTANTS.STATUS_LABELS.completed,
+      label: CONSTANTS.STATUS_LABELS.fully_completed,
+      animate: false
+    },
+    mvv_extraction_error: {
+      icon: XCircle,
+      color: 'bg-red-100 text-red-800',
+      label: CONSTANTS.STATUS_LABELS.mvv_extraction_error,
+      animate: false
+    },
+    embeddings_generation_error: {
+      icon: AlertCircle,
+      color: 'bg-yellow-100 text-yellow-800',
+      label: CONSTANTS.STATUS_LABELS.embeddings_generation_error,
       animate: false
     },
     error: {

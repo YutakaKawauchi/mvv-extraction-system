@@ -9,8 +9,12 @@ import type {
 import { authApi, AuthApiError } from '../utils/authApi';
 
 const TOKEN_KEY = 'mvv_auth_token';
-const REFRESH_INTERVAL = 60 * 1000; // 1 minute
-const WARNING_THRESHOLD = 24 * 60 * 60 * 1000; // 24 hours
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const WARNING_THRESHOLD = 10 * 60 * 1000; // 10 minutes
+const MIN_REFRESH_INTERVAL = 30 * 1000; // 30 seconds minimum between refreshes
+
+// Track last refresh time
+let lastRefreshTime = 0;
 
 interface AuthStore extends AuthState {
   // Actions
@@ -143,7 +147,20 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       refreshToken: async () => {
-        const { _setError } = get();
+        const { _setError, isLoading } = get();
+        const now = Date.now();
+        
+        // Prevent multiple simultaneous refresh attempts
+        if (isLoading) {
+          console.log('Token refresh already in progress, skipping...');
+          return false;
+        }
+        
+        // Prevent too frequent refresh attempts
+        if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) {
+          console.log(`Token refresh rate limited, last refresh was ${Math.round((now - lastRefreshTime) / 1000)}s ago`);
+          return false;
+        }
         
         const token = localStorage.getItem(TOKEN_KEY);
         if (!token) {
@@ -151,6 +168,9 @@ export const useAuthStore = create<AuthStore>()(
         }
 
         try {
+          set({ isLoading: true });
+          lastRefreshTime = now;
+          
           const response = await authApi.refreshToken(token);
           
           if (response.success && response.data) {
@@ -166,12 +186,15 @@ export const useAuthStore = create<AuthStore>()(
           
           if (error instanceof AuthApiError && error.status === 401) {
             // Token cannot be refreshed, logout user
+            console.log('Token expired and cannot be refreshed, logging out...');
             get().logout();
           } else {
             _setError('Failed to refresh session');
           }
           
           return false;
+        } finally {
+          set({ isLoading: false });
         }
       },
 

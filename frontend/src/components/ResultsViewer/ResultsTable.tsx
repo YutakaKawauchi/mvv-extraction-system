@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { Company, MVVData } from '../../types';
-import { StatusBadge, Button } from '../common';
+import { StatusBadge, Button, EmbeddingsDetails } from '../common';
 import { formatShortDate, formatPercentage } from '../../utils/formatters';
 import { 
   Eye, 
@@ -9,7 +9,8 @@ import {
   ExternalLink, 
   ChevronUp, 
   ChevronDown,
-  Globe
+  Globe,
+  Brain
 } from 'lucide-react';
 
 interface ResultsTableProps {
@@ -32,6 +33,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
 }) => {
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [viewingEmbeddings, setViewingEmbeddings] = useState<Company | null>(null);
 
   const sortedCompanies = useMemo(() => {
     return [...companies].sort((a, b) => {
@@ -231,6 +233,18 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                     <Eye className="w-4 h-4 mr-1" />
                     <span className="hidden sm:inline">詳細</span>
                   </Button>
+                  {company.embeddings && company.embeddings.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setViewingEmbeddings(company)}
+                      className="flex items-center"
+                      title="Embeddings詳細を表示"
+                    >
+                      <Brain className="w-4 h-4 mr-1" />
+                      <span className="hidden sm:inline">Embeddings</span>
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -382,6 +396,17 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                       <Eye className="w-4 h-4" />
                       <span className="ml-1">詳細</span>
                     </Button>
+                    {company.embeddings && company.embeddings.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setViewingEmbeddings(company)}
+                        title="Embeddings詳細を表示"
+                      >
+                        <Brain className="w-4 h-4" />
+                        <span className="ml-1">Embeddings</span>
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -401,6 +426,15 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
         <div className="text-center py-12">
           <p className="text-gray-500">表示する結果がありません。</p>
         </div>
+      )}
+
+      {/* Embeddings Details Modal */}
+      {viewingEmbeddings && viewingEmbeddings.embeddings && (
+        <EmbeddingsDetails
+          company={viewingEmbeddings}
+          embeddings={viewingEmbeddings.embeddings}
+          onClose={() => setViewingEmbeddings(null)}
+        />
       )}
     </div>
   );

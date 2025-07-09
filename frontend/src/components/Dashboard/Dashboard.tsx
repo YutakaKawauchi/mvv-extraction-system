@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { CompanyList } from '../CompanyManager';
-import { BatchProcessor, ExtractionQueue, ProcessingStatus, CompanySelector } from '../MVVExtractor';
+import { BatchProcessor, EmbeddingsBatchProcessor, ExtractionQueue, ProcessingStatus, CompanySelector, AddCompanySection } from '../MVVExtractor';
 import { ResultsTable, MVVDisplay } from '../ResultsViewer';
-import { MVVAnalysisDashboard } from '../MVVAnalysis';
+import { EmbeddingsAnalysisDashboard } from '../MVVAnalysis';
+import { BackupRestorePanel } from '../BackupRestore';
 import { Modal, Button } from '../common';
 import { SessionStatus } from '../auth';
 import { useCompanyStore } from '../../stores/companyStore';
@@ -15,10 +16,12 @@ import {
   Brain, 
   BarChart3, 
   Zap,
-  Network
+  Network,
+  Sparkles,
+  Database
 } from 'lucide-react';
 
-type ActiveTab = 'companies' | 'extraction' | 'results' | 'analytics';
+type ActiveTab = 'companies' | 'extraction' | 'results' | 'analytics' | 'backup';
 
 export const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('companies');
@@ -28,15 +31,21 @@ export const Dashboard: React.FC = () => {
     mvvData?: MVVData;
   } | null>(null);
 
-  const { companies } = useCompanyStore();
+  const { companies, loadCompanies } = useCompanyStore();
   const { mvvDataMap, loadMVVData } = useMVVStore();
   const { exportCombinedData } = useCSVProcessor();
   const { success } = useNotification();
 
-  // Load MVV data on component mount
+  // Load companies and MVV data on component mount
   useEffect(() => {
-    loadMVVData();
-  }, [loadMVVData]);
+    const loadData = async () => {
+      await Promise.all([
+        loadCompanies(),
+        loadMVVData()
+      ]);
+    };
+    loadData();
+  }, [loadCompanies, loadMVVData]);
 
   // Clear selections when switching tabs (except when coming from companies tab with pending items)
   useEffect(() => {
@@ -61,6 +70,9 @@ export const Dashboard: React.FC = () => {
 
   const handleProcessingComplete = () => {
     success('処理完了', 'MVV抽出が完了しました');
+    // Reload data after processing
+    loadCompanies();
+    loadMVVData();
     setActiveTab('results');
   };
 
@@ -96,23 +108,35 @@ export const Dashboard: React.FC = () => {
       name: 'AI分析',
       icon: Network,
       description: 'MVV類似度・業界分析'
+    },
+    {
+      id: 'backup' as const,
+      name: 'バックアップ',
+      icon: Database,
+      description: 'データの保護と復元'
     }
   ];
 
   const getTabStats = () => {
     const totalCompanies = companies.length;
-    const completedCompanies = companies.filter(c => c.status === 'completed').length;
-    const processingCompanies = companies.filter(c => c.status === 'processing').length;
     const pendingCompanies = companies.filter(c => c.status === 'pending').length;
+    const processingCompanies = companies.filter(c => c.status === 'processing').length;
+    const mvvExtractedCompanies = companies.filter(c => c.status === 'mvv_extracted').length;
+    const fullyCompletedCompanies = companies.filter(c => c.status === 'fully_completed').length;
+    const mvvErrorCompanies = companies.filter(c => c.status === 'mvv_extraction_error').length;
+    const embeddingsErrorCompanies = companies.filter(c => c.status === 'embeddings_generation_error').length;
     const errorCompanies = companies.filter(c => c.status === 'error').length;
 
     return {
       totalCompanies,
-      completedCompanies,
-      processingCompanies,
       pendingCompanies,
+      processingCompanies,
+      mvvExtractedCompanies,
+      fullyCompletedCompanies,
+      mvvErrorCompanies,
+      embeddingsErrorCompanies,
       errorCompanies,
-      completionRate: totalCompanies > 0 ? (completedCompanies / totalCompanies) * 100 : 0
+      completionRate: totalCompanies > 0 ? (fullyCompletedCompanies / totalCompanies) * 100 : 0
     };
   };
 
@@ -145,8 +169,12 @@ export const Dashboard: React.FC = () => {
                   <div className="text-gray-600">総企業数</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{stats.completedCompanies}</div>
-                  <div className="text-gray-600">完了</div>
+                  <div className="text-2xl font-bold text-orange-600">{stats.mvvExtractedCompanies}</div>
+                  <div className="text-gray-600">MVV抽出済み</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{stats.fullyCompletedCompanies}</div>
+                  <div className="text-gray-600">完全完了</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{stats.processingCompanies}</div>
@@ -199,27 +227,65 @@ export const Dashboard: React.FC = () => {
         {activeTab === 'companies' && (
           <div>
             <CompanyList />
-            {companies.filter(c => c.status === 'pending').length > 0 && (
-              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-medium text-blue-900">
-                      MVV抽出を開始
-                    </h3>
-                    <p className="text-sm text-blue-700 mt-1">
-                      {companies.filter(c => c.status === 'pending').length}件の企業が処理待ちです
-                    </p>
+            {(companies.filter(c => c.status === 'pending').length > 0 || companies.filter(c => c.status === 'mvv_extracted').length > 0) && (
+              <div className="mt-6 space-y-4">
+                {companies.filter(c => c.status === 'pending').length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-medium text-blue-900">
+                          MVV抽出を開始 (Phase 1)
+                        </h3>
+                        <p className="text-sm text-blue-700 mt-1">
+                          {companies.filter(c => c.status === 'pending').length}件の企業が処理待ちです
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => {
+                          setSelectedCompanies(companies.filter(c => c.status === 'pending'));
+                          setActiveTab('extraction');
+                        }}
+                      >
+                        <Zap className="w-4 h-4 mr-2" />
+                        MVV抽出開始
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    onClick={() => {
-                      setSelectedCompanies(companies.filter(c => c.status === 'pending'));
-                      setActiveTab('extraction');
-                    }}
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    抽出開始
-                  </Button>
-                </div>
+                )}
+                
+                {(companies.filter(c => c.status === 'mvv_extracted').length > 0 || 
+                  companies.filter(c => c.status === 'embeddings_generation_error').length > 0) && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-medium text-purple-900">
+                          Embeddings生成を開始 (Phase 2)
+                        </h3>
+                        <p className="text-sm text-purple-700 mt-1">
+                          {companies.filter(c => c.status === 'mvv_extracted').length}件の企業でEmbeddings生成が可能です
+                          {companies.filter(c => c.status === 'embeddings_generation_error').length > 0 && (
+                            <span className="block">
+                              {companies.filter(c => c.status === 'embeddings_generation_error').length}件のEmbeddings生成エラーを再試行できます
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => {
+                          const candidateCompanies = companies.filter(c => 
+                            c.status === 'mvv_extracted' || c.status === 'embeddings_generation_error'
+                          );
+                          setSelectedCompanies(candidateCompanies);
+                          setActiveTab('extraction');
+                        }}
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Embeddings生成開始
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -227,6 +293,16 @@ export const Dashboard: React.FC = () => {
 
         {activeTab === 'extraction' && (
           <div className="space-y-6">
+            {/* Add New Company Section */}
+            <AddCompanySection 
+              onSuccess={(newCompany) => {
+                // Refresh companies data and potentially select the new company
+                loadCompanies();
+                loadMVVData();
+                success('企業追加完了', `${newCompany.name}が追加されました`);
+              }}
+            />
+            
             {/* Company Selection */}
             <CompanySelector
               selectedCompanies={selectedCompanies}
@@ -234,8 +310,12 @@ export const Dashboard: React.FC = () => {
             />
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
+              <div className="space-y-6">
                 <BatchProcessor 
+                  selectedCompanies={selectedCompanies}
+                  onComplete={handleProcessingComplete}
+                />
+                <EmbeddingsBatchProcessor 
                   selectedCompanies={selectedCompanies}
                   onComplete={handleProcessingComplete}
                 />
@@ -267,7 +347,13 @@ export const Dashboard: React.FC = () => {
 
         {activeTab === 'analytics' && (
           <div>
-            <MVVAnalysisDashboard />
+            <EmbeddingsAnalysisDashboard />
+          </div>
+        )}
+
+        {activeTab === 'backup' && (
+          <div>
+            <BackupRestorePanel />
           </div>
         )}
       </div>
