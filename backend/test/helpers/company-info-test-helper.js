@@ -65,6 +65,16 @@ function generateMockResponse(companyName, options = {}) {
     },
     business_structure: baseData.business_structure,
     listing_info: baseData.listing_info,
+    industry_classification: baseData.industry_classification || {
+      jsic_major_category: null,
+      jsic_major_name: null,
+      jsic_middle_category: null,
+      jsic_middle_name: null,
+      jsic_minor_category: null,
+      jsic_minor_name: null,
+      primary_industry: null,
+      business_type: null
+    },
     organization_info: baseData.organization_info,
     esg_info: includeESG ? baseData.esg_info : null,
     competitive_info: includeCompetitors ? baseData.competitive_info : null,
@@ -134,6 +144,30 @@ function validateResponse(response, companyName) {
   // 従業員数の妥当性チェック
   if (response.basic_info?.employee_count && response.basic_info?.employee_count < 0) {
     errors.push('employee_count cannot be negative');
+  }
+
+  // 産業分類情報の検証
+  if (!response.industry_classification) {
+    warnings.push('industry_classification is missing');
+  } else {
+    // JSIC大分類コードの妥当性チェック
+    const validMajorCategories = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
+    if (response.industry_classification.jsic_major_category && 
+        !validMajorCategories.includes(response.industry_classification.jsic_major_category)) {
+      errors.push('jsic_major_category must be A-T');
+    }
+    
+    // 中分類コードの妥当性チェック（3桁の数字）
+    if (response.industry_classification.jsic_middle_category && 
+        !/^\d{3}$/.test(response.industry_classification.jsic_middle_category)) {
+      errors.push('jsic_middle_category must be 3-digit number');
+    }
+    
+    // 小分類コードの妥当性チェック（4桁の数字）
+    if (response.industry_classification.jsic_minor_category && 
+        !/^\d{4}$/.test(response.industry_classification.jsic_minor_category)) {
+      errors.push('jsic_minor_category must be 4-digit number');
+    }
   }
 
   // 警告レベルのチェック

@@ -67,6 +67,52 @@ class MVVDatabase extends Dexie {
       processingLogs: '++id, companyId, status, timestamp',
       companyInfo: '++id, companyId, listingStatus, foundedYear, employeeCount, revenue, lastUpdated'
     });
+
+    // Version 4 - Add industry classification and enhanced company info fields
+    this.version(4).stores({
+      companies: 'id, name, status, category, createdAt, updatedAt, mission, vision, values, embeddings',
+      mvvData: '++id, companyId, version, isActive, extractedAt',
+      processingLogs: '++id, companyId, status, timestamp',
+      companyInfo: '++id, companyId, listingStatus, foundedYear, employeeCount, revenue, prefecture, city, postalCode, jsicMajorCategory, jsicMajorName, primaryIndustry, businessType, lastUpdated'
+    }).upgrade(tx => {
+      return tx.table('companyInfo').toCollection().modify(info => {
+        // Initialize new location fields
+        if (!info.hasOwnProperty('prefecture')) {
+          info.prefecture = null;
+        }
+        if (!info.hasOwnProperty('city')) {
+          info.city = null;
+        }
+        if (!info.hasOwnProperty('postalCode')) {
+          info.postalCode = null;
+        }
+        // Initialize new industry classification fields
+        if (!info.hasOwnProperty('jsicMajorCategory')) {
+          info.jsicMajorCategory = null;
+        }
+        if (!info.hasOwnProperty('jsicMajorName')) {
+          info.jsicMajorName = null;
+        }
+        if (!info.hasOwnProperty('jsicMiddleCategory')) {
+          info.jsicMiddleCategory = null;
+        }
+        if (!info.hasOwnProperty('jsicMiddleName')) {
+          info.jsicMiddleName = null;
+        }
+        if (!info.hasOwnProperty('jsicMinorCategory')) {
+          info.jsicMinorCategory = null;
+        }
+        if (!info.hasOwnProperty('jsicMinorName')) {
+          info.jsicMinorName = null;
+        }
+        if (!info.hasOwnProperty('primaryIndustry')) {
+          info.primaryIndustry = null;
+        }
+        if (!info.hasOwnProperty('businessType')) {
+          info.businessType = null;
+        }
+      });
+    });
   }
 }
 

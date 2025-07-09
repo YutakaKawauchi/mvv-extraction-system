@@ -9,6 +9,18 @@ export type ListingStatus = 'listed' | 'unlisted' | 'delisted' | 'unknown';
 // 企業規模分類
 export type CompanyScale = 'large' | 'medium' | 'small' | 'startup' | 'unknown';
 
+// 産業分類情報（日本標準産業分類準拠）
+export interface IndustryClassification {
+  jsicMajorCategory?: string; // 大分類コード（A-T）
+  jsicMajorName?: string; // 大分類名称
+  jsicMiddleCategory?: string; // 中分類コード（3桁）
+  jsicMiddleName?: string; // 中分類名称
+  jsicMinorCategory?: string; // 小分類コード（4桁）
+  jsicMinorName?: string; // 小分類名称
+  primaryIndustry?: string; // 主業界名
+  businessType?: string; // 業種名
+}
+
 // 基本的な企業情報
 export interface CompanyInfo {
   id?: number;
@@ -18,6 +30,9 @@ export interface CompanyInfo {
   foundedYear?: number;
   employeeCount?: number;
   headquartersLocation?: string;
+  prefecture?: string;
+  city?: string;
+  postalCode?: string;
   websiteUrl?: string;
   
   // 財務情報
@@ -54,6 +69,9 @@ export interface CompanyInfo {
   industryPosition?: string; // 業界での立ち位置
   competitiveAdvantages?: string[]; // 競争優位性
   
+  // 産業分類情報
+  industryClassification?: IndustryClassification; // 日本標準産業分類
+  
   // メタ情報
   dataSourceUrls: string[]; // データの出典URL
   lastUpdated: Date; // 最終更新日
@@ -82,6 +100,9 @@ export interface CompanyInfoExtractionResponse {
     founded_year: number | null;
     employee_count: number | null;
     headquarters_location: string | null;
+    prefecture: string | null;
+    city: string | null;
+    postal_code: string | null;
     
     // 財務情報
     financial_data: {
@@ -105,6 +126,18 @@ export interface CompanyInfoExtractionResponse {
       status: ListingStatus;
       stock_code: string | null;
       exchange: string | null;
+    };
+    
+    // 産業分類情報
+    industry_classification: {
+      jsic_major_category: string | null;
+      jsic_major_name: string | null;
+      jsic_middle_category: string | null;
+      jsic_middle_name: string | null;
+      jsic_minor_category: string | null;
+      jsic_minor_name: string | null;
+      primary_industry: string | null;
+      business_type: string | null;
     };
     
     // 組織情報
@@ -171,4 +204,58 @@ export function determineCompanyScale(employeeCount?: number, revenue?: number):
 export function calculateGrowthRate(currentRevenue?: number, previousRevenue?: number): number | undefined {
   if (!currentRevenue || !previousRevenue || previousRevenue === 0) return undefined;
   return ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+}
+
+// 産業分類から自動カテゴリー生成
+export function generateCategoryFromIndustryClassification(classification?: IndustryClassification): string {
+  if (!classification) return '未分類';
+  
+  // 優先順位: 業種名 > 主業界名 > 中分類名 > 大分類名
+  if (classification.businessType) {
+    return classification.businessType;
+  }
+  
+  if (classification.primaryIndustry) {
+    return classification.primaryIndustry;
+  }
+  
+  if (classification.jsicMiddleName) {
+    return classification.jsicMiddleName;
+  }
+  
+  if (classification.jsicMajorName) {
+    return classification.jsicMajorName;
+  }
+  
+  return '未分類';
+}
+
+// JSIC大分類コードから日本語名称への変換
+export function getJSICMajorCategoryName(code?: string): string {
+  if (!code) return '未分類';
+  
+  const jsicMajorCategories: Record<string, string> = {
+    'A': '農業、林業',
+    'B': '漁業',
+    'C': '鉱業、採石業、砂利採取業',
+    'D': '建設業',
+    'E': '製造業',
+    'F': '電気・ガス・熱供給・水道業',
+    'G': '情報通信業',
+    'H': '運輸業、郵便業',
+    'I': '卸売業、小売業',
+    'J': '金融業、保険業',
+    'K': '不動産業、物品賃貸業',
+    'L': '学術研究、専門・技術サービス業',
+    'M': '宿泊業、飲食サービス業',
+    'N': '生活関連サービス業、娯楽業',
+    'O': '教育、学習支援業',
+    'P': '医療、福祉',
+    'Q': '複合サービス事業',
+    'R': 'サービス業（他に分類されないもの）',
+    'S': '公務（他に分類されるものを除く）',
+    'T': '分類不能の産業'
+  };
+  
+  return jsicMajorCategories[code.toUpperCase()] || '未分類';
 }

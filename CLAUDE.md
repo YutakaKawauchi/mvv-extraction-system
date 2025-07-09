@@ -220,7 +220,7 @@ netlify env:set JWT_EXPIRATION "24h"
 - 日本語での対話可
 
 ### Company Information Extraction API
-New endpoint for extracting comprehensive company information using Perplexity API:
+New endpoint for extracting comprehensive company information using Perplexity API with automatic industry classification:
 
 ```bash
 # Test company info extraction
@@ -237,7 +237,7 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-company-info" \
 }'
 ```
 
-Response format:
+Response format with industry classification:
 ```json
 {
   "success": true,
@@ -254,6 +254,16 @@ Response format:
       "segments": ["自動車", "金融", "その他"],
       "main_products": ["乗用車", "商用車", "部品"]
     },
+    "industry_classification": {
+      "jsic_major_category": "E",
+      "jsic_major_name": "製造業",
+      "jsic_middle_category": "305",
+      "jsic_middle_name": "輸送用機械器具製造業",
+      "jsic_minor_category": "3051",
+      "jsic_minor_name": "自動車・同附属品製造業",
+      "primary_industry": "自動車製造業",
+      "business_type": "自動車メーカー"
+    },
     "listing_info": {
       "status": "listed",
       "stock_code": "7203",
@@ -262,6 +272,12 @@ Response format:
   }
 }
 ```
+
+#### Industry Classification Features
+- **Automatic Classification**: Uses Japanese Standard Industrial Classification (JSIC)
+- **Hierarchical Structure**: Major (A-T), Middle (3-digit), Minor (4-digit) categories
+- **Manual Override**: No longer requires manual category input
+- **Dynamic Updates**: Categories automatically updated when company info is extracted
 
 ### UX/UI Guidelines
 - **Mobile-First**: Design for mobile first, then enhance for desktop

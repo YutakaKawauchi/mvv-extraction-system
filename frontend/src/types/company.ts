@@ -11,7 +11,7 @@ export interface Company {
   id: string;
   name: string;
   website: string;
-  category: string;
+  category?: string; // 自動設定（産業分類から生成）
   notes?: string;
   status: CompanyStatus;
   createdAt: Date;
@@ -29,13 +29,13 @@ export interface Company {
 export interface CompanyFormData {
   name: string;
   website: string;
-  category: string;
+  category?: string; // Optional for backward compatibility, will be auto-generated
   notes?: string;
 }
 
 export interface CompanyImportData {
   name: string;
   website: string;
-  category: string;
+  category?: string; // Optional for backward compatibility, will be auto-generated
   notes?: string;
 }

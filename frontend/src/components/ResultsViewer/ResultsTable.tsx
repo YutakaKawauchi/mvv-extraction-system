@@ -45,8 +45,8 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
           bValue = b.name.toLowerCase();
           break;
         case 'category':
-          aValue = a.category.toLowerCase();
-          bValue = b.category.toLowerCase();
+          aValue = (a.category || '未分類').toLowerCase();
+          bValue = (b.category || '未分類').toLowerCase();
           break;
         case 'status':
           aValue = a.status;

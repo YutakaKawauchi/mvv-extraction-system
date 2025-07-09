@@ -21,6 +21,16 @@
       "stock_code": "7203",
       "exchange": "東証プライム"
     },
+    "industry_classification": {
+      "jsic_major_category": "E",
+      "jsic_major_name": "製造業",
+      "jsic_middle_category": "305",
+      "jsic_middle_name": "輸送用機械器具製造業",
+      "jsic_minor_category": "3051",
+      "jsic_minor_name": "自動車・同附属品製造業",
+      "primary_industry": "自動車製造業",
+      "business_type": "自動車メーカー"
+    },
     "organization_info": {
       "average_age": 40.6,
       "average_tenure": 16.7,
@@ -68,6 +78,16 @@
       "stock_code": "4751",
       "exchange": "東証プライム"
     },
+    "industry_classification": {
+      "jsic_major_category": "G",
+      "jsic_major_name": "情報通信業",
+      "jsic_middle_category": "401",
+      "jsic_middle_name": "インターネット附随サービス業",
+      "jsic_minor_category": "4011",
+      "jsic_minor_name": "ポータルサイト・サーバ運営業",
+      "primary_industry": "インターネットサービス業",
+      "business_type": "インターネット関連企業"
+    },
     "organization_info": {
       "average_age": 34.2,
       "average_tenure": 6.8,
@@ -110,6 +130,16 @@
       "status": "unlisted",
       "stock_code": null,
       "exchange": null
+    },
+    "industry_classification": {
+      "jsic_major_category": "G",
+      "jsic_major_name": "情報通信業",
+      "jsic_middle_category": "401",
+      "jsic_middle_name": "インターネット附随サービス業",
+      "jsic_minor_category": null,
+      "jsic_minor_name": null,
+      "primary_industry": "SaaSサービス業",
+      "business_type": "スタートアップ企業"
     },
     "organization_info": {
       "average_age": 32,

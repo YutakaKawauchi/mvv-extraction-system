@@ -53,7 +53,7 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
     const sanitizedData: CompanyFormData = {
       name: sanitizeInput(formData.name),
       website: sanitizeInput(formData.website),
-      category: sanitizeInput(formData.category),
+      category: formData.category ? sanitizeInput(formData.category) : undefined,
       notes: formData.notes ? sanitizeInput(formData.notes) : undefined
     };
 

@@ -32,7 +32,7 @@ const EmbeddingsSimilarCompanyFinder: React.FC = () => {
   
   const filteredCompanies = companies.filter(company =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.category.toLowerCase().includes(searchTerm.toLowerCase())
+    (company.category || '未分類').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // 外側クリック時にピン留めを解除
@@ -319,7 +319,7 @@ const EmbeddingsSimilarCompanyFinder: React.FC = () => {
     if (company1.category === company2.category) {
       reasons.push({
         type: 'industry',
-        content: company1.category
+        content: company1.category || '未分類'
       });
     }
 

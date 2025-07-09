@@ -15,7 +15,10 @@ async function extractCompanyInfoWithPerplexity(companyName, website, options = 
 基本情報:
 - 設立年
 - 従業員数（最新）
-- 本社所在地
+- 本社所在地（詳細）
+- 都道府県
+- 市区町村
+- 郵便番号
 
 ${includeFinancials ? `
 財務情報（${currentYear}年または最新年度）:
@@ -30,6 +33,12 @@ ${includeFinancials ? `
 - 主要製品・サービス
 - 市場シェア（主要事業）
 - 海外売上比率（%）
+
+産業分類（日本標準産業分類に基づく）:
+- 大分類（A-T）と名称
+- 中分類コード（3桁）と名称
+- 小分類コード（4桁）と名称（可能であれば）
+- 主業界・業種名
 
 上場情報:
 - 上場状況（listed/unlisted/delisted）
@@ -61,7 +70,10 @@ ${includeCompetitors ? `
   "basic_info": {
     "founded_year": 設立年（数値、不明ならnull）,
     "employee_count": 従業員数（数値、不明ならnull）,
-    "headquarters_location": "本社所在地（不明ならnull）"
+    "headquarters_location": "本社所在地詳細（不明ならnull）",
+    "prefecture": "都道府県（不明ならnull）",
+    "city": "市区町村（不明ならnull）",
+    "postal_code": "郵便番号（不明ならnull）"
   },
   "financial_data": {
     "revenue": 売上高（百万円単位、不明ならnull）,
@@ -75,6 +87,16 @@ ${includeCompetitors ? `
     "main_products": ["製品1", "製品2"],
     "market_share": 市場シェア（%、不明ならnull）,
     "overseas_revenue_ratio": 海外売上比率（%、不明ならnull）
+  },
+  "industry_classification": {
+    "jsic_major_category": "大分類コード（A-T、不明ならnull）",
+    "jsic_major_name": "大分類名称（不明ならnull）",
+    "jsic_middle_category": "中分類コード（3桁、不明ならnull）",
+    "jsic_middle_name": "中分類名称（不明ならnull）",
+    "jsic_minor_category": "小分類コード（4桁、不明ならnull）",
+    "jsic_minor_name": "小分類名称（不明ならnull）",
+    "primary_industry": "主業界名（不明ならnull）",
+    "business_type": "業種名（不明ならnull）"
   },
   "listing_info": {
     "status": "listed/unlisted/delisted/unknown",
@@ -105,11 +127,14 @@ ${includeCompetitors ? `
 }
 
 注意事項:
-- 最優先：有価証券報告書、統合報告書、IR資料
+- 最優先：有価証券報告書、統合報告書、IR資料（特に財務情報）
 - 次点：公式ウェブサイト、信頼できるニュースソース
 - 推測や創作は禁止、明確な記載がない場合はnullを設定
 - 信頼度は情報源の確実性と情報の網羅性に基づいて評価
 - 数値は適切な単位に変換（売上高は百万円単位）
+- 産業分類は日本標準産業分類（JSIC）に厳密に従い、最も適切な分類を選択
+- 複数事業の場合は主要事業（売上高最大）に基づいて分類
+- 本社所在地は詳細住所、都道府県、市区町村、郵便番号に分けて記載
 - 日本語で回答してください`;
 
   try {
@@ -156,6 +181,9 @@ ${includeCompetitors ? `
       founded_year: companyInfo.basic_info?.founded_year || null,
       employee_count: companyInfo.basic_info?.employee_count || null,
       headquarters_location: companyInfo.basic_info?.headquarters_location || null,
+      prefecture: companyInfo.basic_info?.prefecture || null,
+      city: companyInfo.basic_info?.city || null,
+      postal_code: companyInfo.basic_info?.postal_code || null,
       
       financial_data: {
         revenue: companyInfo.financial_data?.revenue || null,
@@ -176,6 +204,17 @@ ${includeCompetitors ? `
         status: companyInfo.listing_info?.status || 'unknown',
         stock_code: companyInfo.listing_info?.stock_code || null,
         exchange: companyInfo.listing_info?.exchange || null
+      },
+      
+      industry_classification: {
+        jsic_major_category: companyInfo.industry_classification?.jsic_major_category || null,
+        jsic_major_name: companyInfo.industry_classification?.jsic_major_name || null,
+        jsic_middle_category: companyInfo.industry_classification?.jsic_middle_category || null,
+        jsic_middle_name: companyInfo.industry_classification?.jsic_middle_name || null,
+        jsic_minor_category: companyInfo.industry_classification?.jsic_minor_category || null,
+        jsic_minor_name: companyInfo.industry_classification?.jsic_minor_name || null,
+        primary_industry: companyInfo.industry_classification?.primary_industry || null,
+        business_type: companyInfo.industry_classification?.business_type || null
       },
       
       organization_info: {

@@ -245,7 +245,7 @@ export const useEmbeddingsAnalysisStore = create<EmbeddingsAnalysisStore>((set, 
     return companies.filter(company => {
       // Category filter
       if (filters.selectedCategories.length > 0 && 
-          !filters.selectedCategories.includes(company.category)) {
+          !filters.selectedCategories.includes(company.category || '未分類')) {
         return false;
       }
       
