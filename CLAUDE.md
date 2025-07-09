@@ -273,7 +273,19 @@ git push -u origin feature/csv-import-enhancement
 
 #### 4. Review & Merge Process
 - **Code Review**: At least one review required (can be self-review for solo development)
-- **Testing**: Verify feature works in local environment
+- **Local Testing**: Verify feature works in local environment
+- **GitHub Actions Testing**: MANDATORY - Test GitHub Actions build before merge
+  ```bash
+  # Test GitHub Actions workflow on feature branch
+  gh workflow run deploy.yml --ref feature/your-branch-name
+  
+  # Monitor workflow execution
+  gh run list --workflow=deploy.yml --limit=3
+  gh run watch <run-id>
+  
+  # Verify build job succeeds (deploy may fail due to branch protection)
+  # Only proceed with merge if build job passes successfully
+  ```
 - **Documentation**: Update relevant documentation if needed
 - **Merge**: Use "Squash and merge" to keep clean history
 
@@ -314,7 +326,11 @@ git checkout -b fix/critical-bug-fix
 git add .
 git commit -m "Fix critical bug in API endpoint"
 
-# Push and create urgent PR
+# MANDATORY: Test GitHub Actions build before merge
+gh workflow run deploy.yml --ref fix/critical-bug-fix
+gh run watch <run-id>
+
+# Push and create urgent PR only after build succeeds
 git push -u origin fix/critical-bug-fix
 # Create PR with "URGENT" label
 ```
@@ -332,6 +348,7 @@ git push origin main  # Deploy rollback
 **Pre-Merge Checklist**
 - [ ] Feature tested locally with sample data
 - [ ] No console errors or warnings
+- [ ] **GitHub Actions build test completed successfully**
 - [ ] Performance impact assessed
 - [ ] Documentation updated if needed
 - [ ] Breaking changes documented
