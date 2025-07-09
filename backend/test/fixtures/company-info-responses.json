@@ -1,0 +1,128 @@
+{
+  "トヨタ自動車": {
+    "founded_year": 1937,
+    "employee_count": 375235,
+    "headquarters_location": "愛知県豊田市トヨタ町1番地",
+    "financial_data": {
+      "revenue": 37154298,
+      "revenue_year": 2023,
+      "operating_profit": 4578000,
+      "net_profit": 4932000,
+      "market_cap": 42000000
+    },
+    "business_structure": {
+      "segments": ["自動車事業", "金融事業", "その他事業"],
+      "main_products": ["乗用車", "商用車", "レクサス", "金融サービス"],
+      "market_share": 10.5,
+      "overseas_revenue_ratio": 87.5
+    },
+    "listing_info": {
+      "status": "listed",
+      "stock_code": "7203",
+      "exchange": "東証プライム"
+    },
+    "organization_info": {
+      "average_age": 40.6,
+      "average_tenure": 16.7,
+      "female_manager_ratio": 3.1,
+      "new_graduate_hires": 1200
+    },
+    "esg_info": {
+      "score": 85,
+      "co2_target": "2050年カーボンニュートラル達成",
+      "social_activities": "交通安全活動、環境保全活動、人材育成支援"
+    },
+    "competitive_info": {
+      "main_competitors": ["フォルクスワーゲン", "GM", "ステランティス", "日産自動車", "ホンダ"],
+      "industry_position": "世界販売台数1位（2023年）",
+      "advantages": ["ハイブリッド技術", "生産効率", "品質管理", "グローバルネットワーク"]
+    },
+    "metadata": {
+      "sources": [
+        "https://global.toyota/jp/ir/library/securities-report/",
+        "https://global.toyota/jp/company/profile/overview/"
+      ],
+      "extraction_date": "2024-01-01T00:00:00.000Z",
+      "confidence_score": 0.95
+    }
+  },
+  "サイバーエージェント": {
+    "founded_year": 1998,
+    "employee_count": 5139,
+    "headquarters_location": "東京都渋谷区宇田川町40番1号",
+    "financial_data": {
+      "revenue": 710575,
+      "revenue_year": 2023,
+      "operating_profit": 24684,
+      "net_profit": 5825,
+      "market_cap": 600000
+    },
+    "business_structure": {
+      "segments": ["メディア事業", "インターネット広告事業", "ゲーム事業"],
+      "main_products": ["ABEMA", "Ameba", "インターネット広告", "スマートフォンゲーム"],
+      "market_share": null,
+      "overseas_revenue_ratio": 5.2
+    },
+    "listing_info": {
+      "status": "listed",
+      "stock_code": "4751",
+      "exchange": "東証プライム"
+    },
+    "organization_info": {
+      "average_age": 34.2,
+      "average_tenure": 6.8,
+      "female_manager_ratio": 22.1,
+      "new_graduate_hires": 300
+    },
+    "esg_info": null,
+    "competitive_info": {
+      "main_competitors": ["楽天グループ", "DeNA", "ミクシィ", "グリー"],
+      "industry_position": "国内インターネット広告市場大手",
+      "advantages": ["若手人材の育成力", "新規事業創出力", "技術力"]
+    },
+    "metadata": {
+      "sources": [
+        "https://www.cyberagent.co.jp/ir/library/securities_report/",
+        "https://www.cyberagent.co.jp/corporate/"
+      ],
+      "extraction_date": "2024-01-01T00:00:00.000Z",
+      "confidence_score": 0.92
+    }
+  },
+  "スタートアップ企業": {
+    "founded_year": 2020,
+    "employee_count": 50,
+    "headquarters_location": "東京都港区",
+    "financial_data": {
+      "revenue": null,
+      "revenue_year": null,
+      "operating_profit": null,
+      "net_profit": null,
+      "market_cap": null
+    },
+    "business_structure": {
+      "segments": ["SaaS事業"],
+      "main_products": ["クラウドサービス"],
+      "market_share": null,
+      "overseas_revenue_ratio": null
+    },
+    "listing_info": {
+      "status": "unlisted",
+      "stock_code": null,
+      "exchange": null
+    },
+    "organization_info": {
+      "average_age": 32,
+      "average_tenure": 2,
+      "female_manager_ratio": null,
+      "new_graduate_hires": 5
+    },
+    "esg_info": null,
+    "competitive_info": null,
+    "metadata": {
+      "sources": ["https://example-startup.com"],
+      "extraction_date": "2024-01-01T00:00:00.000Z",
+      "confidence_score": 0.65
+    }
+  }
+}

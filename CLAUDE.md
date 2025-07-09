@@ -124,6 +124,7 @@ netlify env:set JWT_EXPIRATION "24h"
 - **netlify/functions/**: Serverless endpoints
   - `extract-mvv.js`: OpenAI GPT-4o extraction endpoint (auth protected)
   - `extract-mvv-perplexity.js`: Perplexity AI extraction endpoint (auth protected)
+  - `extract-company-info.js`: Company information extraction endpoint (auth protected)
   - `health.js`: Health check endpoint
   - **Authentication endpoints**:
     - `auth-login.js`: JWT token generation with comprehensive rate limiting and logging
@@ -138,10 +139,15 @@ netlify env:set JWT_EXPIRATION "24h"
   - `auth.js`: Dual authentication (API key + JWT validation)
   - `jwt.js`: JWT token generation, validation, and refresh
   - `logger.js`: Comprehensive logging system
+- **test/**: Test suite with comprehensive API testing
+  - `company-info-api.test.js`: Company info API tests (mock/integration/minimal modes)
+  - `helpers/`: Test utilities and mock data
+  - `fixtures/`: Test data fixtures
 
 ### Key Technologies
 - **Frontend**: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB) + TinySegmenter (Japanese morphological analysis)
 - **Backend**: Netlify Functions + OpenAI 5.8.2 + Perplexity AI + jsonwebtoken 9.0.2 (JWT authentication)
+- **Testing**: Jest 29.7.0 with comprehensive API testing (mock/integration/minimal modes)
 - **Authentication**: JWT-based with environment variable credentials
 - **Security**: CORS protection, dual authentication (API key + JWT), rate limiting, sensitive data masking
 - **Logging**: Environment-aware logging (console + file output)
@@ -170,6 +176,7 @@ netlify env:set JWT_EXPIRATION "24h"
 ### API Endpoints
 - `POST /.netlify/functions/extract-mvv`: OpenAI GPT-4o extraction (auth protected)
 - `POST /.netlify/functions/extract-mvv-perplexity`: Perplexity AI extraction with web search (auth protected)
+- `POST /.netlify/functions/extract-company-info`: Company information extraction with Perplexity API (auth protected)
 - `GET /.netlify/functions/health`: Health check (public)
 - **Authentication endpoints**:
   - `POST /.netlify/functions/auth-login-v2`: JWT token generation (production)
@@ -209,7 +216,52 @@ netlify env:set JWT_EXPIRATION "24h"
 - CORS origins must match deployment URL (including WSL IP for local dev)
 - Rate limiting: 100 requests per 15 minutes per IP (API), 5 auth attempts per 15 minutes per IP (authentication)
 - WSL2 compatible with network configuration
+- **Testing**: Use `npm test` for mock tests, `TEST_MODE=integration npm test` for real API tests
 - 日本語での対話可
+
+### Company Information Extraction API
+New endpoint for extracting comprehensive company information using Perplexity API:
+
+```bash
+# Test company info extraction
+curl -X POST "http://localhost:8888/.netlify/functions/extract-company-info" \
+-H "Content-Type: application/json" \
+-H "X-API-Key: your-api-key" \
+-d '{
+  "companyId": "test-001",
+  "companyName": "トヨタ自動車",
+  "companyWebsite": "https://global.toyota/jp/",
+  "includeFinancials": true,
+  "includeESG": true,
+  "includeCompetitors": true
+}'
+```
+
+Response format:
+```json
+{
+  "success": true,
+  "data": {
+    "founded_year": 1937,
+    "employee_count": 375235,
+    "headquarters_location": "愛知県豊田市",
+    "financial_data": {
+      "revenue": 31377000,
+      "operating_profit": 5353000,
+      "net_profit": 4943000
+    },
+    "business_structure": {
+      "segments": ["自動車", "金融", "その他"],
+      "main_products": ["乗用車", "商用車", "部品"]
+    },
+    "listing_info": {
+      "status": "listed",
+      "stock_code": "7203",
+      "exchange": "東証プライム"
+    }
+  }
+}
+```
 
 ### UX/UI Guidelines
 - **Mobile-First**: Design for mobile first, then enhance for desktop

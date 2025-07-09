@@ -7,7 +7,12 @@
     "dev": "netlify dev",
     "build": "echo 'No build needed for Netlify Functions'",
     "deploy": "netlify deploy",
-    "deploy:prod": "netlify deploy --prod"
+    "deploy:prod": "netlify deploy --prod",
+    "test": "jest --testPathPattern=test/ --verbose",
+    "test:mock": "TEST_MODE=mock jest --testPathPattern=test/ --verbose",
+    "test:minimal": "TEST_MODE=minimal jest --testPathPattern=test/ --verbose",
+    "test:integration": "TEST_MODE=integration jest --testPathPattern=test/ --verbose",
+    "test:watch": "TEST_MODE=mock jest --testPathPattern=test/ --watch"
   },
   "keywords": [
     "netlify",
@@ -19,10 +24,21 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
-    "openai": "^5.8.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "openai": "^5.8.2"
   },
   "devDependencies": {
+    "jest": "^29.7.0",
     "netlify-cli": "^22.2.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000,
+    "verbose": true,
+    "collectCoverageFrom": [
+      "netlify/functions/*.js",
+      "utils/*.js",
+      "!test/**"
+    ]
   }
 }

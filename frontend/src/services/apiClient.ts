@@ -4,7 +4,9 @@ import type { AxiosInstance } from 'axios';
 import type { 
   ApiResponse, 
   MVVExtractionRequest, 
-  MVVExtractionResponse 
+  MVVExtractionResponse,
+  CompanyInfoExtractionRequest,
+  CompanyInfoExtractionResponse
 } from '../types';
 import { CONSTANTS } from '../utils/constants';
 import { AppError, logError } from './errorHandler';
@@ -225,6 +227,15 @@ class ApiClient {
     });
   }
 
+  // Extract company information
+  async extractCompanyInfo(request: CompanyInfoExtractionRequest): Promise<CompanyInfoExtractionResponse['data']> {
+    return this.requestWithRetry({
+      method: 'POST',
+      url: '/extract-company-info',
+      data: request
+    });
+  }
+
   // Generic POST method for hybrid data loader
   async post(endpoint: string, data: any): Promise<any> {
     try {
@@ -245,6 +256,7 @@ export const useApiClient = () => {
     healthCheck: () => apiClient.healthCheck(),
     extractMVV: (request: MVVExtractionRequest) => apiClient.extractMVV(request),
     extractMVVPerplexity: (request: MVVExtractionRequest) => apiClient.extractMVVPerplexity(request),
-    extractMVVBatch: (requests: MVVExtractionRequest[]) => apiClient.extractMVVBatch(requests)
+    extractMVVBatch: (requests: MVVExtractionRequest[]) => apiClient.extractMVVBatch(requests),
+    extractCompanyInfo: (request: CompanyInfoExtractionRequest) => apiClient.extractCompanyInfo(request)
   };
 };
