@@ -9,6 +9,8 @@ import { Button, LoadingSpinner } from '../common';
 import { useCompanyStore } from '../../stores/companyStore';
 import { useNotification } from '../../hooks/useNotification';
 import { CONSTANTS } from '../../utils/constants';
+import { companyProcessor } from '../../services/companyProcessor';
+import type { CompanyProcessingProgress } from '../../services/companyProcessor';
 import { 
   Plus, 
   Upload, 
@@ -39,13 +41,15 @@ export const CompanyList: React.FC = () => {
   const [editingCompany, setEditingCompany] = useState<Company | undefined>();
   // 一時的なマイグレーションパネル表示状態
   const [showMigrationPanel, setShowMigrationPanel] = useState(false);
+  // 自動連携処理の進行状況
+  const [processingProgress, setProcessingProgress] = useState<CompanyProcessingProgress | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const {
     companies,
     loading,
     error,
     loadCompanies,
-    addCompany,
     addCompanies,
     updateCompany,
     deleteCompany,
@@ -133,11 +137,44 @@ export const CompanyList: React.FC = () => {
 
   const handleAddCompany = async (formData: any) => {
     try {
-      await addCompany(formData);
-      setShowCompanyForm(false);
-      success('成功', '企業を追加しました');
+      setIsProcessing(true);
+      setProcessingProgress(null);
+      
+      // 新しい自動連携処理を実行
+      const result = await companyProcessor.processNewCompany(
+        formData,
+        (progress) => {
+          setProcessingProgress(progress);
+        }
+      );
+      
+      if (result.success) {
+        setShowCompanyForm(false);
+        // データをリロードしてUIを更新
+        await loadCompanies();
+        
+        // 成功メッセージを表示
+        const completedSteps = Object.values(result.steps).filter(Boolean).length;
+        success('成功', `企業「${result.company.name}」を追加し、${completedSteps}個の処理を完了しました`);
+      } else {
+        // エラーがあっても企業は作成されている可能性がある
+        await loadCompanies();
+        
+        const errorCount = result.errors.length;
+        const completedSteps = Object.values(result.steps).filter(Boolean).length;
+        
+        if (completedSteps > 0) {
+          showError('部分的に成功', 
+            `企業「${result.company.name}」を追加しましたが、${errorCount}個の処理でエラーが発生しました`);
+        } else {
+          showError('エラー', `企業の追加に失敗しました: ${result.errors.join(', ')}`);
+        }
+      }
     } catch (error) {
-      // Error is handled by the store and notification hook
+      showError('エラー', error instanceof Error ? error.message : '企業の追加に失敗しました');
+    } finally {
+      setIsProcessing(false);
+      setProcessingProgress(null);
     }
   };
 
@@ -552,7 +589,8 @@ export const CompanyList: React.FC = () => {
         }}
         onSubmit={editingCompany ? handleUpdateCompany : handleAddCompany}
         company={editingCompany}
-        loading={loading}
+        loading={loading || isProcessing}
+        processingProgress={processingProgress}
       />
 
       <CSVImporter
