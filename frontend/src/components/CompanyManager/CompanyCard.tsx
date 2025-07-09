@@ -2,7 +2,8 @@ import React from 'react';
 import type { Company } from '../../types';
 import { StatusBadge, Button } from '../common';
 import { formatShortDate } from '../../utils/formatters';
-import { ExternalLink, Edit, Trash2, Globe, RotateCcw } from 'lucide-react';
+import { ExternalLink, Edit, Trash2, Globe, RotateCcw, Database } from 'lucide-react';
+import { CompanyInfoTooltip } from './CompanyInfoTooltip';
 
 interface CompanyCardProps {
   company: Company;
@@ -40,12 +41,18 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-gray-900 truncate">
-            {company.name}
-          </h3>
+          <div className="flex items-center">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">
+              {company.name}
+            </h3>
+            {/* 企業情報ツールチップ */}
+            <CompanyInfoTooltip company={company}>
+              <Database className="w-4 h-4 ml-2 text-blue-600 hover:text-blue-800 transition-colors cursor-pointer" />
+            </CompanyInfoTooltip>
+          </div>
           <div className="flex items-center mt-1">
             <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              {company.category}
+              {company.category || '未分類'}
             </span>
           </div>
         </div>

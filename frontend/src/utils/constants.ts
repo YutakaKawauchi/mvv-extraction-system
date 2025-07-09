@@ -20,7 +20,7 @@ export const CONSTANTS = {
   
   // 一時的な機能フラグ（開発完了後は削除）
   FEATURES: {
-    COMPANY_INFO_MIGRATION: import.meta.env.VITE_ENVIRONMENT === 'development', // マイグレーション機能
+    COMPANY_INFO_MIGRATION: false, // マイグレーション完了のため無効化
   },
 
   // カテゴリー
