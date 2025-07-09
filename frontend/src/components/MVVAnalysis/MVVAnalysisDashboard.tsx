@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAnalysisStore } from '../../stores/analysisStore';
+import { useCompanyStore } from '../../stores/companyStore';
 import { LoadingSpinner, ErrorBoundary } from '../common';
-import { BarChart3, Network, Search, TrendingUp, AlertCircle } from 'lucide-react';
+import { BarChart3, Network, Search, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
 import SimilarityOverview from './SimilarityOverview';
 import SimilarCompanyFinder from './SimilarCompanyFinder';
 import IndustryAnalysis from './IndustryAnalysis';
@@ -18,10 +19,13 @@ export const MVVAnalysisDashboard: React.FC = () => {
     loadAnalysisData, 
     clearError 
   } = useAnalysisStore();
+  
+  const { loadCompanies } = useCompanyStore();
 
   useEffect(() => {
     loadAnalysisData();
-  }, [loadAnalysisData]);
+    loadCompanies(); // 企業管理データも読み込み
+  }, [loadAnalysisData, loadCompanies]);
 
   if (isLoading) {
     return (
@@ -126,6 +130,18 @@ export const MVVAnalysisDashboard: React.FC = () => {
                 <div className="text-sm text-gray-600">
                   最高類似度: <span className="font-semibold">{data.summary.maxSimilarity.toFixed(3)}</span>
                 </div>
+                
+                {/* データ再読み込みボタン */}
+                <button
+                  onClick={() => {
+                    loadAnalysisData(true);
+                    loadCompanies();
+                  }}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  更新
+                </button>
               </div>
             </div>
           </div>
@@ -165,6 +181,7 @@ export const MVVAnalysisDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {renderTabContent()}
         </div>
+
       </div>
     </ErrorBoundary>
   );

@@ -2,7 +2,11 @@
 
 ## システム概要
 
-AI技術を活用して日本のヘルスケア企業30社のMission（使命）、Vision（理念）、Values（価値観）を自動抽出するWebアプリケーションシステム。
+AI技術を活用して日本企業のMission（使命）、Vision（理念）、Values（価値観）を自動抽出・分析するWebアプリケーションシステム。
+
+**最新状況**: Phase 2-b (Real-time Embeddings Analysis) 完了済み (2025-07-09)
+**対象企業**: 94社 (業界問わず、ヘルスケア中心から拡張済み)
+**主要機能**: MVV抽出、リアルタイム類似度分析、業界横断分析
 
 ## アーキテクチャ概要
 
@@ -18,8 +22,12 @@ AI技術を活用して日本のヘルスケア企業30社のMission（使命）
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘          │
 │                                   │                                     │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐          │
-│  │   State Mgmt    │ │   Local Store   │ │   API Client    │          │
-│  │    (Zustand)    │ │   (IndexedDB)   │ │  (Axios/Fetch)  │          │
+│  │ AI Analysis     │ │   State Mgmt    │ │   Local Store   │          │
+│  │ (Phase 2-b)     │ │   (Zustand)     │ │   (IndexedDB)   │          │
+│  │                 │ │                 │ │                 │          │
+│  │ • Real-time Sim │ │ • Company Store │ │ • 94 Companies  │          │
+│  │ • Embeddings    │ │ • Analysis Store│ │ • Embeddings    │          │
+│  │ • Morphological │ │ • Auth Store    │ │ • LRU Cache     │          │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘          │
 └─────────────────────────────────────────────────────────────────────────┘
                                    │ HTTPS API Calls

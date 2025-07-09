@@ -1,22 +1,20 @@
 import React, { useState, useCallback } from 'react';
-import type { Company, MVVExtractionRequest, MVVData } from '../../types';
+import type { Company } from '../../types';
 import { Button, ProgressBar } from '../common';
-import { useApiClient } from '../../hooks/useApiClient';
 import { useCompanyStore } from '../../stores/companyStore';
 import { useProcessingStore } from '../../stores/processingStore';
-import { useMVVStore } from '../../stores/mvvStore';
 import { useNotification } from '../../hooks/useNotification';
-import { CONSTANTS } from '../../utils/constants';
-import { chunk, delay } from '../../utils/helpers';
+import { generateEmbeddings } from '../../services/openai';
+import { mvvStorage } from '../../services/storage';
 import { formatDuration } from '../../utils/formatters';
-import { Play, Pause, Square, RotateCcw } from 'lucide-react';
+import { Play, Pause, Square, RotateCcw, Sparkles } from 'lucide-react';
 
-interface BatchProcessorProps {
+interface EmbeddingsBatchProcessorProps {
   selectedCompanies: Company[];
   onComplete?: () => void;
 }
 
-export const BatchProcessor: React.FC<BatchProcessorProps> = ({
+export const EmbeddingsBatchProcessor: React.FC<EmbeddingsBatchProcessorProps> = ({
   selectedCompanies,
   onComplete
 }) => {
@@ -24,9 +22,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
   const [isPaused, setIsPaused] = useState(false);
   const [shouldStop, setShouldStop] = useState(false);
   
-  const { extractMVVPerplexity } = useApiClient();
   const { updateCompany } = useCompanyStore();
-  const { addMVVData } = useMVVStore();
   const { success, error: showError } = useNotification();
   
   const {
@@ -41,69 +37,106 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
     resetProcessing
   } = useProcessingStore();
 
-  const processCompany = useCallback(async (company: Company) => {
+  // Filter companies that have MVV extracted but no embeddings
+  // Include both mvv_extracted and embeddings_generation_error status
+  const mvvExtractedCompanies = selectedCompanies.filter(company => 
+    (company.status === 'mvv_extracted' || company.status === 'embeddings_generation_error') && 
+    (!company.embeddings || company.embeddings.length === 0)
+  );
+
+  const processCompanyEmbeddings = useCallback(async (company: Company, currentShouldStop: () => boolean) => {
     try {
+      // Check if stop was requested
+      if (currentShouldStop()) {
+        return { success: false, error: 'Processing stopped by user' };
+      }
+
       // Mark company as processing
       await updateCompany(company.id, { 
         status: 'processing',
         lastProcessed: new Date()
       });
 
-      const request: MVVExtractionRequest = {
-        companyId: company.id,
-        companyName: company.name,
-        companyWebsite: company.website,
-        companyDescription: company.notes
-      };
-
-      const result = await extractMVVPerplexity(request);
-
-      if (result) {
-        // Create MVV data
-        const mvvData: MVVData = {
-          companyId: company.id,
-          version: 1,
-          mission: result.mission,
-          vision: result.vision,
-          values: result.values,
-          confidenceScores: result.confidence_scores,
-          extractedAt: new Date(),
-          source: 'perplexity',
-          isActive: true,
-          extractedFrom: result.extracted_from
-        };
-
-        await addMVVData(mvvData);
-
-        // Mark company as Phase 1 completed (MVV extracted)
-        await updateCompany(company.id, { 
-          status: 'mvv_extracted',
-          mission: result.mission || undefined,
-          vision: result.vision || undefined,
-          values: Array.isArray(result.values) ? result.values.join(', ') : result.values || undefined,
-          errorMessage: undefined
-        });
-
-        return { success: true };
-      } else {
-        throw new Error('No data returned from API');
+      // Check again after async operation
+      if (currentShouldStop()) {
+        // Revert status if stopped
+        await updateCompany(company.id, { status: 'mvv_extracted' });
+        return { success: false, error: 'Processing stopped by user' };
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Try to get MVV data from company first, then from MVV storage
+      let mvvText = '';
       
-      // Mark company as Phase 1 error (MVV extraction error)
+      if (company.mission || company.vision || company.values) {
+        // Use company-stored MVV data
+        mvvText = [
+          company.mission ? `Mission: ${company.mission}` : '',
+          company.vision ? `Vision: ${company.vision}` : '',
+          company.values ? `Values: ${company.values}` : ''
+        ].filter(Boolean).join('\n');
+      } else {
+        // Fallback: get MVV data from storage
+        const mvvData = await mvvStorage.getActiveByCompanyId(company.id);
+        if (mvvData) {
+          mvvText = [
+            mvvData.mission ? `Mission: ${mvvData.mission}` : '',
+            mvvData.vision ? `Vision: ${mvvData.vision}` : '',
+            mvvData.values ? `Values: ${Array.isArray(mvvData.values) ? mvvData.values.join(', ') : mvvData.values}` : ''
+          ].filter(Boolean).join('\n');
+          
+          // Update company with MVV data for future use
+          await updateCompany(company.id, {
+            mission: mvvData.mission || undefined,
+            vision: mvvData.vision || undefined,
+            values: Array.isArray(mvvData.values) ? mvvData.values.join(', ') : mvvData.values || undefined
+          });
+        }
+      }
+
+      if (!mvvText) {
+        throw new Error('MVV data not found for embeddings generation');
+      }
+
+      // Check if stop was requested before expensive operation
+      if (currentShouldStop()) {
+        await updateCompany(company.id, { status: 'mvv_extracted' });
+        return { success: false, error: 'Processing stopped by user' };
+      }
+
+      // Generate embeddings
+      const embeddings = await generateEmbeddings(mvvText);
+
+      // Check if stop was requested after expensive operation
+      if (currentShouldStop()) {
+        await updateCompany(company.id, { status: 'mvv_extracted' });
+        return { success: false, error: 'Processing stopped by user' };
+      }
+
+      // Update company with embeddings and mark as fully completed
       await updateCompany(company.id, { 
-        status: 'mvv_extraction_error',
+        status: 'fully_completed',
+        embeddings,
+        errorMessage: undefined
+      });
+
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Embeddings generation failed';
+      
+      // Mark company as Phase 2 error (Embeddings generation error)
+      // Keep MVV data intact - only mark embeddings generation as failed
+      await updateCompany(company.id, { 
+        status: 'embeddings_generation_error',
         errorMessage
       });
 
       return { success: false, error: errorMessage };
     }
-  }, [extractMVVPerplexity, updateCompany, addMVVData]);
+  }, [updateCompany, mvvStorage]);
 
   const startProcessing = useCallback(async () => {
-    if (selectedCompanies.length === 0) {
-      showError('エラー', '処理する企業が選択されていません');
+    if (mvvExtractedCompanies.length === 0) {
+      showError('エラー', 'MVV抽出済み企業が選択されていません');
       return;
     }
 
@@ -111,7 +144,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
     setIsPaused(false);
     setShouldStop(false);
     
-    startBatchProcessing(selectedCompanies.map(c => c.id));
+    startBatchProcessing(mvvExtractedCompanies.map(c => c.id));
     
     const startTime = Date.now();
     let processed = 0;
@@ -119,68 +152,43 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
     let failed = 0;
 
     try {
-      // Process companies in batches
-      const batches = chunk(selectedCompanies, CONSTANTS.BATCH_SIZE);
-      
-      for (const batch of batches) {
+      // Process companies sequentially to avoid rate limiting
+      for (const company of mvvExtractedCompanies) {
         if (shouldStop) break;
         
         // Wait if paused
         while (isPaused && !shouldStop) {
-          await delay(1000);
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
         if (shouldStop) break;
 
-        // Process batch in parallel with staggered start
-        const batchPromises = batch.map(async (company, index) => {
-          if (shouldStop) return { success: false };
-          
-          // Stagger requests to reduce simultaneous load
-          if (index > 0) {
-            await delay(500 * index); // 500ms stagger between requests
-          }
-          
-          addToProcessing(company.id);
-          
-          try {
-            const result = await processCompany(company);
-            return { companyId: company.id, ...result };
-          } finally {
-            removeFromProcessing(company.id);
-          }
-        });
-
-        const batchResults = await Promise.allSettled(batchPromises);
+        addToProcessing(company.id);
         
-        // Update progress
-        for (let i = 0; i < batchResults.length; i++) {
-          const result = batchResults[i];
-          const company = batch[i];
+        try {
+          const result = await processCompanyEmbeddings(company, () => shouldStop);
+          processed++;
           
-          if (result.status === 'fulfilled') {
-            const { success: isSuccess } = result.value;
-            processed++;
-            
-            if (isSuccess) {
-              succeeded++;
-              markCompleted(company.id);
-            } else {
-              failed++;
-              markFailed(company.id);
-            }
+          if (result.success) {
+            succeeded++;
+            markCompleted(company.id);
           } else {
-            processed++;
             failed++;
             markFailed(company.id);
           }
+        } catch (error) {
+          processed++;
+          failed++;
+          markFailed(company.id);
+        } finally {
+          removeFromProcessing(company.id);
         }
 
         updateProgress(processed, succeeded, failed);
 
-        // Delay between batches to avoid overwhelming the API
-        if (!shouldStop && batches.indexOf(batch) < batches.length - 1) {
-          await delay(CONSTANTS.PROCESSING_DELAY);
+        // Small delay between requests to avoid overwhelming the API
+        if (!shouldStop && processed < mvvExtractedCompanies.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
@@ -191,25 +199,24 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
       if (!shouldStop) {
         success(
-          '処理完了',
+          'Embeddings処理完了',
           `${succeeded}件成功、${failed}件失敗 (処理時間: ${formatDuration(duration)})`
         );
         onComplete?.();
       }
 
     } catch (error) {
-      showError('処理エラー', 'バッチ処理中にエラーが発生しました');
+      showError('処理エラー', 'Embeddings生成中にエラーが発生しました');
     } finally {
       setIsProcessing(false);
       setIsPaused(false);
       setShouldStop(false);
     }
   }, [
-    selectedCompanies,
+    mvvExtractedCompanies,
     shouldStop,
     isPaused,
-    extractMVVPerplexity,
-    processCompany,
+    processCompanyEmbeddings,
     startBatchProcessing,
     updateProgress,
     addToProcessing,
@@ -251,9 +258,12 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
       <div className="bg-white p-4 rounded-lg border border-gray-200">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h3 className="text-lg font-medium text-gray-900">バッチ処理</h3>
+            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+              <Sparkles className="w-5 h-5 mr-2 text-purple-500" />
+              Embeddings生成 (Phase 2)
+            </h3>
             <p className="text-sm text-gray-600 mt-1">
-              {selectedCompanies.length}件の企業が選択されています
+              {mvvExtractedCompanies.length}件のMVV抽出済み企業が選択されています
             </p>
           </div>
           
@@ -262,10 +272,11 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
             {!isProcessing ? (
               <Button
                 onClick={startProcessing}
-                disabled={selectedCompanies.length === 0}
+                disabled={mvvExtractedCompanies.length === 0}
+                className="bg-purple-600 hover:bg-purple-700"
               >
                 <Play className="w-4 h-4 mr-2" />
-                開始
+                Embeddings生成開始
               </Button>
             ) : (
               <>
@@ -309,7 +320,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 batchStatus.failed > 0 ? 'red' : 'green'
               }
               showPercentage
-              label="全体進捗"
+              label="Embeddings生成進捗"
             />
             
             {/* Statistics */}
@@ -321,7 +332,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 <div className="text-gray-600">総数</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-2xl font-bold text-purple-600">
                   {batchStatus.processed}
                 </div>
                 <div className="text-gray-600">処理済み</div>
@@ -343,7 +354,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
             {/* Status Message */}
             <div className="text-center text-sm text-gray-600">
               {isPaused && '一時停止中...'}
-              {isProcessing && !isPaused && 'MVV情報を抽出中...'}
+              {isProcessing && !isPaused && 'OpenAI Embeddingsを生成中...'}
               {!isProcessing && batchStatus.processed > 0 && '処理完了'}
               {!isProcessing && batchStatus.processed === 0 && '処理待機中'}
             </div>
@@ -366,11 +377,11 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
       </div>
 
       {/* Instructions */}
-      {selectedCompanies.length === 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-          <p className="text-sm text-yellow-700">
-            企業管理画面で企業を選択してから、バッチ処理を開始してください。
-            一度に最大{CONSTANTS.BATCH_SIZE}社ずつ並列処理されます。
+      {mvvExtractedCompanies.length === 0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-md p-4">
+          <p className="text-sm text-purple-700">
+            MVV抽出済み（Phase 1完了）の企業を選択してから、Embeddings生成を開始してください。
+            この処理により、OpenAI Embeddingsが生成され、MVV類似度分析が可能になります。
           </p>
         </div>
       )}

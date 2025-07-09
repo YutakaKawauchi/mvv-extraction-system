@@ -16,7 +16,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI-powered system for extracting Mission, Vision, and Values (MVV) from 30 Japanese healthcare companies using OpenAI GPT-4o and Perplexity APIs. Architecture: React frontend on GitHub Pages + Netlify Functions backend.
+AI-powered system for extracting Mission, Vision, and Values (MVV) from Japanese companies using OpenAI GPT-4o and Perplexity APIs. Architecture: React frontend on GitHub Pages + Netlify Functions backend.
+
+**Note**: While initially designed for healthcare companies, the system is built to support **any industry**. The similarity detection algorithm uses industry-agnostic embeddings and morphological analysis.
 
 ## Current Status
 - ✅ Production deployment completed and stable
@@ -409,12 +411,18 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
    - ✅ Color-coded similarity explanations (Mission/Vision/Values)
    - ✅ Real-time keyword extraction and matching
    - ✅ Development debug tools for analysis validation
-6. **🔄 AI Analysis System Phase 2**: Hybrid API architecture (IN PROGRESS)
-   - 📋 Netlify Functions for dynamic analysis
-   - 📋 AI-powered insights generation with GPT-4o-mini
-   - 📋 Custom company addition and real-time analysis
-   - 📋 Enhanced interactive visualizations
-7. **📊 Future Enhancements**: Multi-language support, enterprise features, advanced analytics
+6. **✅ AI Analysis System Phase 2-b**: Real-time Embeddings Analysis (COMPLETED 2025-07-09)
+   - ✅ Real-time similarity calculation using client-side embeddings
+   - ✅ Combined embeddings + morphological analysis for enhanced accuracy
+   - ✅ Industry-agnostic keyword extraction (supports all industries)
+   - ✅ High similarity scores (0.8xx) with detailed explanations
+   - ✅ Mission/Vision/Values breakdown with common keywords
+   - ✅ No pre-calculation needed - fully dynamic analysis
+   - ✅ Progressive calculation with caching for performance optimization
+   - ✅ Interactive tooltips with pinnable MVV information
+   - ✅ Enhanced UI/UX with tag-based similarity explanations
+   - ✅ Optimized tab loading performance (removed heavy calculations)
+7. **📊 Future Enhancements**: See "Future Development Plan" section below
 
 ### AI Analysis System (Updated 2025-07-08)
 
@@ -441,12 +449,148 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
   - Industry clustering: Medical devices show highest internal coherence
   - Performance: Instant load time with static data
 
-#### Phase 2: Hybrid API Architecture (🔄 NEXT)
-- **Strategy**: Combine static data (fast) + dynamic APIs (flexible)
-- **Static Data Usage**: Existing 62-company analysis via `/frontend/public/mvv-analysis-data.json`
-- **Dynamic API Usage**: New company analysis, custom queries, AI insights via Netlify Functions
-- **Planned Features**:
-  - AI-generated insights with GPT-4o-mini
-  - Custom company addition and analysis
-  - Real-time similarity calculation for new MVV data
-  - Enhanced visualization with interactive charts
+#### Phase 2-b: Real-time Embeddings Analysis (✅ COMPLETED 2025-07-09)
+- **Implementation**: Full client-side similarity calculation using IndexedDB embeddings
+- **Algorithm**: Combined approach - 70% embeddings + 25% morphological analysis + 15% industry bonus
+- **Morphological Analysis**: TinySegmenter with industry-agnostic keyword dictionary
+  - General business terms (社会, 貢献, 技術, 品質, etc.)
+  - Digital/IT terms (AI, DX, データ, テクノロジー, etc.)
+  - Manufacturing terms (製造, ものづくり, 工場, etc.)
+  - Finance terms (金融, 投資, ファイナンス, etc.)
+  - Infrastructure terms (エネルギー, インフラ, 建設, etc.)
+  - Retail terms (顧客, ブランド, マーケティング, etc.)
+  - Healthcare terms (医療, 健康, 患者, etc.)
+- **Similarity Scores**: Enhanced to 0.8xx range through intelligent scaling
+- **Real-time Performance**: No pre-calculation needed, instant results
+- **Performance Optimization**: 
+  - LRU caching system for similarity calculations
+  - Progressive calculation with quick display and enhanced accuracy
+  - Symmetric matrix optimization (50% reduction in calculations)
+  - Eliminated heavy matrix calculations from initial load
+- **UI/UX Enhancements**:
+  - Interactive tooltips with pinnable MVV information
+  - Tag-based similarity explanations with color coding
+  - Markdown copy functionality for easy sharing
+  - Removed unnecessary UI elements (brain icons, redundant statistics)
+- **Future Ready**: Supports any industry beyond healthcare
+
+## Future Development Plan (Post Phase 2-b)
+
+### Phase 3: AI-Powered Insights System
+**Timeline**: 2-3 weeks
+**Objective**: Implement GPT-4o-mini powered analysis features with cost-effective, tiered approach
+
+#### Phase 3.1: Static Analysis Features (Week 1)
+- **MVV Trend Analysis**: Industry-wide keyword frequency analysis using pre-computed data
+- **Company Uniqueness Score**: Differentiation metrics based on existing similarity calculations
+- **Competitive Positioning Map**: 2D visualization using PCA/t-SNE dimensionality reduction
+- **MVV Maturity Assessment**: Rule-based scoring system for clarity, specificity, and actionability
+- **Performance**: ⚡ Instant display using static data and existing calculations
+- **Cost**: 💰 Free (no API calls required)
+
+#### Phase 3.2: AI-Enhanced Analysis (Week 2)
+- **AI Improvement Suggestions**: GPT-4o-mini powered MVV enhancement recommendations
+- **Tiered Analysis Depth**: 
+  - FREE: Template-based analysis (5 suggestions/month)
+  - BASIC: GPT-4o-mini simple analysis (50 suggestions/month)
+  - PREMIUM: GPT-4o detailed analysis + competitive comparison (unlimited)
+- **Smart Caching**: 24-hour result caching to minimize API costs
+- **Performance**: ⚡ 3-5 second response time for AI analysis
+- **Cost**: 💰 $0.02/analysis (GPT-4o-mini cost-effective)
+
+#### Phase 3.3: Advanced Features (Week 3)
+- **Custom Industry Analysis**: Tailored analysis for specific industry verticals
+- **Batch Insights Generation**: Bulk analysis for multiple companies
+- **Export & Reporting**: PDF/Excel export with detailed analysis
+- **API Integration**: REST API for third-party integrations
+- **Performance**: ⚡ Optimized for bulk processing
+- **Cost**: 💰 Enterprise pricing model
+
+### Phase 4: Enterprise & Scale Features
+**Timeline**: 4-6 weeks
+**Objective**: Production-ready enterprise features with advanced analytics
+
+#### Phase 4.1: Multi-language Support
+- **Language Detection**: Automatic language detection for international companies
+- **Translation Pipeline**: Seamless translation for analysis across languages
+- **Localized Insights**: Region-specific business context and recommendations
+- **Global Database**: Expanded company database beyond Japanese market
+
+#### Phase 4.2: Advanced Analytics
+- **Predictive Analysis**: ML-powered trend prediction and market positioning
+- **Sentiment Analysis**: Emotional tone analysis of MVV statements
+- **Competitive Intelligence**: Automated competitor identification and analysis
+- **Industry Benchmarking**: Comprehensive industry-wide comparison metrics
+
+#### Phase 4.3: Enterprise Integration
+- **SSO Integration**: Enterprise authentication systems (SAML, OAuth)
+- **API Rate Limits**: Scalable rate limiting for enterprise usage
+- **Custom Branding**: White-label solutions for enterprise clients
+- **Advanced Security**: SOC 2 compliance and enterprise-grade security
+
+### Technical Architecture Evolution
+
+#### Current Architecture (Phase 2-b)
+```
+Frontend (React + IndexedDB) → Real-time Embeddings Analysis
+Backend (Netlify Functions) → MVV Extraction + Authentication
+```
+
+#### Target Architecture (Phase 3-4)
+```
+Frontend (React + IndexedDB) → Real-time Analysis + AI Insights
+Backend (Netlify Functions) → MVV Extraction + AI Analysis + Enterprise APIs
+AI Layer (OpenAI GPT-4o-mini) → Intelligent Insights + Recommendations
+Caching Layer (Redis/Memory) → Performance Optimization
+Analytics Layer (Custom) → Usage Tracking + Business Intelligence
+```
+
+### Cost Optimization Strategy
+
+#### Phase 3 Cost Structure
+- **Static Analysis**: $0.00/month (pre-computed data)
+- **AI Analysis**: $0.02/request (GPT-4o-mini)
+- **Caching**: 80% cost reduction through intelligent caching
+- **Target**: <$50/month for 1000 active users
+
+#### Phase 4 Revenue Model
+- **Freemium**: Free basic features + paid advanced AI analysis
+- **Professional**: $29/month for unlimited AI analysis + advanced features
+- **Enterprise**: Custom pricing for bulk usage + white-label solutions
+
+### Implementation Priorities
+
+#### High Priority (Phase 3.1)
+1. **Company Uniqueness Score** - Leverage existing similarity calculations
+2. **MVV Maturity Assessment** - Rule-based analysis, no API costs
+3. **Competitive Positioning Map** - Visual enhancement of existing data
+
+#### Medium Priority (Phase 3.2)
+1. **AI Improvement Suggestions** - Gradual rollout with usage limits
+2. **Tiered Pricing Model** - Monetization strategy implementation
+3. **Performance Optimization** - Caching and batch processing
+
+#### Low Priority (Phase 4)
+1. **Multi-language Support** - Expand market reach
+2. **Enterprise Features** - B2B monetization
+3. **Advanced Analytics** - Competitive differentiation
+
+### Success Metrics
+
+#### Phase 3 KPIs
+- **User Engagement**: 70% of users try AI insights feature
+- **Performance**: <3 second response time for AI analysis
+- **Cost Efficiency**: <$0.05/user/month operational cost
+- **User Satisfaction**: 4.5+ star rating for insights quality
+
+#### Phase 4 KPIs
+- **Revenue**: $10K+ MRR from premium features
+- **Enterprise Adoption**: 5+ enterprise clients
+- **International Expansion**: 20% non-Japanese user base
+- **API Usage**: 100K+ API calls/month
+
+---
+
+*Last Updated: 2025-07-09*
+*Current Implementation: Phase 2-b (Real-time Embeddings Analysis)*
+*Next Milestone: Phase 3.1 (Static Analysis Features)*

@@ -224,6 +224,16 @@ class ApiClient {
       data: { requests }
     });
   }
+
+  // Generic POST method for hybrid data loader
+  async post(endpoint: string, data: any): Promise<any> {
+    try {
+      const response = await this.client.post(endpoint, data);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
 }
 
 // Singleton instance

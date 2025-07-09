@@ -49,14 +49,33 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
     onSelectionChange(pendingCompanies);
   };
 
-  const handleSelectErrors = () => {
-    const errorCompanies = companies.filter(c => c.status === 'error');
+  const handleSelectMVVErrors = () => {
+    const mvvErrorCompanies = companies.filter(c => c.status === 'mvv_extraction_error');
+    onSelectionChange(mvvErrorCompanies);
+  };
+
+  const handleSelectEmbeddingsErrors = () => {
+    const embeddingsErrorCompanies = companies.filter(c => c.status === 'embeddings_generation_error');
+    onSelectionChange(embeddingsErrorCompanies);
+  };
+
+  const handleSelectAllErrors = () => {
+    const errorCompanies = companies.filter(c => 
+      c.status === 'error' || 
+      c.status === 'mvv_extraction_error' || 
+      c.status === 'embeddings_generation_error'
+    );
     onSelectionChange(errorCompanies);
   };
 
-  const handleSelectCompleted = () => {
-    const completedCompanies = companies.filter(c => c.status === 'completed');
-    onSelectionChange(completedCompanies);
+  const handleSelectMVVExtracted = () => {
+    const mvvExtractedCompanies = companies.filter(c => c.status === 'mvv_extracted');
+    onSelectionChange(mvvExtractedCompanies);
+  };
+
+  const handleSelectFullyCompleted = () => {
+    const fullyCompletedCompanies = companies.filter(c => c.status === 'fully_completed');
+    onSelectionChange(fullyCompletedCompanies);
   };
 
   return (
@@ -87,20 +106,38 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
           <Button 
             size="sm" 
             variant="outline" 
-            onClick={handleSelectErrors}
-            disabled={companies.filter(c => c.status === 'error').length === 0}
+            onClick={handleSelectMVVErrors}
+            disabled={companies.filter(c => c.status === 'mvv_extraction_error').length === 0}
           >
             <RotateCcw className="w-4 h-4 mr-1" />
-            エラーのみ
+            MVVエラー
           </Button>
           <Button 
             size="sm" 
             variant="outline" 
-            onClick={handleSelectCompleted}
-            disabled={companies.filter(c => c.status === 'completed').length === 0}
+            onClick={handleSelectEmbeddingsErrors}
+            disabled={companies.filter(c => c.status === 'embeddings_generation_error').length === 0}
+          >
+            <RotateCcw className="w-4 h-4 mr-1" />
+            Embeddingsエラー
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handleSelectMVVExtracted}
+            disabled={companies.filter(c => c.status === 'mvv_extracted').length === 0}
           >
             <CheckSquare className="w-4 h-4 mr-1" />
-            完了済みを選択
+            MVV抽出済み
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handleSelectFullyCompleted}
+            disabled={companies.filter(c => c.status === 'fully_completed').length === 0}
+          >
+            <CheckSquare className="w-4 h-4 mr-1" />
+            完全完了済み
           </Button>
           <Button 
             size="sm" 
