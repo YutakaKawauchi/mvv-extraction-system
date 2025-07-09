@@ -270,10 +270,11 @@ export class SimilarityCalculator {
     
     // Group companies by category
     for (const company of companiesWithEmbeddings) {
-      if (!categoryMap.has(company.category)) {
-        categoryMap.set(company.category, []);
+      const category = company.category || '未分類';
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, []);
       }
-      categoryMap.get(company.category)!.push(company);
+      categoryMap.get(category)!.push(company);
     }
 
     const result: any = {};

@@ -1,6 +1,6 @@
 import Dexie from 'dexie';
 import type { Table } from 'dexie';
-import type { Company, MVVData, ProcessingLog } from '../types';
+import type { Company, MVVData, ProcessingLog, CompanyInfo } from '../types';
 import { CONSTANTS } from '../utils/constants';
 
 export interface DBCompany extends Omit<Company, 'createdAt' | 'updatedAt' | 'lastProcessed'> {
@@ -17,10 +17,15 @@ export interface DBProcessingLog extends Omit<ProcessingLog, 'timestamp'> {
   timestamp: number;
 }
 
+export interface DBCompanyInfo extends Omit<CompanyInfo, 'lastUpdated'> {
+  lastUpdated: number;
+}
+
 class MVVDatabase extends Dexie {
   companies!: Table<DBCompany>;
   mvvData!: Table<DBMVVData>;
   processingLogs!: Table<DBProcessingLog>;
+  companyInfo!: Table<DBCompanyInfo>;
 
   constructor() {
     super(CONSTANTS.DB_NAME);
@@ -51,6 +56,60 @@ class MVVDatabase extends Dexie {
         }
         if (!company.hasOwnProperty('values')) {
           company.values = undefined;
+        }
+      });
+    });
+    
+    // Version 3 - Add companyInfo table for detailed company information
+    this.version(3).stores({
+      companies: 'id, name, status, category, createdAt, updatedAt, mission, vision, values, embeddings',
+      mvvData: '++id, companyId, version, isActive, extractedAt',
+      processingLogs: '++id, companyId, status, timestamp',
+      companyInfo: '++id, companyId, listingStatus, foundedYear, employeeCount, revenue, lastUpdated'
+    });
+
+    // Version 4 - Add industry classification and enhanced company info fields
+    this.version(4).stores({
+      companies: 'id, name, status, category, createdAt, updatedAt, mission, vision, values, embeddings',
+      mvvData: '++id, companyId, version, isActive, extractedAt',
+      processingLogs: '++id, companyId, status, timestamp',
+      companyInfo: '++id, companyId, listingStatus, foundedYear, employeeCount, revenue, prefecture, city, postalCode, jsicMajorCategory, jsicMajorName, primaryIndustry, businessType, lastUpdated'
+    }).upgrade(tx => {
+      return tx.table('companyInfo').toCollection().modify(info => {
+        // Initialize new location fields
+        if (!info.hasOwnProperty('prefecture')) {
+          info.prefecture = null;
+        }
+        if (!info.hasOwnProperty('city')) {
+          info.city = null;
+        }
+        if (!info.hasOwnProperty('postalCode')) {
+          info.postalCode = null;
+        }
+        // Initialize new industry classification fields
+        if (!info.hasOwnProperty('jsicMajorCategory')) {
+          info.jsicMajorCategory = null;
+        }
+        if (!info.hasOwnProperty('jsicMajorName')) {
+          info.jsicMajorName = null;
+        }
+        if (!info.hasOwnProperty('jsicMiddleCategory')) {
+          info.jsicMiddleCategory = null;
+        }
+        if (!info.hasOwnProperty('jsicMiddleName')) {
+          info.jsicMiddleName = null;
+        }
+        if (!info.hasOwnProperty('jsicMinorCategory')) {
+          info.jsicMinorCategory = null;
+        }
+        if (!info.hasOwnProperty('jsicMinorName')) {
+          info.jsicMinorName = null;
+        }
+        if (!info.hasOwnProperty('primaryIndustry')) {
+          info.primaryIndustry = null;
+        }
+        if (!info.hasOwnProperty('businessType')) {
+          info.businessType = null;
         }
       });
     });
@@ -92,6 +151,16 @@ const toDBProcessingLog = (log: ProcessingLog): DBProcessingLog => ({
 const fromDBProcessingLog = (dbLog: DBProcessingLog): ProcessingLog => ({
   ...dbLog,
   timestamp: new Date(dbLog.timestamp)
+});
+
+const toDBCompanyInfo = (info: CompanyInfo): DBCompanyInfo => ({
+  ...info,
+  lastUpdated: info.lastUpdated.getTime()
+});
+
+const fromDBCompanyInfo = (dbInfo: DBCompanyInfo): CompanyInfo => ({
+  ...dbInfo,
+  lastUpdated: new Date(dbInfo.lastUpdated)
 });
 
 // 企業関連の操作
@@ -270,6 +339,50 @@ export const processingLogStorage = {
       .limit(limit)
       .toArray();
     return dbLogs.map(fromDBProcessingLog);
+  }
+};
+
+// 企業詳細情報関連の操作
+export const companyInfoStorage = {
+  async create(info: CompanyInfo): Promise<number> {
+    return await db.companyInfo.add(toDBCompanyInfo(info));
+  },
+
+  async getByCompanyId(companyId: string): Promise<CompanyInfo | undefined> {
+    const dbInfo = await db.companyInfo
+      .where('companyId')
+      .equals(companyId)
+      .first();
+    return dbInfo ? fromDBCompanyInfo(dbInfo) : undefined;
+  },
+
+  async update(id: number, updates: Partial<CompanyInfo>): Promise<void> {
+    const updateData: any = { ...updates };
+    
+    // Convert Date objects to numbers
+    if (updates.lastUpdated) {
+      updateData.lastUpdated = updates.lastUpdated.getTime();
+    }
+    
+    await db.companyInfo.update(id, updateData);
+  },
+
+  async upsert(info: CompanyInfo): Promise<number> {
+    const existing = await this.getByCompanyId(info.companyId);
+    
+    if (existing && existing.id) {
+      await this.update(existing.id, info);
+      return existing.id;
+    } else {
+      return await this.create(info);
+    }
+  },
+
+  async deleteByCompanyId(companyId: string): Promise<void> {
+    await db.companyInfo
+      .where('companyId')
+      .equals(companyId)
+      .delete();
   }
 };
 

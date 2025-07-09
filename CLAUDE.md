@@ -124,6 +124,7 @@ netlify env:set JWT_EXPIRATION "24h"
 - **netlify/functions/**: Serverless endpoints
   - `extract-mvv.js`: OpenAI GPT-4o extraction endpoint (auth protected)
   - `extract-mvv-perplexity.js`: Perplexity AI extraction endpoint (auth protected)
+  - `extract-company-info.js`: Company information extraction endpoint (auth protected)
   - `health.js`: Health check endpoint
   - **Authentication endpoints**:
     - `auth-login.js`: JWT token generation with comprehensive rate limiting and logging
@@ -138,10 +139,15 @@ netlify env:set JWT_EXPIRATION "24h"
   - `auth.js`: Dual authentication (API key + JWT validation)
   - `jwt.js`: JWT token generation, validation, and refresh
   - `logger.js`: Comprehensive logging system
+- **test/**: Test suite with comprehensive API testing
+  - `company-info-api.test.js`: Company info API tests (mock/integration/minimal modes)
+  - `helpers/`: Test utilities and mock data
+  - `fixtures/`: Test data fixtures
 
 ### Key Technologies
 - **Frontend**: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB) + TinySegmenter (Japanese morphological analysis)
 - **Backend**: Netlify Functions + OpenAI 5.8.2 + Perplexity AI + jsonwebtoken 9.0.2 (JWT authentication)
+- **Testing**: Jest 29.7.0 with comprehensive API testing (mock/integration/minimal modes)
 - **Authentication**: JWT-based with environment variable credentials
 - **Security**: CORS protection, dual authentication (API key + JWT), rate limiting, sensitive data masking
 - **Logging**: Environment-aware logging (console + file output)
@@ -170,6 +176,7 @@ netlify env:set JWT_EXPIRATION "24h"
 ### API Endpoints
 - `POST /.netlify/functions/extract-mvv`: OpenAI GPT-4o extraction (auth protected)
 - `POST /.netlify/functions/extract-mvv-perplexity`: Perplexity AI extraction with web search (auth protected)
+- `POST /.netlify/functions/extract-company-info`: Company information extraction with Perplexity API (auth protected)
 - `GET /.netlify/functions/health`: Health check (public)
 - **Authentication endpoints**:
   - `POST /.netlify/functions/auth-login-v2`: JWT token generation (production)
@@ -209,7 +216,68 @@ netlify env:set JWT_EXPIRATION "24h"
 - CORS origins must match deployment URL (including WSL IP for local dev)
 - Rate limiting: 100 requests per 15 minutes per IP (API), 5 auth attempts per 15 minutes per IP (authentication)
 - WSL2 compatible with network configuration
+- **Testing**: Use `npm test` for mock tests, `TEST_MODE=integration npm test` for real API tests
 - 日本語での対話可
+
+### Company Information Extraction API
+New endpoint for extracting comprehensive company information using Perplexity API with automatic industry classification:
+
+```bash
+# Test company info extraction
+curl -X POST "http://localhost:8888/.netlify/functions/extract-company-info" \
+-H "Content-Type: application/json" \
+-H "X-API-Key: your-api-key" \
+-d '{
+  "companyId": "test-001",
+  "companyName": "トヨタ自動車",
+  "companyWebsite": "https://global.toyota/jp/",
+  "includeFinancials": true,
+  "includeESG": true,
+  "includeCompetitors": true
+}'
+```
+
+Response format with industry classification:
+```json
+{
+  "success": true,
+  "data": {
+    "founded_year": 1937,
+    "employee_count": 375235,
+    "headquarters_location": "愛知県豊田市",
+    "financial_data": {
+      "revenue": 31377000,
+      "operating_profit": 5353000,
+      "net_profit": 4943000
+    },
+    "business_structure": {
+      "segments": ["自動車", "金融", "その他"],
+      "main_products": ["乗用車", "商用車", "部品"]
+    },
+    "industry_classification": {
+      "jsic_major_category": "E",
+      "jsic_major_name": "製造業",
+      "jsic_middle_category": "305",
+      "jsic_middle_name": "輸送用機械器具製造業",
+      "jsic_minor_category": "3051",
+      "jsic_minor_name": "自動車・同附属品製造業",
+      "primary_industry": "自動車製造業",
+      "business_type": "自動車メーカー"
+    },
+    "listing_info": {
+      "status": "listed",
+      "stock_code": "7203",
+      "exchange": "東証プライム"
+    }
+  }
+}
+```
+
+#### Industry Classification Features
+- **Automatic Classification**: Uses Japanese Standard Industrial Classification (JSIC)
+- **Hierarchical Structure**: Major (A-T), Middle (3-digit), Minor (4-digit) categories
+- **Manual Override**: No longer requires manual category input
+- **Dynamic Updates**: Categories automatically updated when company info is extracted
 
 ### UX/UI Guidelines
 - **Mobile-First**: Design for mobile first, then enhance for desktop
@@ -416,7 +484,7 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
 - **System Uptime**: 100% availability
 - **Cost Efficiency**: ~$0.011 per company processed (Perplexity API cost)
 
-### Current Roadmap (Updated 2025-07-08)
+### Current Roadmap (Updated 2025-07-09)
 1. **✅ Production Deploy**: Completed - System fully operational with zero errors
 2. **✅ Stability Optimization**: Completed - Zero error rate achieved (100% success rate)  
 3. **✅ Enhanced UI/UX**: Completed - CSV import improvements and better error handling
@@ -439,7 +507,17 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
    - ✅ Interactive tooltips with pinnable MVV information
    - ✅ Enhanced UI/UX with tag-based similarity explanations
    - ✅ Optimized tab loading performance (removed heavy calculations)
-7. **📊 Future Enhancements**: See "Future Development Plan" section below
+7. **✅ Enhanced Company Management System (Phase 3 Preparation)**: (COMPLETED 2025-07-09)
+   - ✅ Comprehensive company information extraction system
+   - ✅ Japanese Standard Industrial Classification (JSIC) integration
+   - ✅ Structured location data (prefecture, city, postal code)
+   - ✅ Automatic category classification from JSIC data
+   - ✅ Enhanced backup/restore functionality for company info
+   - ✅ Company information tooltips with markdown export
+   - ✅ Unified automatic pipeline: Company → MVV → CompanyInfo → Category
+   - ✅ Real-time progress tracking for multi-step processes
+   - ✅ Backward compatibility for all data formats
+8. **📊 AI Insights System**: See "Phase 3: AI Insights Implementation Plan" section below
 
 ### AI Analysis System (Updated 2025-07-08)
 
@@ -491,37 +569,81 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
   - Removed unnecessary UI elements (brain icons, redundant statistics)
 - **Future Ready**: Supports any industry beyond healthcare
 
-## Future Development Plan (Post Phase 2-b)
+## Phase 3: AI Insights Implementation Plan (Updated 2025-07-09)
 
-### Phase 3: AI-Powered Insights System
-**Timeline**: 2-3 weeks
-**Objective**: Implement GPT-4o-mini powered analysis features with cost-effective, tiered approach
+### Phase 3.1: Static Analysis Dashboard (Zero-Cost Features)
+**Timeline**: 1-2 weeks
+**Status**: Ready to implement (all dependencies completed)
+**Objective**: Leverage existing similarity data and company information for intelligent insights
 
-#### Phase 3.1: Static Analysis Features (Week 1)
-- **MVV Trend Analysis**: Industry-wide keyword frequency analysis using pre-computed data
-- **Company Uniqueness Score**: Differentiation metrics based on existing similarity calculations
-- **Competitive Positioning Map**: 2D visualization using PCA/t-SNE dimensionality reduction
-- **MVV Maturity Assessment**: Rule-based scoring system for clarity, specificity, and actionability
-- **Performance**: ⚡ Instant display using static data and existing calculations
-- **Cost**: 💰 Free (no API calls required)
+#### Core Features (Ready for Implementation)
+1. **Company Uniqueness Score Dashboard**
+   - Differentiation metrics based on existing similarity matrix (62 companies)
+   - Uniqueness heatmap showing market positioning
+   - Industry-specific uniqueness rankings
+   - **Data Source**: Existing embeddings similarity calculations
+   - **Performance**: ⚡ Instant (pre-computed data)
+   - **Cost**: 💰 $0.00/month
 
-#### Phase 3.2: AI-Enhanced Analysis (Week 2)
-- **AI Improvement Suggestions**: GPT-4o-mini powered MVV enhancement recommendations
-- **Tiered Analysis Depth**: 
-  - FREE: Template-based analysis (5 suggestions/month)
-  - BASIC: GPT-4o-mini simple analysis (50 suggestions/month)
-  - PREMIUM: GPT-4o detailed analysis + competitive comparison (unlimited)
-- **Smart Caching**: 24-hour result caching to minimize API costs
-- **Performance**: ⚡ 3-5 second response time for AI analysis
-- **Cost**: 💰 $0.02/analysis (GPT-4o-mini cost-effective)
+2. **MVV Industry Trend Analysis**
+   - Keyword frequency analysis across industries using TinySegmenter
+   - Popular mission/vision themes by industry vertical
+   - Values distribution and commonality patterns
+   - **Data Source**: Existing MVV data + morphological analysis
+   - **Performance**: ⚡ Real-time keyword processing
+   - **Cost**: 💰 $0.00/month
 
-#### Phase 3.3: Advanced Features (Week 3)
-- **Custom Industry Analysis**: Tailored analysis for specific industry verticals
-- **Batch Insights Generation**: Bulk analysis for multiple companies
-- **Export & Reporting**: PDF/Excel export with detailed analysis
-- **API Integration**: REST API for third-party integrations
-- **Performance**: ⚡ Optimized for bulk processing
-- **Cost**: 💰 Enterprise pricing model
+3. **Competitive Positioning Map**
+   - 2D visualization of company relationships using t-SNE/PCA
+   - Interactive clustering by industry and similarity
+   - Market gap identification for strategic positioning
+   - **Data Source**: Existing similarity matrix + company info
+   - **Performance**: ⚡ Client-side computation
+   - **Cost**: 💰 $0.00/month
+
+4. **MVV Quality Assessment**
+   - Rule-based maturity scoring (clarity, specificity, actionability)
+   - Benchmark comparison against industry standards
+   - Quality improvement recommendations (template-based)
+   - **Data Source**: Text analysis of existing MVV statements
+   - **Performance**: ⚡ Real-time scoring
+   - **Cost**: 💰 $0.00/month
+
+#### Technical Implementation
+- **New Components**: `/frontend/src/components/InsightsDashboard/`
+- **Data Processing**: Client-side analysis using existing IndexedDB data
+- **UI Integration**: New tab in MVV Analysis section
+- **Dependencies**: None (uses existing infrastructure)
+
+### Phase 3.2: AI-Enhanced Insights (Controlled Cost Features)
+**Timeline**: 2-3 weeks  
+**Objective**: Intelligent recommendations using GPT-4o-mini with cost optimization
+
+#### Smart Analysis Features
+1. **AI-Powered MVV Enhancement Suggestions**
+   - GPT-4o-mini analysis for improvement recommendations
+   - Industry-specific contextualization using JSIC data
+   - Competitive differentiation suggestions
+   - **Cost Structure**: Tiered usage (5 free → $0.02/analysis)
+   - **Caching**: 24-hour result caching (80% cost reduction)
+
+2. **Automated Competitive Intelligence**
+   - Similar company identification with reasoning
+   - Market positioning analysis and recommendations
+   - Strategic differentiation opportunities
+   - **Cost Optimization**: Bulk processing discounts
+
+3. **Industry Benchmark Analysis**
+   - AI-powered industry trend interpretation
+   - Custom insights based on company profile
+   - Strategic recommendations for market positioning
+   - **Smart Caching**: Industry-level analysis shared across companies
+
+#### Cost Management Strategy
+- **Free Tier**: 5 AI analyses per month per user
+- **Smart Caching**: 24-hour analysis caching to minimize API costs
+- **Batch Processing**: Bulk analysis for cost efficiency
+- **Target Cost**: <$0.05/user/month operational cost
 
 ### Phase 4: Enterprise & Scale Features
 **Timeline**: 4-6 weeks
@@ -575,39 +697,58 @@ Analytics Layer (Custom) → Usage Tracking + Business Intelligence
 - **Professional**: $29/month for unlimited AI analysis + advanced features
 - **Enterprise**: Custom pricing for bulk usage + white-label solutions
 
-### Implementation Priorities
+### Implementation Priorities (2025-07-09)
 
-#### High Priority (Phase 3.1)
-1. **Company Uniqueness Score** - Leverage existing similarity calculations
-2. **MVV Maturity Assessment** - Rule-based analysis, no API costs
+#### Immediate Priority (Phase 3.1 - Week 1)
+1. **Company Uniqueness Score Dashboard** - Ready for implementation
+   - Uses existing similarity matrix (62 companies)
+   - Zero additional infrastructure required
+   - High user value, zero cost
+
+2. **MVV Industry Trend Analysis** - Ready for implementation
+   - Leverages existing morphological analysis
+   - Real-time keyword processing capability
+   - Valuable market insights
+
+#### High Priority (Phase 3.1 - Week 2)
 3. **Competitive Positioning Map** - Visual enhancement of existing data
+   - 2D visualization using existing similarity data
+   - Interactive clustering and gap analysis
+   - Strategic positioning insights
+
+4. **MVV Quality Assessment** - Rule-based scoring system
+   - Template-based recommendations
+   - Benchmarking against industry standards
+   - Quality improvement guidance
 
 #### Medium Priority (Phase 3.2)
-1. **AI Improvement Suggestions** - Gradual rollout with usage limits
-2. **Tiered Pricing Model** - Monetization strategy implementation
-3. **Performance Optimization** - Caching and batch processing
+1. **AI Enhancement Suggestions** - Controlled rollout with cost management
+2. **Smart Caching System** - Minimize API costs while providing AI insights  
+3. **Tiered Usage Model** - Sustainable monetization strategy
 
-#### Low Priority (Phase 4)
-1. **Multi-language Support** - Expand market reach
-2. **Enterprise Features** - B2B monetization
-3. **Advanced Analytics** - Competitive differentiation
+### Success Metrics (Revised for Current Implementation)
 
-### Success Metrics
+#### Phase 3.1 KPIs (Static Analysis)
+- **Implementation Speed**: Complete in 1-2 weeks
+- **User Engagement**: 50% of users explore insights dashboard within first month
+- **Performance**: <1 second response time for all static analysis
+- **Cost**: $0.00 operational cost (client-side processing)
+- **Data Utilization**: 100% of existing similarity and company data leveraged
 
-#### Phase 3 KPIs
-- **User Engagement**: 70% of users try AI insights feature
-- **Performance**: <3 second response time for AI analysis
-- **Cost Efficiency**: <$0.05/user/month operational cost
-- **User Satisfaction**: 4.5+ star rating for insights quality
+#### Phase 3.2 KPIs (AI-Enhanced Features)
+- **Cost Efficiency**: <$0.02/user/month average operational cost
+- **User Adoption**: 30% of users try AI-powered features
+- **Response Time**: <3 seconds for AI analysis (with caching)
+- **Cache Hit Rate**: >80% (cost reduction through smart caching)
 
-#### Phase 4 KPIs
-- **Revenue**: $10K+ MRR from premium features
-- **Enterprise Adoption**: 5+ enterprise clients
-- **International Expansion**: 20% non-Japanese user base
-- **API Usage**: 100K+ API calls/month
+#### System Health KPIs
+- **Data Quality**: >95% of companies have complete MVV + CompanyInfo
+- **Processing Success**: >98% success rate for automatic pipeline
+- **User Satisfaction**: Positive feedback on unified company management system
 
 ---
 
 *Last Updated: 2025-07-09*
-*Current Implementation: Phase 2-b (Real-time Embeddings Analysis)*
-*Next Milestone: Phase 3.1 (Static Analysis Features)*
+*Current Implementation: Enhanced Company Management System (Phase 3 Preparation Complete)*
+*Next Milestone: Phase 3.1 (Static Analysis Dashboard)*
+*Ready for Implementation: All Phase 3.1 features have zero dependencies and can begin immediately*

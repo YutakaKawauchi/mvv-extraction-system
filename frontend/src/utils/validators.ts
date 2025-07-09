@@ -22,9 +22,8 @@ export const validateCompanyForm = (data: CompanyFormData): string[] => {
     errors.push('有効なURLを入力してください');
   }
 
-  if (!data.category || data.category.trim().length === 0) {
-    errors.push('カテゴリーは必須です');
-  }
+  // Category is now optional and auto-generated from industry classification
+  // No validation needed for category field
 
   return errors;
 };

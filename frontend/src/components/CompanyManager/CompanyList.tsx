@@ -3,10 +3,14 @@ import type { Company, CompanyStatus } from '../../types';
 import { CompanyCard } from './CompanyCard';
 import { CompanyForm } from './CompanyForm';
 import { CSVImporter } from './CSVImporter';
+// 一時的なマイグレーション機能（開発時のみ表示）
+import { CompanyInfoMigrationPanel } from './CompanyInfoMigrationPanel';
 import { Button, LoadingSpinner } from '../common';
 import { useCompanyStore } from '../../stores/companyStore';
 import { useNotification } from '../../hooks/useNotification';
 import { CONSTANTS } from '../../utils/constants';
+import { companyProcessor } from '../../services/companyProcessor';
+import type { CompanyProcessingProgress } from '../../services/companyProcessor';
 import { 
   Plus, 
   Upload, 
@@ -17,7 +21,8 @@ import {
   Trash2,
   RotateCcw,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Database
 } from 'lucide-react';
 
 type ViewMode = 'grid' | 'list';
@@ -34,13 +39,17 @@ export const CompanyList: React.FC = () => {
   const [showCompanyForm, setShowCompanyForm] = useState(false);
   const [showCSVImporter, setShowCSVImporter] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | undefined>();
+  // 一時的なマイグレーションパネル表示状態
+  const [showMigrationPanel, setShowMigrationPanel] = useState(false);
+  // 自動連携処理の進行状況
+  const [processingProgress, setProcessingProgress] = useState<CompanyProcessingProgress | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const {
     companies,
     loading,
     error,
     loadCompanies,
-    addCompany,
     addCompanies,
     updateCompany,
     deleteCompany,
@@ -98,8 +107,8 @@ export const CompanyList: React.FC = () => {
           bValue = b.name.toLowerCase();
           break;
         case 'category':
-          aValue = a.category.toLowerCase();
-          bValue = b.category.toLowerCase();
+          aValue = (a.category || '未分類').toLowerCase();
+          bValue = (b.category || '未分類').toLowerCase();
           break;
         case 'status':
           aValue = a.status;
@@ -128,11 +137,44 @@ export const CompanyList: React.FC = () => {
 
   const handleAddCompany = async (formData: any) => {
     try {
-      await addCompany(formData);
-      setShowCompanyForm(false);
-      success('成功', '企業を追加しました');
+      setIsProcessing(true);
+      setProcessingProgress(null);
+      
+      // 新しい自動連携処理を実行
+      const result = await companyProcessor.processNewCompany(
+        formData,
+        (progress) => {
+          setProcessingProgress(progress);
+        }
+      );
+      
+      if (result.success) {
+        setShowCompanyForm(false);
+        // データをリロードしてUIを更新
+        await loadCompanies();
+        
+        // 成功メッセージを表示
+        const completedSteps = Object.values(result.steps).filter(Boolean).length;
+        success('成功', `企業「${result.company.name}」を追加し、${completedSteps}個の処理を完了しました`);
+      } else {
+        // エラーがあっても企業は作成されている可能性がある
+        await loadCompanies();
+        
+        const errorCount = result.errors.length;
+        const completedSteps = Object.values(result.steps).filter(Boolean).length;
+        
+        if (completedSteps > 0) {
+          showError('部分的に成功', 
+            `企業「${result.company.name}」を追加しましたが、${errorCount}個の処理でエラーが発生しました`);
+        } else {
+          showError('エラー', `企業の追加に失敗しました: ${result.errors.join(', ')}`);
+        }
+      }
     } catch (error) {
-      // Error is handled by the store and notification hook
+      showError('エラー', error instanceof Error ? error.message : '企業の追加に失敗しました');
+    } finally {
+      setIsProcessing(false);
+      setProcessingProgress(null);
     }
   };
 
@@ -303,6 +345,18 @@ export const CompanyList: React.FC = () => {
         
         {/* Secondary Actions - Collapsible on Mobile */}
         <div className="flex flex-col sm:flex-row gap-2">
+          {/* 一時的なマイグレーションボタン（開発環境のみ） */}
+          {CONSTANTS.FEATURES.COMPANY_INFO_MIGRATION && (
+            <Button 
+              variant="outline" 
+              onClick={() => setShowMigrationPanel(true)}
+              className="w-full sm:w-auto bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+            >
+              <Database className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">企業情報移行</span>
+              <span className="sm:hidden">移行</span>
+            </Button>
+          )}
           <Button 
             variant="outline" 
             onClick={exportToCSV}
@@ -535,7 +589,8 @@ export const CompanyList: React.FC = () => {
         }}
         onSubmit={editingCompany ? handleUpdateCompany : handleAddCompany}
         company={editingCompany}
-        loading={loading}
+        loading={loading || isProcessing}
+        processingProgress={processingProgress}
       />
 
       <CSVImporter
@@ -544,6 +599,26 @@ export const CompanyList: React.FC = () => {
         onImport={handleImportCompanies}
         loading={loading}
       />
+
+      {/* 一時的なマイグレーションパネル（開発環境のみ） */}
+      {CONSTANTS.FEATURES.COMPANY_INFO_MIGRATION && showMigrationPanel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">企業情報移行パネル</h2>
+              <button
+                onClick={() => setShowMigrationPanel(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4">
+              <CompanyInfoMigrationPanel />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

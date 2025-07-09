@@ -2,18 +2,20 @@
  * Backup and Restore functionality for MVV extraction system
  */
 
-import { companyStorage, mvvStorage } from './storage';
-import type { Company, MVVData } from '../types';
+import { companyStorage, mvvStorage, db } from './storage';
+import type { Company, MVVData, CompanyInfo } from '../types';
 
 export interface BackupData {
   version: string;
   timestamp: string;
   companies: Company[];
   mvvData: MVVData[];
+  companyInfo: CompanyInfo[]; // 企業情報を追加
   stats: {
     totalCompanies: number;
     companiesWithMVV: number;
     companiesWithEmbeddings: number;
+    companiesWithInfo: number; // 企業情報数を追加
     fullyCompleted: number;
     statusBreakdown: {
       pending: number;
@@ -36,6 +38,12 @@ export interface RestoreResult {
     skipped: number;
     errors: number;
   };
+  // 詳細統計
+  details: {
+    companies: { total: number; updated: number; created: number; };
+    mvvData: { total: number; updated: number; created: number; };
+    companyInfo: { total: number; updated: number; created: number; }; // 企業情報統計
+  };
   errors: Array<{
     companyName: string;
     error: string;
@@ -49,14 +57,22 @@ export async function createBackup(): Promise<BackupData> {
   try {
     console.log('Creating backup...');
     
-    const [companies, mvvData] = await Promise.all([
+    const [companies, mvvData, companyInfoData] = await Promise.all([
       companyStorage.getAll(),
-      mvvStorage.getAll()
+      mvvStorage.getAll(),
+      db.companyInfo.toArray() // 企業情報を追加
     ]);
+    
+    // CompanyInfoを正しい形式に変換
+    const companyInfo: CompanyInfo[] = companyInfoData.map(info => ({
+      ...info,
+      lastUpdated: new Date(info.lastUpdated)
+    }));
     
     // Calculate statistics
     const companiesWithMVV = companies.filter(c => c.mission || c.vision || c.values).length;
     const companiesWithEmbeddings = companies.filter(c => c.embeddings && c.embeddings.length > 0).length;
+    const companiesWithInfo = companyInfo.length; // 企業情報統計を追加
     const fullyCompleted = companies.filter(c => c.status === 'fully_completed').length;
     
     // Calculate detailed status breakdown
@@ -74,19 +90,22 @@ export async function createBackup(): Promise<BackupData> {
       totalCompanies: companies.length,
       companiesWithMVV,
       companiesWithEmbeddings,
+      companiesWithInfo,
       fullyCompleted,
       statusBreakdown
     });
     
     const backup: BackupData = {
-      version: '1.0.0',
+      version: '2.0.0', // 企業情報対応のためバージョンアップ
       timestamp: new Date().toISOString(),
       companies,
       mvvData,
+      companyInfo, // 企業情報を追加
       stats: {
         totalCompanies: companies.length,
         companiesWithMVV,
         companiesWithEmbeddings,
+        companiesWithInfo, // 企業情報統計を追加
         fullyCompleted,
         statusBreakdown
       }
@@ -140,11 +159,16 @@ export async function restoreFromBackup(backupData: BackupData): Promise<Restore
     const result: RestoreResult = {
       success: true,
       stats: {
-        total: backupData.companies.length,
+        total: backupData.companies.length + (backupData.companyInfo?.length || 0),
         updated: 0,
         created: 0,
         skipped: 0,
         errors: 0
+      },
+      details: {
+        companies: { total: backupData.companies.length, updated: 0, created: 0 },
+        mvvData: { total: backupData.mvvData.length, updated: 0, created: 0 },
+        companyInfo: { total: backupData.companyInfo?.length || 0, updated: 0, created: 0 }
       },
       errors: []
     };
@@ -178,6 +202,7 @@ export async function restoreFromBackup(backupData: BackupData): Promise<Restore
           await companyStorage.update(existingCompany.id, updateData);
           
           result.stats.updated++;
+          result.details.companies.updated++;
           console.log(`Updated: ${backupCompany.name}`);
         } else {
           // Create new company
@@ -195,6 +220,7 @@ export async function restoreFromBackup(backupData: BackupData): Promise<Restore
           await companyStorage.create(createData);
           
           result.stats.created++;
+          result.details.companies.created++;
           console.log(`Created: ${backupCompany.name}`);
         }
       } catch (error) {
@@ -237,7 +263,43 @@ export async function restoreFromBackup(backupData: BackupData): Promise<Restore
       }
     }
     
+    // Restore Company Info data (if available)
+    if (backupData.companyInfo && backupData.companyInfo.length > 0) {
+      console.log('Restoring company info data...');
+      const existingCompanyInfoData = await db.companyInfo.toArray();
+      const existingCompanyInfoMap = new Map(existingCompanyInfoData.map(info => 
+        [info.companyId, info]
+      ));
+      
+      for (const backupInfo of backupData.companyInfo) {
+        try {
+          const existingInfo = existingCompanyInfoMap.get(backupInfo.companyId);
+          
+          if (existingInfo) {
+            // Update existing company info
+            await db.companyInfo.update(existingInfo.id!, {
+              ...backupInfo,
+              id: existingInfo.id,
+              lastUpdated: new Date(backupInfo.lastUpdated).getTime()
+            });
+            result.details.companyInfo.updated++;
+          } else {
+            // Create new company info
+            await db.companyInfo.add({
+              ...backupInfo,
+              lastUpdated: new Date(backupInfo.lastUpdated).getTime()
+            });
+            result.details.companyInfo.created++;
+          }
+        } catch (error) {
+          console.error(`Failed to restore company info for company ${backupInfo.companyId}:`, error);
+          result.stats.errors++;
+        }
+      }
+    }
+    
     console.log('Restore completed:', result.stats);
+    console.log('Details:', result.details);
     return result;
     
   } catch (error) {
@@ -250,6 +312,11 @@ export async function restoreFromBackup(backupData: BackupData): Promise<Restore
         created: 0,
         skipped: 0,
         errors: 1
+      },
+      details: {
+        companies: { total: 0, updated: 0, created: 0 },
+        mvvData: { total: 0, updated: 0, created: 0 },
+        companyInfo: { total: 0, updated: 0, created: 0 }
       },
       errors: [{
         companyName: 'System',
@@ -264,7 +331,7 @@ export async function restoreFromBackup(backupData: BackupData): Promise<Restore
  */
 export function validateBackupData(data: any): data is BackupData {
   try {
-    return (
+    const isValid = (
       typeof data === 'object' &&
       data !== null &&
       typeof data.version === 'string' &&
@@ -274,6 +341,14 @@ export function validateBackupData(data: any): data is BackupData {
       typeof data.stats === 'object' &&
       typeof data.stats.totalCompanies === 'number'
     );
+    
+    // 後方互換性: companyInfoがない古いフォーマットも受け入れる
+    if (isValid && !data.companyInfo) {
+      console.warn('Legacy backup format detected. CompanyInfo will be empty.');
+      data.companyInfo = []; // 空の配列で初期化
+    }
+    
+    return isValid;
   } catch {
     return false;
   }

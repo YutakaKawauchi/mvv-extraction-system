@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import type { Company, CompanyFormData } from '../../types';
+import type { CompanyProcessingProgress } from '../../services/companyProcessor';
 import { Button, Modal } from '../common';
 import { validateCompanyForm, sanitizeInput } from '../../utils/validators';
 import { CONSTANTS } from '../../utils/constants';
+import { CheckCircle, Clock } from 'lucide-react';
 
 interface CompanyFormProps {
   isOpen: boolean;
@@ -10,6 +12,7 @@ interface CompanyFormProps {
   onSubmit: (formData: CompanyFormData) => void;
   company?: Company;
   loading?: boolean;
+  processingProgress?: CompanyProcessingProgress | null;
 }
 
 export const CompanyForm: React.FC<CompanyFormProps> = ({
@@ -17,7 +20,8 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
   onClose,
   onSubmit,
   company,
-  loading = false
+  loading = false,
+  processingProgress = null
 }) => {
   const [formData, setFormData] = useState<CompanyFormData>({
     name: '',
@@ -53,7 +57,7 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
     const sanitizedData: CompanyFormData = {
       name: sanitizeInput(formData.name),
       website: sanitizeInput(formData.website),
-      category: sanitizeInput(formData.category),
+      category: formData.category ? sanitizeInput(formData.category) : undefined,
       notes: formData.notes ? sanitizeInput(formData.notes) : undefined
     };
 
@@ -166,6 +170,75 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
             placeholder="企業に関する追加情報..."
           />
         </div>
+
+        {/* 処理進行状況 */}
+        {processingProgress && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center">
+                {processingProgress.currentStep === 'completed' ? (
+                  <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
+                ) : (
+                  <Clock className="w-5 h-5 text-blue-500 mr-2 animate-pulse" />
+                )}
+                <span className="text-sm font-medium text-blue-900">
+                  {processingProgress.currentStepName}
+                </span>
+              </div>
+              <span className="text-sm text-blue-700">
+                {processingProgress.progress}%
+              </span>
+            </div>
+            
+            {/* プログレスバー */}
+            <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${processingProgress.progress}%` }}
+              />
+            </div>
+            
+            {/* ステップ表示 */}
+            <div className="grid grid-cols-4 gap-2 text-xs">
+              <div className={`flex items-center ${
+                processingProgress.currentStep === 'creating' || processingProgress.progress > 10
+                  ? 'text-blue-600' : 'text-gray-400'
+              }`}>
+                <div className={`w-2 h-2 rounded-full mr-1 ${
+                  processingProgress.progress > 10 ? 'bg-blue-600' : 'bg-gray-300'
+                }`} />
+                企業登録
+              </div>
+              <div className={`flex items-center ${
+                processingProgress.currentStep === 'extracting_mvv' || processingProgress.progress > 30
+                  ? 'text-blue-600' : 'text-gray-400'
+              }`}>
+                <div className={`w-2 h-2 rounded-full mr-1 ${
+                  processingProgress.progress > 30 ? 'bg-blue-600' : 'bg-gray-300'
+                }`} />
+                MVV抽出
+              </div>
+              <div className={`flex items-center ${
+                processingProgress.currentStep === 'extracting_info' || processingProgress.progress > 60
+                  ? 'text-blue-600' : 'text-gray-400'
+              }`}>
+                <div className={`w-2 h-2 rounded-full mr-1 ${
+                  processingProgress.progress > 60 ? 'bg-blue-600' : 'bg-gray-300'
+                }`} />
+                企業情報
+              </div>
+              <div className={`flex items-center ${
+                processingProgress.currentStep === 'updating_category' || processingProgress.progress > 80
+                  ? 'text-blue-600' : 'text-gray-400'
+              }`}>
+                <div className={`w-2 h-2 rounded-full mr-1 ${
+                  processingProgress.progress > 80 ? 'bg-blue-600' : 'bg-gray-300'
+                }`} />
+                カテゴリー更新
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex justify-end space-x-3 pt-4">
