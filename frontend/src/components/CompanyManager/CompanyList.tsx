@@ -3,6 +3,8 @@ import type { Company, CompanyStatus } from '../../types';
 import { CompanyCard } from './CompanyCard';
 import { CompanyForm } from './CompanyForm';
 import { CSVImporter } from './CSVImporter';
+// 一時的なマイグレーション機能（開発時のみ表示）
+import { CompanyInfoMigrationPanel } from './CompanyInfoMigrationPanel';
 import { Button, LoadingSpinner } from '../common';
 import { useCompanyStore } from '../../stores/companyStore';
 import { useNotification } from '../../hooks/useNotification';
@@ -17,7 +19,8 @@ import {
   Trash2,
   RotateCcw,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Database
 } from 'lucide-react';
 
 type ViewMode = 'grid' | 'list';
@@ -34,6 +37,8 @@ export const CompanyList: React.FC = () => {
   const [showCompanyForm, setShowCompanyForm] = useState(false);
   const [showCSVImporter, setShowCSVImporter] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | undefined>();
+  // 一時的なマイグレーションパネル表示状態
+  const [showMigrationPanel, setShowMigrationPanel] = useState(false);
 
   const {
     companies,
@@ -303,6 +308,18 @@ export const CompanyList: React.FC = () => {
         
         {/* Secondary Actions - Collapsible on Mobile */}
         <div className="flex flex-col sm:flex-row gap-2">
+          {/* 一時的なマイグレーションボタン（開発環境のみ） */}
+          {CONSTANTS.FEATURES.COMPANY_INFO_MIGRATION && (
+            <Button 
+              variant="outline" 
+              onClick={() => setShowMigrationPanel(true)}
+              className="w-full sm:w-auto bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+            >
+              <Database className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">企業情報移行</span>
+              <span className="sm:hidden">移行</span>
+            </Button>
+          )}
           <Button 
             variant="outline" 
             onClick={exportToCSV}
@@ -544,6 +561,26 @@ export const CompanyList: React.FC = () => {
         onImport={handleImportCompanies}
         loading={loading}
       />
+
+      {/* 一時的なマイグレーションパネル（開発環境のみ） */}
+      {CONSTANTS.FEATURES.COMPANY_INFO_MIGRATION && showMigrationPanel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">企業情報移行パネル</h2>
+              <button
+                onClick={() => setShowMigrationPanel(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4">
+              <CompanyInfoMigrationPanel />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -235,7 +235,7 @@ export const BackupRestorePanel: React.FC = () => {
 
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 mb-3">処理結果</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
                   <span className="text-gray-600">総件数:</span>
                   <span className="ml-2 font-medium">{restoreResult.stats.total}</span>
@@ -253,6 +253,39 @@ export const BackupRestorePanel: React.FC = () => {
                   <span className="ml-2 font-medium text-red-600">{restoreResult.stats.errors}</span>
                 </div>
               </div>
+              
+              {/* 詳細統計を表示 */}
+              {restoreResult.details && (
+                <div className="border-t border-gray-200 pt-3">
+                  <h5 className="text-sm font-medium text-gray-900 mb-2">詳細内訳</h5>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">企業データ:</span>
+                      <span className="text-right">
+                        <span className="text-green-600">{restoreResult.details.companies.created}件作成</span>
+                        <span className="text-gray-400 mx-1">/</span>
+                        <span className="text-blue-600">{restoreResult.details.companies.updated}件更新</span>
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">MVVデータ:</span>
+                      <span className="text-right">
+                        <span className="text-green-600">{restoreResult.details.mvvData.created}件作成</span>
+                        <span className="text-gray-400 mx-1">/</span>
+                        <span className="text-blue-600">{restoreResult.details.mvvData.updated}件更新</span>
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">企業情報:</span>
+                      <span className="text-right">
+                        <span className="text-green-600">{restoreResult.details.companyInfo.created}件作成</span>
+                        <span className="text-gray-400 mx-1">/</span>
+                        <span className="text-blue-600">{restoreResult.details.companyInfo.updated}件更新</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {restoreResult.errors.length > 0 && (
@@ -314,6 +347,14 @@ export const BackupRestorePanel: React.FC = () => {
                   <span className="text-gray-600">完全完了:</span>
                   <span className="ml-2 font-medium">{backupPreview.stats.fullyCompleted}</span>
                 </div>
+                {/* 企業情報統計を追加 */}
+                {backupPreview.stats.companiesWithInfo !== undefined && (
+                  <div className="flex items-center">
+                    <Database className="mr-2 h-4 w-4 text-blue-600" />
+                    <span className="text-gray-600">企業情報有り:</span>
+                    <span className="ml-2 font-medium">{backupPreview.stats.companiesWithInfo}</span>
+                  </div>
+                )}
               </div>
               
               {/* Status Breakdown - Only show if statusBreakdown exists */}

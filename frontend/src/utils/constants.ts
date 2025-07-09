@@ -17,6 +17,11 @@ export const CONSTANTS = {
   // UI設定
   DEFAULT_PAGE_SIZE: 20,
   TOAST_DURATION: 3000,
+  
+  // 一時的な機能フラグ（開発完了後は削除）
+  FEATURES: {
+    COMPANY_INFO_MIGRATION: import.meta.env.VITE_ENVIRONMENT === 'development', // マイグレーション機能
+  },
 
   // カテゴリー
   COMPANY_CATEGORIES: [
