@@ -58,12 +58,14 @@ export class SimilarityCalculator {
   /**
    * Calculate morphological text similarity using TinySegmenter
    */
-  public static calculateTextSimilarity(companyA: Company, companyB: Company): number {
+  public static calculateTextSimilarity(companyA: Company | any, companyB: Company | any): number {
     const segmenter = new TinySegmenter();
     
     // Extract text from MVV data
-    const textA = [companyA.mission, companyA.vision, ...(companyA.values || [])].join(' ');
-    const textB = [companyB.mission, companyB.vision, ...(companyB.values || [])].join(' ');
+    const valuesA = Array.isArray(companyA.values) ? companyA.values : (companyA.values ? [companyA.values] : []);
+    const valuesB = Array.isArray(companyB.values) ? companyB.values : (companyB.values ? [companyB.values] : []);
+    const textA = [companyA.mission, companyA.vision, ...valuesA].join(' ');
+    const textB = [companyB.mission, companyB.vision, ...valuesB].join(' ');
     
     if (!textA || !textB) return 0;
 
@@ -139,7 +141,7 @@ export class SimilarityCalculator {
   /**
    * Calculate enhanced similarity combining embeddings and text analysis
    */
-  public static calculateEnhancedSimilarity(companyA: Company, companyB: Company): number {
+  public static calculateEnhancedSimilarity(companyA: Company | any, companyB: Company | any): number {
     // Check if both companies have embeddings
     if (!companyA.embeddings || !companyB.embeddings) {
       return 0;

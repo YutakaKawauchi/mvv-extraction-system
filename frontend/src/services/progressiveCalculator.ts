@@ -26,7 +26,7 @@ export interface ProgressiveStats {
 
 export class ProgressiveCalculator {
   private isProcessing = false;
-  private processingProgress = 0;
+  // private processingProgress = 0;
   private abortController: AbortController | null = null;
 
   /**
@@ -128,8 +128,8 @@ export class ProgressiveCalculator {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
     } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Progressive calculation error:', error);
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Progressive calculation error:', error.message);
       }
     }
 
@@ -226,8 +226,8 @@ export class ProgressiveCalculator {
         await new Promise(resolve => setTimeout(resolve, 5));
       }
     } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Progressive stats calculation error:', error);
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Progressive stats calculation error:', error.message);
       }
     }
 

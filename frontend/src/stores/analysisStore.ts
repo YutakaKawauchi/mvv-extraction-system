@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { AnalysisFilters } from '../types/analysis';
 import { hybridDataLoader, type HybridAnalysisData, type HybridCompany } from '../services/hybridDataLoader';
 import { companyStorage } from '../services/storage';
-import { generateEmbeddings } from '../services/openai';
+// import { generateEmbeddings } from '../services/openai';
 
 interface AnalysisStore {
   // データ状態 (ハイブリッド対応)
@@ -62,7 +62,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
       
       // 3. 分析済み企業（embeddings持ち）をHybridCompany形式に変換
       const analyzedCompanies = managedCompanies
-        .filter(company => company.status === 'completed' && company.embeddings)
+        .filter(company => (company.status === 'mvv_extracted' || company.status === 'fully_completed') && company.embeddings)
         .map(company => ({
           id: company.id,
           name: company.name,
@@ -71,7 +71,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
           vision: company.vision || '',
           values: company.values || '',
           embeddings: company.embeddings!,
-          confidenceScores: company.confidenceScores || {
+          confidenceScores: {
             mission: 0.8,
             vision: 0.8,
             values: 0.8

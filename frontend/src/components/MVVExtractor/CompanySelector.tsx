@@ -59,14 +59,15 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
     onSelectionChange(embeddingsErrorCompanies);
   };
 
-  const handleSelectAllErrors = () => {
-    const errorCompanies = companies.filter(c => 
-      c.status === 'error' || 
-      c.status === 'mvv_extraction_error' || 
-      c.status === 'embeddings_generation_error'
-    );
-    onSelectionChange(errorCompanies);
-  };
+  // Uncomment when needed
+  // const handleSelectAllErrors = () => {
+  //   const errorCompanies = companies.filter(c => 
+  //     c.status === 'error' || 
+  //     c.status === 'mvv_extraction_error' || 
+  //     c.status === 'embeddings_generation_error'
+  //   );
+  //   onSelectionChange(errorCompanies);
+  // };
 
   const handleSelectMVVExtracted = () => {
     const mvvExtractedCompanies = companies.filter(c => c.status === 'mvv_extracted');

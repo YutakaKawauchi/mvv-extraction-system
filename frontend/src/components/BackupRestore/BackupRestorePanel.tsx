@@ -1,12 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { Button, Modal, ProgressBar } from '../common';
+import { Button, Modal } from '../common';
 import { useNotification } from '../../hooks/useNotification';
 import { useCompanyStore } from '../../stores/companyStore';
 import { useMVVStore } from '../../stores/mvvStore';
 import { 
   exportBackup, 
   importBackupFromFile, 
-  createBackup,
   type BackupData,
   type RestoreResult 
 } from '../../services/backupRestore';

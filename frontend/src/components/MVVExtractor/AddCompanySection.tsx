@@ -35,7 +35,7 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
   const [errorMessage, setErrorMessage] = useState('');
   const [processingStep, setProcessingStep] = useState('');
   
-  const { addCompany } = useCompanyStore();
+  const { addCompany, updateCompany } = useCompanyStore();
   const { addMVVData } = useMVVStore();
   const { extractMVVPerplexity } = useApiClient();
   const { success, error: showError } = useNotification();
@@ -83,7 +83,7 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
       category: '',
       description: ''
     });
-    setProcessingStatus('idle');
+    setProcessingStatus('idle' as ProcessingStatus);
     setErrorMessage('');
     setProcessingStep('');
   };
@@ -104,7 +104,7 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
       return;
     }
 
-    setProcessingStatus('extracting');
+    setProcessingStatus('extracting' as ProcessingStatus);
     setErrorMessage('');
     setProcessingStep('Perplexity AIがMVVを抽出中...');
 
@@ -121,7 +121,7 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
         throw new Error('MVV抽出に失敗しました');
       }
 
-      setProcessingStatus('saving');
+      setProcessingStatus('saving' as ProcessingStatus);
       setProcessingStep('企業情報とMVVデータを保存中...');
 
       // Step 2: Add company to the store
@@ -148,13 +148,12 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
 
       await addMVVData(mvvData);
 
-      // Step 4: Update company status to completed
-      await addCompany({
-        ...newCompany,
-        status: 'completed'
+      // Step 4: Update company status to mvv_extracted
+      await updateCompany(newCompany.id, {
+        status: 'mvv_extracted'
       });
 
-      setProcessingStatus('success');
+      setProcessingStatus('success' as ProcessingStatus);
       setProcessingStep('企業の追加が完了しました！');
       
       success('企業追加完了', `${formData.name}のMVV情報が正常に抽出・保存されました`);
@@ -168,7 +167,7 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
       }, 2000);
 
     } catch (error) {
-      setProcessingStatus('error');
+      setProcessingStatus('error' as ProcessingStatus);
       const errorMsg = error instanceof Error ? error.message : 'MVV抽出に失敗しました';
       setErrorMessage(errorMsg);
       showError('抽出エラー', errorMsg);
@@ -265,7 +264,7 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="サイバーエージェント"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={processingStatus === 'extracting' || processingStatus === 'saving'}
+              disabled={['extracting', 'saving'].includes(processingStatus)}
               required
             />
           </div>
@@ -281,7 +280,7 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
               onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
               placeholder="https://www.cyberagent.co.jp/"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={processingStatus === 'extracting' || processingStatus === 'saving'}
+              disabled={['extracting', 'saving'].includes(processingStatus)}
               required
             />
           </div>
@@ -299,7 +298,7 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
               onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
               placeholder="業界を入力または選択..."
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={processingStatus === 'extracting' || processingStatus === 'saving'}
+              disabled={['extracting', 'saving'].includes(processingStatus)}
               required
             />
             
@@ -339,7 +338,7 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
               placeholder="企業の簡単な説明（MVV抽出の精度向上に役立ちます）"
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={processingStatus === 'extracting' || processingStatus === 'saving'}
+              disabled={['extracting', 'saving'].includes(processingStatus)}
             />
           </div>
 
@@ -368,22 +367,21 @@ export const AddCompanySection: React.FC<AddCompanySectionProps> = ({ onSuccess 
                 setIsExpanded(false);
                 resetForm();
               }}
-              disabled={processingStatus === 'extracting' || processingStatus === 'saving'}
+              disabled={['extracting', 'saving'].includes(processingStatus)}
             >
               キャンセル
             </Button>
             <Button
               type="submit"
               disabled={
-                processingStatus === 'extracting' || 
-                processingStatus === 'saving' || 
+                ['extracting', 'saving'].includes(processingStatus) || 
                 !formData.name.trim() || 
                 !formData.website.trim() || 
                 !formData.category.trim()
               }
               className="flex items-center"
             >
-              {processingStatus === 'extracting' || processingStatus === 'saving' ? (
+              {['extracting', 'saving'].includes(processingStatus) ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   処理中...

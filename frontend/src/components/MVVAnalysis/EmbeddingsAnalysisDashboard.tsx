@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { useEmbeddingsAnalysisStore } from '../../stores/embeddingsAnalysisStore';
 import { useCompanyStore } from '../../stores/companyStore';
 import { LoadingSpinner, ErrorBoundary } from '../common';
-import { BarChart3, Network, Search, TrendingUp, AlertCircle, Sparkles } from 'lucide-react';
+import { Search, TrendingUp, AlertCircle, Sparkles } from 'lucide-react';
 import EmbeddingsSimilarCompanyFinder from './EmbeddingsSimilarCompanyFinder';
 import SimilarityOverview from './SimilarityOverview';
 import IndustryAnalysis from './IndustryAnalysis';
@@ -189,7 +189,9 @@ export const EmbeddingsAnalysisDashboard: React.FC = () => {
                     }`} />
                     {tab.name}
                     {tab.id === 'finder' && (
-                      <Sparkles className="ml-1 h-4 w-4 text-green-500" title="リアルタイム計算" />
+                      <span title="リアルタイム計算">
+                        <Sparkles className="ml-1 h-4 w-4 text-green-500" />
+                      </span>
                     )}
                   </button>
                 );

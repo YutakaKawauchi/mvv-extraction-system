@@ -67,7 +67,7 @@ export const CompanyList: React.FC = () => {
   }, [companies]);
 
   const completedCompanies = useMemo(() => {
-    return companies.filter(company => company.status === 'completed');
+    return companies.filter(company => company.status === 'mvv_extracted' || company.status === 'fully_completed');
   }, [companies]);
 
   const pendingCompanies = useMemo(() => {
