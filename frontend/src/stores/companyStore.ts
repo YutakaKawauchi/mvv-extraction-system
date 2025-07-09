@@ -13,7 +13,7 @@ interface CompanyState {
 
 interface CompanyActions {
   loadCompanies: () => Promise<void>;
-  addCompany: (formData: CompanyFormData) => Promise<void>;
+  addCompany: (formData: CompanyFormData) => Promise<Company>;
   addCompanies: (importData: CompanyImportData[]) => Promise<{ 
     imported: number; 
     skipped: number; 
@@ -65,9 +65,11 @@ export const useCompanyStore = create<CompanyStore>()(
           await companyStorage.create(company);
           const companies = await companyStorage.getAll();
           set({ companies, loading: false });
+          return company;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to add company';
           set({ error: errorMessage, loading: false });
+          throw error;
         }
       },
 

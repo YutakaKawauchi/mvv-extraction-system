@@ -401,7 +401,7 @@ export async function emergencyRestoreCompanies() {
     let restored = 0;
     for (const [companyId, mvv] of companiesFromMVV) {
       // Find matching hybrid data
-      const hybridMatch = hybridData.find(h => h.id === companyId);
+      const hybridMatch = hybridData.find((h: any) => h.id === companyId);
       
       const company = {
         id: companyId,

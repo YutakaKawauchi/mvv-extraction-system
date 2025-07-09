@@ -9,10 +9,7 @@ const SimilarCompanyFinder: React.FC = () => {
     getFilteredCompanies, 
     getSimilarCompanies, 
     selectedCompany, 
-    setSelectedCompany,
-    getCacheStats,
-    data,
-    filters
+    setSelectedCompany
   } = useAnalysisStore();
   
   const [searchTerm, setSearchTerm] = useState('');

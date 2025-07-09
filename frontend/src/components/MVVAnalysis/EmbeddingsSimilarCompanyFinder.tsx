@@ -18,8 +18,7 @@ const EmbeddingsSimilarCompanyFinder: React.FC = () => {
     getFilteredCompanies, 
     getSimilarCompanies, 
     selectedCompany, 
-    setSelectedCompany,
-    data
+    setSelectedCompany
   } = useEmbeddingsAnalysisStore();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,7 +26,6 @@ const EmbeddingsSimilarCompanyFinder: React.FC = () => {
   const [progressiveResults, setProgressiveResults] = useState<any[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculationProgress, setCalculationProgress] = useState(0);
-  const [hoveredCompany, setHoveredCompany] = useState<string | null>(null);
   const [pinnedTooltips, setPinnedTooltips] = useState<Set<string>>(new Set());
   
   const companies = getFilteredCompanies();
@@ -564,7 +562,7 @@ const EmbeddingsSimilarCompanyFinder: React.FC = () => {
                     <h5 className="text-sm font-medium text-purple-700">Values</h5>
                     <button
                       onClick={() => copyToClipboard(
-                        Array.isArray(company.values) ? company.values.join(', ') : company.values,
+                        Array.isArray(company.values) ? company.values.join(', ') : (company.values || ''),
                         'Values'
                       )}
                       className="p-1 text-gray-400 hover:text-purple-600 transition-colors"

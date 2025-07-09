@@ -7,8 +7,8 @@ import { create } from 'zustand';
 import type { Company, MVVData } from '../types';
 import { companyStorage, mvvStorage } from '../services/storage';
 import { SimilarityCalculator, type CompanyWithSimilarity } from '../services/similarityCalculator';
-import { ProgressiveCalculator } from '../services/progressiveCalculator';
-import { similarityCache } from '../services/similarityCache';
+// import { ProgressiveCalculator } from '../services/progressiveCalculator';
+// import { similarityCache } from '../services/similarityCache';
 
 // Extended Company type with confidence scores and MVV data
 export interface CompanyWithScores extends Company {
@@ -20,7 +20,7 @@ export interface CompanyWithScores extends Company {
   // Override MVV fields with actual data from MVVData table
   mission?: string;
   vision?: string;
-  values?: string[] | string;
+  values?: string;
 }
 
 export interface EmbeddingsAnalysisData {
@@ -93,7 +93,7 @@ export const useEmbeddingsAnalysisStore = create<EmbeddingsAnalysisStore>((set, 
   selectedCompany: null,
   
   // Load analysis data from IndexedDB
-  loadAnalysisData: async (forceRefresh = false) => {
+  loadAnalysisData: async () => {
     set({ isLoading: true, error: null });
     
     try {
@@ -125,7 +125,7 @@ export const useEmbeddingsAnalysisStore = create<EmbeddingsAnalysisStore>((set, 
           // Override with actual MVV data from MVVData table
           mission: mvvData?.mission || company.mission,
           vision: mvvData?.vision || company.vision,
-          values: mvvData?.values || company.values
+          values: mvvData?.values ? mvvData.values.join(', ') : company.values
         };
       });
       
@@ -256,7 +256,7 @@ export const useEmbeddingsAnalysisStore = create<EmbeddingsAnalysisStore>((set, 
           company.name,
           company.mission || '',
           company.vision || '',
-          (company.values || []).join(' ')
+          (Array.isArray(company.values) ? company.values.join(' ') : company.values || '')
         ].join(' ').toLowerCase();
         
         if (!searchFields.includes(searchLower)) {
