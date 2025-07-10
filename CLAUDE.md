@@ -7,6 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Commit Messages
 - **NO Claude signatures in commit messages** - User preference: keep commits clean without AI attribution
 
+### Build and Commit Policy
+- **MANDATORY: Always build and test before committing** - Never commit code without verifying it builds successfully
+- **Build command**: `cd frontend && npm run build` - Must complete without errors
+- **Test locally first** - Ensure all functionality works as expected before committing
+- **No broken builds** - If build fails, fix all issues before attempting to commit
+
 ### Security Guidelines
 - **NEVER commit passwords, API keys, or secrets to version control**
 - **NEVER include actual credentials in documentation or comments**
