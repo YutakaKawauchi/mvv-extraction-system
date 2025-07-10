@@ -1,5 +1,9 @@
 export { MVVAnalysisDashboard } from './MVVAnalysisDashboard';
 export { EmbeddingsAnalysisDashboard } from './EmbeddingsAnalysisDashboard';
+export { UniquenessScoreDashboard } from './UniquenessScoreDashboard';
+export { MVVTrendAnalysis } from './MVVTrendAnalysis';
+export { CompetitivePositioningMap } from './CompetitivePositioningMap';
+export { MVVQualityAssessment } from './MVVQualityAssessment';
 export { default as SimilarityOverview } from './SimilarityOverview';
 export { default as SimilarCompanyFinder } from './SimilarCompanyFinder';
 export { default as EmbeddingsSimilarCompanyFinder } from './EmbeddingsSimilarCompanyFinder';

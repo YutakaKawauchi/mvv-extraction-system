@@ -4,12 +4,13 @@
  */
 
 import type { Company } from '../types';
+import type { HybridCompany } from './hybridDataLoader';
 import { SimilarityCalculator } from './similarityCalculator';
 import { similarityCache } from './similarityCache';
 
 export interface ProgressiveResult {
-  companyA: Company;
-  companyB: Company;
+  companyA: Company | HybridCompany;
+  companyB: Company | HybridCompany;
   quickSimilarity: number;
   enhancedSimilarity: number | null;
   isEnhanced: boolean;
@@ -32,7 +33,7 @@ export class ProgressiveCalculator {
   /**
    * Get quick similarity (cosine similarity only)
    */
-  public static getQuickSimilarity(companyA: Company, companyB: Company): number {
+  public static getQuickSimilarity(companyA: Company | HybridCompany, companyB: Company | HybridCompany): number {
     if (!companyA.embeddings || !companyB.embeddings) {
       return 0;
     }
@@ -43,7 +44,7 @@ export class ProgressiveCalculator {
   /**
    * Get enhanced similarity (with caching)
    */
-  public static getEnhancedSimilarity(companyA: Company, companyB: Company): number {
+  public static getEnhancedSimilarity(companyA: Company | HybridCompany, companyB: Company | HybridCompany): number {
     // Check cache first
     const cached = similarityCache.get(companyA.id, companyB.id);
     if (cached !== null) {
@@ -61,8 +62,8 @@ export class ProgressiveCalculator {
    * Find similar companies with progressive enhancement
    */
   public async findSimilarCompanies(
-    targetCompany: Company,
-    companies: Company[],
+    targetCompany: Company | HybridCompany,
+    companies: (Company | HybridCompany)[],
     limit: number = 5,
     onProgress?: (progress: ProgressiveResult[]) => void
   ): Promise<ProgressiveResult[]> {
