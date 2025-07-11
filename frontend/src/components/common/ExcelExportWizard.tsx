@@ -45,6 +45,7 @@ export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
     includeCompanyMaster: true,
     includeDetailedProfiles: true, // デフォルトでtrueに設定
     includeVisualAnalytics: false,
+    includeAIAnalysis: true, // AI分析シート追加
     corporateTheme: 'professional',
     includeCharts: true,
     highResolution: true,
@@ -276,6 +277,28 @@ export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
             </div>
           </label>
 
+          {/* AI分析シート */}
+          <div className="pt-4 border-t border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">🤖 AI分析レポート (NEW)</h4>
+            <label className="flex items-start space-x-3">
+              <input
+                type="checkbox"
+                checked={options.includeAIAnalysis}
+                onChange={(e) => handleOptionChange('includeAIAnalysis', e.target.checked)}
+                className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <div>
+                <div className="font-medium text-gray-900">AI Analysis Reports</div>
+                <div className="text-sm text-gray-600">
+                  類似企業分析・トレンドキーワード・品質スコア・ポジショニング
+                </div>
+                <div className="text-xs text-blue-600 mt-1">
+                  ✨ ビジネスインサイトを視覚的に表現
+                </div>
+              </div>
+            </label>
+          </div>
+
 
           <label className="flex items-start space-x-3 opacity-50">
             <input
@@ -413,6 +436,12 @@ export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
             <div className="flex items-center space-x-2 text-sm">
               <CheckCircle className="w-4 h-4 text-green-500" />
               <span>Company Detailed Profiles</span>
+            </div>
+          )}
+          {options.includeAIAnalysis && (
+            <div className="flex items-center space-x-2 text-sm">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>AI Analysis Reports (5シート)</span>
             </div>
           )}
         </div>
