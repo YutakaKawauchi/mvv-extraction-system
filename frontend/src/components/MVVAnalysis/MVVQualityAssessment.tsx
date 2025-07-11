@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { LoadingSpinner } from '../common';
 import { Award, CheckCircle, AlertTriangle, XCircle, BarChart3 } from 'lucide-react';
-import { TinySegmenter } from '@birchill/tiny-segmenter';
+import { enhancedSegmentationService } from '../../services/enhancedSegmentationService';
 
 interface QualityMetrics {
   clarity: number;      // 明確性
@@ -30,16 +30,22 @@ export const MVVQualityAssessment: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'overall' | 'mission' | 'vision' | 'values'>('overall');
 
-  const segmenter = useMemo(() => new TinySegmenter(), []);
+  // Enhanced segmentation service for better compound word handling
+  const segmentationOptions = useMemo(() => ({
+    preserveCompounds: true,
+    enableCustomRules: true,
+    industryFocus: 'healthcare' as const
+  }), []);
 
   // MVVテキストの品質評価（安全化版）
-  const assessMVVText = (text: string, type: 'mission' | 'vision' | 'values', segmenter: any): QualityMetrics => {
+  const assessMVVText = (text: string, type: 'mission' | 'vision' | 'values'): QualityMetrics => {
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return { clarity: 0, specificity: 0, actionability: 0, authenticity: 0, completeness: 0, overall: 0 };
     }
 
     try {
-      const words = segmenter.segment(text);
+      const segmentationResult = enhancedSegmentationService.segmentWithCompounds(text, segmentationOptions);
+      const words = segmentationResult.segments;
       if (!Array.isArray(words)) {
         console.warn('Segmenter did not return an array:', words);
         return { clarity: 0, specificity: 0, actionability: 0, authenticity: 0, completeness: 0, overall: 0 };
@@ -227,9 +233,9 @@ export const MVVQualityAssessment: React.FC = () => {
     console.log(`📊 ${validCompanies.length}社で品質評価実行中...`);
 
     const assessments: CompanyAssessment[] = validCompanies.map(company => {
-      const missionMetrics = assessMVVText(company.mission || '', 'mission', segmenter);
-      const visionMetrics = assessMVVText(company.vision || '', 'vision', segmenter);
-      const valuesMetrics = assessMVVText(company.values || '', 'values', segmenter);
+      const missionMetrics = assessMVVText(company.mission || '', 'mission');
+      const visionMetrics = assessMVVText(company.vision || '', 'vision');
+      const valuesMetrics = assessMVVText(company.values || '', 'values');
 
       // 総合評価
       const overall: QualityMetrics = {
@@ -287,7 +293,7 @@ export const MVVQualityAssessment: React.FC = () => {
     console.log(`✅ MVV品質評価完了: ${Math.round(endTime - startTime)}ms`);
 
     return { assessments, categoryStats, loading: false };
-  }, [data, segmenter]);
+  }, [data, segmentationOptions]);
 
   const filteredAssessments = useMemo(() => {
     let filtered = assessments;

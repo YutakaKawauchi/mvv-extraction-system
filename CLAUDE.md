@@ -520,7 +520,7 @@ git push origin main  # Deploy rollback
 - **Features**: Sensitive data masking, request/response tracking, performance metrics
 - **Log files**: Automatically excluded from git commits via .gitignore
 
-### Perplexity AI Integration Details (Updated 2025-07-08)
+### Perplexity AI Integration Details (Updated 2025-07-11)
 - **Model**: `sonar-pro` (Latest model with web search capabilities)
 - **Features**: Real-time web search, prioritized official website information
 - **Cost**: ~$0.011 per company processed (extremely cost-effective)
@@ -529,7 +529,8 @@ git push origin main  # Deploy rollback
 - **Accuracy**: Mission 95%+, Vision 90%+, Values 85%+
 - **Production Results**: 100% success rate (89/89 companies processed without errors)
 - **Performance Optimization**: Highly optimized batch processing (2min 49sec for 89 companies)
-- **Recent Improvements**: Enhanced CSV import with duplicate checking, better error handling
+- **Cost Optimization (2025-07-11)**: Fixed duplicate API call issue reducing cost from ~$0.022 to ~$0.011 per company
+- **Recent Improvements**: Enhanced CSV import with duplicate checking, better error handling, admin panel integration
 
 ### Tested Functionality
 ```bash
@@ -587,7 +588,14 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
    - ✅ Advanced Excel Features: Window freezing, auto-filters, text wrapping, conditional formatting
    - ✅ Step-by-step Export Wizard: Interactive configuration with preview and progress tracking
    - ✅ Business Intelligence Integration: JSIC classifications, financial data, competitive analysis
-6. **📊 Next Phase**: AI-powered insights and recommendations (Phase 4)
+6. **✅ Admin Panel with Hidden Menu Access (2025-07-11)**
+   - ✅ Hidden Menu Access: Ctrl+Shift+A keyboard shortcut activation
+   - ✅ Data Diagnostics: Company data integrity and MVV consistency checks
+   - ✅ Recovery Tools: Bulk extraction, single test execution, batch processing
+   - ✅ System Diagnostics: API health check and performance monitoring
+   - ✅ Cost Optimization: Fixed duplicate API call issue (50% cost reduction)
+   - ✅ Access Control: Admin-only features removed from standard UI
+7. **📊 Next Phase**: AI-powered insights and recommendations (Phase 4)
 
 ### Real-time Analysis System Architecture (Updated 2025-07-11)
 

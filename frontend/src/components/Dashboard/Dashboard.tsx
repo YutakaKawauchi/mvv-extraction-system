@@ -247,6 +247,7 @@ export const Dashboard: React.FC = () => {
         {activeTab === 'companies' && (
           <div>
             <CompanyList />
+
             {(companies.filter(c => c.status === 'pending').length > 0 || companies.filter(c => c.status === 'mvv_extracted').length > 0) && (
               <div className="mt-6 space-y-4">
                 {companies.filter(c => c.status === 'pending').length > 0 && (

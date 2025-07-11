@@ -2,14 +2,17 @@ import { useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { ErrorBoundary, NotificationToast, ScrollToTopButton } from './components/common';
 import { AuthGuard } from './components/auth';
+import { AdminPanel } from './components/admin';
 import { useIndexedDB } from './hooks/useIndexedDB';
 import { useNotification } from './hooks/useNotification';
+import { useAdminMode } from './hooks/useAdminMode';
 import { useCompanyStore } from './stores/companyStore';
 import './services/manualMigration'; // Load debug tools
 
 function App() {
   const { isInitialized, error: dbError } = useIndexedDB();
   const { notifications, removeNotification } = useNotification();
+  const { isAdminMode, closeAdminMode } = useAdminMode();
   const { loadCompanies } = useCompanyStore();
 
   useEffect(() => {
@@ -68,6 +71,12 @@ function App() {
       <AuthGuard>
         <div className="App">
           <Dashboard />
+          
+          {/* Admin Panel (Hidden Menu) */}
+          <AdminPanel
+            isOpen={isAdminMode}
+            onClose={closeAdminMode}
+          />
           
           {/* Global Notifications */}
           <div className="fixed top-4 right-4 z-50 space-y-2">

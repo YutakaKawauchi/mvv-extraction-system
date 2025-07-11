@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { LoadingSpinner } from '../common';
 import { Hash, TrendingUp, BarChart3, Filter } from 'lucide-react';
-import { TinySegmenter } from '@birchill/tiny-segmenter';
+import { enhancedSegmentationService } from '../../services/enhancedSegmentationService';
 
 interface KeywordFrequency {
   keyword: string;
@@ -28,7 +28,12 @@ export const MVVTrendAnalysis: React.FC = () => {
   const [minFrequency, setMinFrequency] = useState<number>(2);
   const [viewMode, setViewMode] = useState<'ranking' | 'category'>('ranking');
 
-  const segmenter = useMemo(() => new TinySegmenter(), []);
+  // Enhanced segmentation service for better compound word handling
+  const segmentationOptions = useMemo(() => ({
+    preserveCompounds: true,
+    enableCustomRules: true,
+    industryFocus: 'healthcare' as const
+  }), []);
 
   // Helper function to get middle category name for a company
   // TODO: Implement proper companyInfo integration
@@ -64,7 +69,8 @@ export const MVVTrendAnalysis: React.FC = () => {
     const processText = (text: string, type: 'mission' | 'vision' | 'values', companyName: string, category: string) => {
       if (!text) return;
 
-      const words = segmenter.segment(text);
+      const segmentationResult = enhancedSegmentationService.segmentWithCompounds(text, segmentationOptions);
+      const words = segmentationResult.segments;
       const filteredWords = words.filter((word: string) => {
         // 意味のある単語のみ抽出
         return word.length >= 2 && 
@@ -129,9 +135,9 @@ export const MVVTrendAnalysis: React.FC = () => {
           );
 
       const totalWords = categoryCompanies.reduce((sum, company) => {
-        const missionWords = company.mission ? segmenter.segment(company.mission).length : 0;
-        const visionWords = company.vision ? segmenter.segment(company.vision).length : 0;
-        const valuesWords = company.values ? segmenter.segment(company.values).length : 0;
+        const missionWords = company.mission ? enhancedSegmentationService.segmentWithCompounds(company.mission, segmentationOptions).segments.length : 0;
+        const visionWords = company.vision ? enhancedSegmentationService.segmentWithCompounds(company.vision, segmentationOptions).segments.length : 0;
+        const valuesWords = company.values ? enhancedSegmentationService.segmentWithCompounds(company.values, segmentationOptions).segments.length : 0;
         return sum + missionWords + visionWords + valuesWords;
       }, 0);
 
@@ -148,7 +154,7 @@ export const MVVTrendAnalysis: React.FC = () => {
     console.log(`✅ キーワードトレンド分析完了: ${Math.round(endTime - startTime)}ms`);
 
     return { keywordAnalysis, categoryTrends, loading: false };
-  }, [data, segmenter, minFrequency, categoryLevel, getCompanyMiddleCategoryName]);
+  }, [data, segmentationOptions, minFrequency, categoryLevel, getCompanyMiddleCategoryName]);
 
   const filteredKeywords = useMemo(() => {
     let filtered = keywordAnalysis;
@@ -228,7 +234,7 @@ export const MVVTrendAnalysis: React.FC = () => {
               MVVキーワードトレンド分析
             </h2>
             <p className="text-gray-600 mt-1">
-              TinySegmenterによる形態素解析を使ったキーワード頻度分析
+              拡張形態素解析（複合語保持）を使ったキーワード頻度分析
             </p>
           </div>
           <div className="text-sm text-gray-500">

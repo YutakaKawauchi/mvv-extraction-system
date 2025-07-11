@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { MVVExtractionRequest } from '../types';
+import type { MVVExtractionRequest, CompanyInfoExtractionRequest } from '../types';
 import { apiClient } from '../services/apiClient';
 import { useNotification } from './useNotification';
 
@@ -77,6 +77,22 @@ export const useApiClient = () => {
     }
   }, []);
 
+  const extractCompanyInfo = useCallback(async (request: CompanyInfoExtractionRequest) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await apiClient.extractCompanyInfo(request);
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Company info extraction failed';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     loading,
     error,
@@ -84,6 +100,7 @@ export const useApiClient = () => {
     healthCheck,
     extractMVV,
     extractMVVPerplexity,
-    extractMVVBatch
+    extractMVVBatch,
+    extractCompanyInfo
   };
 };
