@@ -150,8 +150,14 @@ export const MVVAnalysisDashboard: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="-mb-px flex space-x-8">
               {tabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
+                const Icon = tab?.icon;
+                const isActive = activeTab === tab?.id;
+                
+                // タブまたはアイコンが存在しない場合はスキップ
+                if (!tab || !Icon) {
+                  console.warn('Tab or icon is undefined:', tab);
+                  return null;
+                }
                 
                 return (
                   <button
