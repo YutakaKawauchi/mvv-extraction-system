@@ -13,6 +13,15 @@ interface UniquenessScore {
   minSimilarity: number;
   maxSimilarity: number;
   similarCompaniesCount: number;
+  detailedScores?: {
+    baseUniqueness: number;
+    industryUniqueness: number;
+    crossIndustryUniqueness: number;
+    rarityScore: number;
+    avgSameIndustry: number;
+    avgDifferentIndustry: number;
+    industryZScore: number;
+  };
 }
 
 export const UniquenessScoreDashboard: React.FC = () => {
@@ -56,28 +65,119 @@ export const UniquenessScoreDashboard: React.FC = () => {
       similarityMatrix[i][i] = 1.0; // 自分自身は1.0
     }
 
-    // 各企業の独自性スコア計算
+    // 業界ごとの類似度統計を事前計算
+    const categorySimStats = new Map<string, { avgSim: number; stdDev: number; count: number }>();
+    
+    validCompanies.forEach((company, index) => {
+      const category = company.category || '未分類';
+      const similarities = similarityMatrix[index].filter((_, i) => i !== index);
+      const avgSim = similarities.reduce((sum, sim) => sum + sim, 0) / similarities.length;
+      
+      if (!categorySimStats.has(category)) {
+        categorySimStats.set(category, { avgSim: 0, stdDev: 0, count: 0 });
+      }
+      
+      const stats = categorySimStats.get(category)!;
+      stats.avgSim += avgSim;
+      stats.count++;
+    });
+    
+    // 業界平均の計算
+    categorySimStats.forEach((stats) => {
+      stats.avgSim /= stats.count;
+    });
+    
+    // 業界標準偏差の計算
+    validCompanies.forEach((company, index) => {
+      const category = company.category || '未分類';
+      const similarities = similarityMatrix[index].filter((_, i) => i !== index);
+      const avgSim = similarities.reduce((sum, sim) => sum + sim, 0) / similarities.length;
+      const stats = categorySimStats.get(category)!;
+      
+      stats.stdDev += Math.pow(avgSim - stats.avgSim, 2);
+    });
+    
+    categorySimStats.forEach((stats) => {
+      stats.stdDev = Math.sqrt(stats.stdDev / stats.count);
+    });
+
+    // 各企業の独自性スコア計算（改善版）
     const scores: UniquenessScore[] = validCompanies.map((company, index) => {
       const similarities = similarityMatrix[index].filter((_, i) => i !== index);
       const avgSimilarity = similarities.reduce((sum, sim) => sum + sim, 0) / similarities.length;
       const maxSimilarity = Math.max(...similarities);
       const minSimilarity = Math.min(...similarities);
       
-      // 独自性スコア = 1 - 平均類似度 (より独特な企業ほど高いスコア)
-      const uniquenessScore = 1 - avgSimilarity;
+      // 業界内・外類似度の分離計算
+      const targetCategory = company.category || '未分類';
+      const sameIndustryIndices = validCompanies
+        .map((c, i) => ({ company: c, index: i }))
+        .filter(({ company: c }) => c.category === targetCategory && c.id !== company.id)
+        .map(({ index }) => index);
+        
+      const differentIndustryIndices = validCompanies
+        .map((c, i) => ({ company: c, index: i }))
+        .filter(({ company: c }) => c.category !== targetCategory)
+        .map(({ index }) => index);
       
-      // 高い類似度(0.8以上)の企業数をカウント
+      const sameIndustrySimilarities = sameIndustryIndices.map(i => similarityMatrix[index][i]);
+      const differentIndustrySimilarities = differentIndustryIndices.map(i => similarityMatrix[index][i]);
+      
+      const avgSameIndustry = sameIndustrySimilarities.length > 0 
+        ? sameIndustrySimilarities.reduce((sum, sim) => sum + sim, 0) / sameIndustrySimilarities.length 
+        : 0;
+      const avgDifferentIndustry = differentIndustrySimilarities.length > 0
+        ? differentIndustrySimilarities.reduce((sum, sim) => sum + sim, 0) / differentIndustrySimilarities.length
+        : 0;
+      
+      // 改善された独自性スコア計算
+      // 1. 基本独自性（全体平均との差）
+      const baseUniqueness = 1 - avgSimilarity;
+      
+      // 2. 業界相対独自性（業界内での立ち位置）
+      const categoryStats = categorySimStats.get(company.category || '未分類');
+      const industryZScore = categoryStats && categoryStats.stdDev > 0
+        ? (categoryStats.avgSim - avgSimilarity) / categoryStats.stdDev
+        : 0;
+      const industryUniqueness = Math.max(0, Math.min(1, (industryZScore + 3) / 6)); // -3σ～+3σを0～1に正規化
+      
+      // 3. クロス業界独自性（業界間類似度から計算）
+      const crossIndustryUniqueness = avgDifferentIndustry > 0 ? 1 - avgDifferentIndustry : 0;
+      
+      // 4. 類似企業希少性（高類似企業の少なさ）
+      const highSimilarityThreshold = 0.75;
+      const highSimilarCompaniesCount = similarities.filter(sim => sim > highSimilarityThreshold).length;
+      const rarityScore = Math.max(0, 1 - (highSimilarCompaniesCount / Math.max(validCompanies.length - 1, 1)));
+      
+      // 総合独自性スコア（重み付き平均）
+      const uniquenessScore = (
+        baseUniqueness * 0.3 +           // 30%: 基本独自性
+        industryUniqueness * 0.4 +       // 40%: 業界相対独自性  
+        crossIndustryUniqueness * 0.2 +  // 20%: クロス業界独自性
+        rarityScore * 0.1                // 10%: 希少性
+      );
+      
       const similarCompaniesCount = similarities.filter(sim => sim > 0.8).length;
 
       return {
         companyId: company.id,
         companyName: company.name,
         category: company.category,
-        uniquenessScore,
+        uniquenessScore: Math.max(0, Math.min(1, uniquenessScore)), // 0-1に正規化
         avgSimilarity,
         minSimilarity,
         maxSimilarity,
-        similarCompaniesCount
+        similarCompaniesCount,
+        // 詳細スコア（デバッグ・分析用）
+        detailedScores: {
+          baseUniqueness,
+          industryUniqueness,
+          crossIndustryUniqueness,
+          rarityScore,
+          avgSameIndustry,
+          avgDifferentIndustry,
+          industryZScore
+        }
       };
     });
 
@@ -248,6 +348,42 @@ export const UniquenessScoreDashboard: React.FC = () => {
                   <span className="ml-1 font-medium">{score.similarCompaniesCount}社</span>
                 </div>
               </div>
+              
+              {/* 詳細スコア（開発環境のみ） */}
+              {process.env.NODE_ENV === 'development' && score.detailedScores && (
+                <div className="mt-3 p-3 bg-gray-50 border rounded text-xs">
+                  <div className="font-medium text-gray-700 mb-2">🔬 詳細分析（開発用）</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-gray-600">基本独自性:</span>
+                      <span className="ml-1 font-mono">{(score.detailedScores.baseUniqueness * 100).toFixed(1)}%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">業界相対:</span>
+                      <span className="ml-1 font-mono">{(score.detailedScores.industryUniqueness * 100).toFixed(1)}%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">クロス業界:</span>
+                      <span className="ml-1 font-mono">{(score.detailedScores.crossIndustryUniqueness * 100).toFixed(1)}%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">希少性:</span>
+                      <span className="ml-1 font-mono">{(score.detailedScores.rarityScore * 100).toFixed(1)}%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">業界内類似:</span>
+                      <span className="ml-1 font-mono">{(score.detailedScores.avgSameIndustry * 100).toFixed(1)}%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">業界間類似:</span>
+                      <span className="ml-1 font-mono">{(score.detailedScores.avgDifferentIndustry * 100).toFixed(1)}%</span>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-gray-600">
+                    Z-Score: <span className="font-mono">{score.detailedScores.industryZScore.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

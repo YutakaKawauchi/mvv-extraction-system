@@ -2,19 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { useCompanyStore } from '../../stores/companyStore';
 import { LoadingSpinner, ErrorBoundary } from '../common';
-import { BarChart3, Network, Search, AlertCircle, RefreshCw, Star, Hash, Target, Award } from 'lucide-react';
-import SimilarityOverview from './SimilarityOverview';
+import { Search, AlertCircle, RefreshCw, Star, Hash, Target, Award } from 'lucide-react';
 import SimilarCompanyFinder from './SimilarCompanyFinder';
-import IndustryAnalysis from './IndustryAnalysis';
 import { UniquenessScoreDashboard } from './UniquenessScoreDashboard';
 import { MVVTrendAnalysis } from './MVVTrendAnalysis';
 import { CompetitivePositioningMap } from './CompetitivePositioningMap';
 import { MVVQualityAssessment } from './MVVQualityAssessment';
 
-type TabType = 'overview' | 'finder' | 'industry' | 'uniqueness' | 'trends' | 'positioning' | 'quality';
+type TabType = 'finder' | 'uniqueness' | 'trends' | 'positioning' | 'quality';
 
 export const MVVAnalysisDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('finder');
   
   const { 
     data, 
@@ -79,9 +77,7 @@ export const MVVAnalysisDashboard: React.FC = () => {
   }
 
   const tabs = [
-    { id: 'overview', name: '概要', icon: BarChart3, description: 'リアルタイム統計と全体概要' },
     { id: 'finder', name: '類似企業検索', icon: Search, description: '特定企業の類似企業をリアルタイム検索' },
-    { id: 'industry', name: '業界分析', icon: Network, description: '業界別のリアルタイム類似度分析' },
     { id: 'uniqueness', name: '独自性分析', icon: Star, description: 'リアルタイム企業独自性スコア分析' },
     { id: 'trends', name: 'トレンド分析', icon: Hash, description: 'MVVキーワードトレンド分析' },
     { id: 'positioning', name: 'ポジショニング', icon: Target, description: '競合ポジショニングマップ' },
@@ -90,12 +86,8 @@ export const MVVAnalysisDashboard: React.FC = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'overview':
-        return <SimilarityOverview />;
       case 'finder':
         return <SimilarCompanyFinder />;
-      case 'industry':
-        return <IndustryAnalysis />;
       case 'uniqueness':
         return <UniquenessScoreDashboard />;
       case 'trends':

@@ -97,19 +97,25 @@ export const CompetitivePositioningMap: React.FC = () => {
     };
   }, [data]);
 
-  // 簡易MDS実装
+  // 簡易MDS実装（安定化版）
   const performMDS = (distanceMatrix: number[][], companies: any[]): CompanyPosition[] => {
     const n = companies.length;
     const positions: CompanyPosition[] = [];
 
-    // 初期配置（円形）
+    // データ検証
+    if (n === 0 || !distanceMatrix || distanceMatrix.length !== n) {
+      console.warn('Invalid data for MDS calculation');
+      return [];
+    }
+
+    // 初期配置（円形、決定論的）
     for (let i = 0; i < n; i++) {
       const angle = (2 * Math.PI * i) / n;
-      const radius = 30 + Math.random() * 20; // 初期半径にランダム性を追加
+      const radius = 35 + (i % 3) * 10; // 決定論的なバリエーション
       positions.push({
         id: companies[i].id,
         name: companies[i].name,
-        category: companies[i].category,
+        category: companies[i].category || '未分類',
         x: radius * Math.cos(angle),
         y: radius * Math.sin(angle),
         uniquenessScore: 0,
@@ -117,9 +123,10 @@ export const CompetitivePositioningMap: React.FC = () => {
       });
     }
 
-    // ストレス最小化（簡易版）
+    // ストレス最小化（安定化版）
     const iterations = 50;
     const learningRate = 0.1;
+    const minDistance = 0.1; // 最小距離制限
 
     for (let iter = 0; iter < iterations; iter++) {
       for (let i = 0; i < n; i++) {
@@ -131,18 +138,28 @@ export const CompetitivePositioningMap: React.FC = () => {
 
           const dx = positions[i].x - positions[j].x;
           const dy = positions[i].y - positions[j].y;
-          const currentDistance = Math.sqrt(dx * dx + dy * dy);
-          const targetDistance = distanceMatrix[i][j] * 100; // スケール調整
+          const currentDistance = Math.max(minDistance, Math.sqrt(dx * dx + dy * dy));
+          const targetDistance = Math.max(minDistance, distanceMatrix[i][j] * 100);
 
-          if (currentDistance > 0.001) {
-            const force = (currentDistance - targetDistance) / currentDistance;
-            forceX += force * dx * learningRate;
-            forceY += force * dy * learningRate;
+          // NaN/Infinity チェック
+          if (!isFinite(currentDistance) || !isFinite(targetDistance)) {
+            continue;
           }
+
+          const force = (currentDistance - targetDistance) / currentDistance;
+          const deltaX = force * dx * learningRate;
+          const deltaY = force * dy * learningRate;
+
+          // フォース制限（発散防止）
+          const maxForce = 5;
+          forceX += Math.max(-maxForce, Math.min(maxForce, deltaX));
+          forceY += Math.max(-maxForce, Math.min(maxForce, deltaY));
         }
 
-        positions[i].x -= forceX;
-        positions[i].y -= forceY;
+        // 位置更新（境界制限）
+        const maxPosition = 200;
+        positions[i].x = Math.max(-maxPosition, Math.min(maxPosition, positions[i].x - forceX));
+        positions[i].y = Math.max(-maxPosition, Math.min(maxPosition, positions[i].y - forceY));
       }
     }
 

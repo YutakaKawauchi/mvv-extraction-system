@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CompanyList } from '../CompanyManager';
 import { BatchProcessor, EmbeddingsBatchProcessor, ExtractionQueue, ProcessingStatus, CompanySelector, AddCompanySection } from '../MVVExtractor';
 import { ResultsTable, MVVDisplay } from '../ResultsViewer';
-import { EmbeddingsAnalysisDashboard, MVVAnalysisDashboard } from '../MVVAnalysis';
+import { MVVAnalysisDashboard } from '../MVVAnalysis';
 import { BackupRestorePanel } from '../BackupRestore';
 import { Modal, Button } from '../common';
 import { SessionStatus } from '../auth';
@@ -30,7 +30,6 @@ export const Dashboard: React.FC = () => {
     company: Company;
     mvvData?: MVVData;
   } | null>(null);
-  const [analysisMode, setAnalysisMode] = useState<'static' | 'realtime'>('static');
 
   const { companies, loadCompanies } = useCompanyStore();
   const { mvvDataMap, loadMVVData } = useMVVStore();
@@ -347,78 +346,7 @@ export const Dashboard: React.FC = () => {
         )}
 
         {activeTab === 'analytics' && (
-          <div className="space-y-6">
-            {/* Analysis Mode Selector */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">MVV分析ダッシュボード</h2>
-                  <p className="text-gray-600 mt-1">
-                    分析モードを選択してください
-                  </p>
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setAnalysisMode('static')}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                      analysisMode === 'static'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Phase 3.1 静的分析
-                  </button>
-                  <button
-                    onClick={() => setAnalysisMode('realtime')}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                      analysisMode === 'realtime'
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Phase 2-b リアルタイム分析
-                  </button>
-                </div>
-              </div>
-              
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`p-4 rounded-lg border-2 ${
-                  analysisMode === 'static' 
-                    ? 'border-blue-200 bg-blue-50' 
-                    : 'border-gray-200 bg-gray-50'
-                }`}>
-                  <h3 className="font-medium text-gray-900">Phase 3.1 静的分析機能</h3>
-                  <ul className="mt-2 text-sm text-gray-600 space-y-1">
-                    <li>• 企業独自性スコア分析</li>
-                    <li>• MVV業界トレンド分析</li>
-                    <li>• 競合ポジショニングマップ</li>
-                    <li>• MVV品質評価システム</li>
-                  </ul>
-                </div>
-                
-                <div className={`p-4 rounded-lg border-2 ${
-                  analysisMode === 'realtime' 
-                    ? 'border-purple-200 bg-purple-50' 
-                    : 'border-gray-200 bg-gray-50'
-                }`}>
-                  <h3 className="font-medium text-gray-900">Phase 2-b リアルタイム分析</h3>
-                  <ul className="mt-2 text-sm text-gray-600 space-y-1">
-                    <li>• リアルタイム類似企業検索</li>
-                    <li>• 動的embeddings計算</li>
-                    <li>• インタラクティブ分析</li>
-                    <li>• プログレッシブ計算</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Dashboard Content */}
-            {analysisMode === 'static' ? (
-              <MVVAnalysisDashboard />
-            ) : (
-              <EmbeddingsAnalysisDashboard />
-            )}
-          </div>
+          <MVVAnalysisDashboard />
         )}
 
         {activeTab === 'backup' && (

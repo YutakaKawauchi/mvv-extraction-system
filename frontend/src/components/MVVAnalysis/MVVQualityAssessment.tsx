@@ -114,33 +114,53 @@ export const MVVQualityAssessment: React.FC = () => {
     return { assessments, categoryStats, loading: false };
   }, [data, segmenter]);
 
-  // MVVテキストの品質評価
+  // MVVテキストの品質評価（安全化版）
   const assessMVVText = (text: string, type: 'mission' | 'vision' | 'values', segmenter: any): QualityMetrics => {
-    if (!text) {
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return { clarity: 0, specificity: 0, actionability: 0, authenticity: 0, completeness: 0, overall: 0 };
     }
 
-    const words = segmenter.segment(text);
-    const wordCount = words.filter((w: string) => w.length > 1).length;
+    try {
+      const words = segmenter.segment(text);
+      if (!Array.isArray(words)) {
+        console.warn('Segmenter did not return an array:', words);
+        return { clarity: 0, specificity: 0, actionability: 0, authenticity: 0, completeness: 0, overall: 0 };
+      }
+      
+      const wordCount = words.filter((w: string) => typeof w === 'string' && w.length > 1).length;
 
-    // 明確性評価
-    const clarity = assessClarity(text, wordCount);
-    
-    // 具体性評価
-    const specificity = assessSpecificity(text, words);
-    
-    // 行動指向性評価
-    const actionability = assessActionability(text, words, type);
-    
-    // 独自性評価（一般的でない語彙の使用）
-    const authenticity = assessAuthenticity(words);
-    
-    // 完全性（このメソッドでは文字数ベース）
-    const completeness = Math.min(wordCount / 20, 1); // 20語以上で満点
+      // 明確性評価
+      const clarity = assessClarity(text, wordCount);
+      
+      // 具体性評価
+      const specificity = assessSpecificity(text, words);
+      
+      // 行動指向性評価
+      const actionability = assessActionability(text, words, type);
+      
+      // 独自性評価（一般的でない語彙の使用）
+      const authenticity = assessAuthenticity(words);
+      
+      // 完全性（このメソッドでは文字数ベース）
+      const completeness = Math.min(wordCount / 20, 1); // 20語以上で満点
 
-    const overall = (clarity + specificity + actionability + authenticity + completeness) / 5;
+      const overall = (clarity + specificity + actionability + authenticity + completeness) / 5;
 
-    return { clarity, specificity, actionability, authenticity, completeness, overall };
+      // スコアの検証と正規化
+      const normalizeScore = (score: number) => Math.max(0, Math.min(1, isFinite(score) ? score : 0));
+
+      return { 
+        clarity: normalizeScore(clarity), 
+        specificity: normalizeScore(specificity), 
+        actionability: normalizeScore(actionability), 
+        authenticity: normalizeScore(authenticity), 
+        completeness: normalizeScore(completeness), 
+        overall: normalizeScore(overall) 
+      };
+    } catch (error) {
+      console.error('Error in MVV text assessment:', error);
+      return { clarity: 0, specificity: 0, actionability: 0, authenticity: 0, completeness: 0, overall: 0 };
+    }
   };
 
   const assessClarity = (text: string, wordCount: number): number => {
