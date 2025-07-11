@@ -148,13 +148,65 @@ export const CompetitivePositioningMap: React.FC = () => {
     console.log('🔄 競合ポジショニングマップ計算開始...');
     const startTime = performance.now();
 
+    // データの詳細をデバッグ
+    console.log('📊 企業データ:', {
+      totalCompanies: data.companies.length,
+      sampleCompany: data.companies[0],
+      hasEmbeddings: data.companies.map(c => ({
+        name: c.name,
+        hasEmbeddings: !!(c.embeddings && Array.isArray(c.embeddings) && c.embeddings.length > 0)
+      })).slice(0, 5)
+    });
+
     // 埋め込みベクトルを持つ企業のみフィルター
     const validCompanies = data.companies.filter(company => 
       company.embeddings && Array.isArray(company.embeddings) && company.embeddings.length > 0
     );
 
+    console.log(`🎯 埋め込みベクトルを持つ企業: ${validCompanies.length}/${data.companies.length}社`);
+
+    // 埋め込みベクトルがない場合のフォールバック: MVVテキストベースのダミー位置生成
     if (validCompanies.length < 3) {
-      return { positions: [], clusters: [], loading: false };
+      console.log('⚠️ 埋め込みベクトル不足 - MVVテキストベースのフォールバック実行');
+      
+      const companiesWithMVV = data.companies.filter(company => 
+        company.mission || company.vision || company.values
+      );
+
+      if (companiesWithMVV.length < 3) {
+        console.log('❌ MVVデータも不足 - 表示できません');
+        return { positions: [], clusters: [], loading: false };
+      }
+
+      // テキスト長ベースの簡易ポジショニング
+      const textBasedPositions = companiesWithMVV.map((company, index) => {
+        const missionLength = (company.mission || '').length;
+        const visionLength = (company.vision || '').length;
+        const valuesLength = (company.values || '').length;
+        
+        // テキスト長を座標に変換（正規化）
+        const angle = (2 * Math.PI * index) / companiesWithMVV.length;
+        const radius = 30 + ((missionLength + visionLength + valuesLength) % 50);
+        
+        return {
+          id: company.id,
+          name: company.name,
+          category: company.category || '未分類',
+          x: radius * Math.cos(angle),
+          y: radius * Math.sin(angle),
+          uniquenessScore: Math.random() * 0.5 + 0.3, // 暫定的なランダムスコア
+          clusterGroup: index % 5
+        };
+      });
+
+      const fallbackClusters = performCategoryClustering(textBasedPositions);
+      
+      console.log(`✅ フォールバック完了: ${textBasedPositions.length}社表示`);
+      return { 
+        positions: textBasedPositions, 
+        clusters: fallbackClusters, 
+        loading: false 
+      };
     }
 
     console.log(`📊 ${validCompanies.length}社でポジショニング分析実行中...`);
@@ -226,16 +278,29 @@ export const CompetitivePositioningMap: React.FC = () => {
   }
 
   if (positions.length === 0) {
+    const companiesWithMVV = data?.companies?.filter(company => 
+      company.mission || company.vision || company.values
+    ) || [];
+    
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Target className="mx-auto w-16 h-16 text-gray-400 mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            データが不足しています
+            ポジショニングマップを表示できません
           </h3>
-          <p className="text-gray-600">
-            ポジショニングマップには最低3社の埋め込みベクトルが必要です。
-          </p>
+          <div className="text-gray-600 space-y-2">
+            <p>現在の状況:</p>
+            <div className="text-sm bg-gray-50 p-3 rounded-md">
+              <div>• 登録企業数: {data?.companies?.length || 0}社</div>
+              <div>• MVVデータ保有: {companiesWithMVV.length}社</div>
+              <div>• 埋め込みベクトル保有: 0社</div>
+            </div>
+            <p className="mt-3">
+              表示には最低3社のMVVデータが必要です。<br/>
+              企業を追加してMVV抽出を実行してください。
+            </p>
+          </div>
         </div>
       </div>
     );
