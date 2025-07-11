@@ -2,15 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { useCompanyStore } from '../../stores/companyStore';
 import { LoadingSpinner, ErrorBoundary } from '../common';
-import { BarChart3, Network, Search, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
-import SimilarityOverview from './SimilarityOverview';
+import { Search, AlertCircle, RefreshCw, Star, Hash, Target, Award, Cloud } from 'lucide-react';
 import SimilarCompanyFinder from './SimilarCompanyFinder';
-import IndustryAnalysis from './IndustryAnalysis';
+import { UniquenessScoreDashboard } from './UniquenessScoreDashboard';
+import { MVVTrendAnalysis } from './MVVTrendAnalysis';
+import { CompetitivePositioningMap } from './CompetitivePositioningMap';
+import { MVVQualityAssessment } from './MVVQualityAssessment';
+import { WordCloudDashboard } from './WordCloudDashboard';
 
-type TabType = 'overview' | 'finder' | 'industry' | 'insights';
+type TabType = 'finder' | 'trends' | 'wordcloud' | 'positioning' | 'uniqueness' | 'quality';
 
 export const MVVAnalysisDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('finder');
   
   const { 
     data, 
@@ -36,7 +39,7 @@ export const MVVAnalysisDashboard: React.FC = () => {
             MVV分析データを読み込み中...
           </h2>
           <p className="text-gray-600">
-            62社のMVV類似性データを処理しています
+            {data?.companies?.length || 0}社のMVV類似性データを処理しています
           </p>
         </div>
       </div>
@@ -75,33 +78,28 @@ export const MVVAnalysisDashboard: React.FC = () => {
   }
 
   const tabs = [
-    { id: 'overview', name: '概要', icon: BarChart3, description: '類似度の全体概要' },
-    { id: 'finder', name: '類似企業検索', icon: Search, description: '特定企業の類似企業を検索' },
-    { id: 'industry', name: '業界分析', icon: Network, description: '業界別の類似度分析' },
-    { id: 'insights', name: 'インサイト', icon: TrendingUp, description: 'AI生成の分析洞察' }
+    { id: 'finder', name: '類似企業検索', icon: Search, description: '特定企業の類似企業をリアルタイム検索' },
+    { id: 'trends', name: 'トレンド分析', icon: Hash, description: 'MVVキーワードトレンド分析' },
+    { id: 'wordcloud', name: 'ワードクラウド', icon: Cloud, description: 'インタラクティブキーワードワードクラウド' },
+    { id: 'positioning', name: 'ポジショニング', icon: Target, description: '競合ポジショニングマップ' },
+    { id: 'uniqueness', name: '独自性分析', icon: Star, description: 'リアルタイム企業独自性スコア分析', beta: true },
+    { id: 'quality', name: '品質評価', icon: Award, description: 'MVV品質評価システム', beta: true }
   ] as const;
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'overview':
-        return <SimilarityOverview />;
       case 'finder':
         return <SimilarCompanyFinder />;
-      case 'industry':
-        return <IndustryAnalysis />;
-      case 'insights':
-        return (
-          <div className="text-center py-12">
-            <TrendingUp className="mx-auto w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              AI インサイト機能
-            </h3>
-            <p className="text-gray-600">
-              この機能はPhase 2で実装予定です。<br />
-              GPT-4o-miniによる分析洞察を提供します。
-            </p>
-          </div>
-        );
+      case 'trends':
+        return <MVVTrendAnalysis />;
+      case 'wordcloud':
+        return <WordCloudDashboard />;
+      case 'positioning':
+        return <CompetitivePositioningMap />;
+      case 'uniqueness':
+        return <UniquenessScoreDashboard />;
+      case 'quality':
+        return <MVVQualityAssessment />;
       default:
         return null;
     }
@@ -116,19 +114,19 @@ export const MVVAnalysisDashboard: React.FC = () => {
             <div className="flex items-center justify-between h-16">
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  MVV類似性分析
+                  MVVリアルタイム分析ダッシュボード
                 </h1>
                 <p className="text-sm text-gray-600">
-                  {data.summary.totalCompanies}社のヘルスケア企業を分析
+                  IndexedDBから{data.companies?.length || 0}社の企業データをリアルタイム分析
                 </p>
               </div>
               
               <div className="flex items-center space-x-4">
                 <div className="text-sm text-gray-600">
-                  平均類似度: <span className="font-semibold">{data.summary.avgSimilarity.toFixed(3)}</span>
+                  埋め込み有: <span className="font-semibold">{data.companies?.filter(c => c.embeddings && Array.isArray(c.embeddings) && c.embeddings.length > 0).length || 0}社</span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  最高類似度: <span className="font-semibold">{data.summary.maxSimilarity.toFixed(3)}</span>
+                  データソース: <span className="font-semibold">IndexedDB</span>
                 </div>
                 
                 {/* データ再読み込みボタン */}
@@ -168,7 +166,12 @@ export const MVVAnalysisDashboard: React.FC = () => {
                     <Icon className={`-ml-0.5 mr-2 h-5 w-5 ${
                       isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
                     }`} />
-                    {tab.name}
+                    <span className="flex items-center">
+                      {tab.name}
+                      {(tab as any).beta && (
+                        <span className="ml-1 text-xs text-gray-500">(β)</span>
+                      )}
+                    </span>
                   </button>
                 );
               })}

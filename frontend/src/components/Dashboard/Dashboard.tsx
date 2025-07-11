@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CompanyList } from '../CompanyManager';
 import { BatchProcessor, EmbeddingsBatchProcessor, ExtractionQueue, ProcessingStatus, CompanySelector, AddCompanySection } from '../MVVExtractor';
 import { ResultsTable, MVVDisplay } from '../ResultsViewer';
-import { EmbeddingsAnalysisDashboard } from '../MVVAnalysis';
+import { MVVAnalysisDashboard } from '../MVVAnalysis';
 import { BackupRestorePanel } from '../BackupRestore';
 import { Modal, Button } from '../common';
 import { SessionStatus } from '../auth';
@@ -346,14 +346,36 @@ export const Dashboard: React.FC = () => {
         )}
 
         {activeTab === 'analytics' && (
-          <div>
-            <EmbeddingsAnalysisDashboard />
-          </div>
+          <MVVAnalysisDashboard />
         )}
 
         {activeTab === 'backup' && (
-          <div>
+          <div className="space-y-6">
             <BackupRestorePanel />
+            
+            {/* Debug Section (Development Only) */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                <h3 className="text-lg font-medium text-yellow-800 mb-4">
+                  開発用: IndexedDBデバッグ
+                </h3>
+                <p className="text-sm text-yellow-700 mb-4">
+                  現在のIndexedDBデータの詳細を確認できます。ブラウザのコンソールで結果を確認してください。
+                </p>
+                <Button
+                  onClick={() => {
+                    // 新しいデバッグ手順を案内
+                    console.log('📦 デバッグ手順:');
+                    console.log('1. fetch(\'/debug-category-status.js\').then(r => r.text()).then(code => eval(code));');
+                    console.log('2. debugCategoryStatus();');
+                    success('デバッグコード表示', 'コンソールで上記コードを実行してください');
+                  }}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  IndexedDBデータを確認
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

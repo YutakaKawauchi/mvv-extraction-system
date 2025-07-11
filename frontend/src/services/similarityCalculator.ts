@@ -411,3 +411,8 @@ export class SimilarityCalculator {
     return outliers.sort((a, b) => a.similarity - b.similarity);
   }
 }
+
+// Export convenience functions for direct use
+export const calculateEmbeddingSimilarity = SimilarityCalculator.cosineSimilarity;
+export const calculateEnhancedSimilarity = SimilarityCalculator.calculateEnhancedSimilarity;
+export const findSimilarCompanies = SimilarityCalculator.findSimilarCompanies;

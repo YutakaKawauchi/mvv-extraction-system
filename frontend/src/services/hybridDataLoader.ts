@@ -368,27 +368,25 @@ class HybridDataLoader {
       if (stored) {
         const parsed = JSON.parse(stored);
         
-        // 埋め込みベクトルをフィルタして容量削減 & confidence_scores正規化
+        // confidence_scores正規化（埋め込みベクトルは保持）
         if (parsed.dynamicCompanies) {
           parsed.dynamicCompanies = parsed.dynamicCompanies.map((company: any) => {
-            const { embeddings, ...companyWithoutEmbeddings } = company;
-            
             // confidence_scores (下線) を confidenceScores (キャメルケース) に正規化
-            if (companyWithoutEmbeddings.confidence_scores && !companyWithoutEmbeddings.confidenceScores) {
-              companyWithoutEmbeddings.confidenceScores = companyWithoutEmbeddings.confidence_scores;
-              delete companyWithoutEmbeddings.confidence_scores;
+            if (company.confidence_scores && !company.confidenceScores) {
+              company.confidenceScores = company.confidence_scores;
+              delete company.confidence_scores;
             }
             
             // デフォルト値の設定
-            if (!companyWithoutEmbeddings.confidenceScores) {
-              companyWithoutEmbeddings.confidenceScores = {
+            if (!company.confidenceScores) {
+              company.confidenceScores = {
                 mission: 0.5,
                 vision: 0.5,
                 values: 0.5
               };
             }
             
-            return companyWithoutEmbeddings;
+            return company;
           });
         }
         
@@ -412,7 +410,7 @@ class HybridDataLoader {
         // 緊急キャッシュを使用後削除
         localStorage.removeItem(this.STORAGE_KEY + '_emergency');
         
-        // 緊急データも正規化
+        // 緊急データも正規化（埋め込みベクトルは保持）
         const normalizedEmergencyCompanies = (emergencyData.dynamicCompanies || []).map((company: any) => {
           // confidence_scores正規化
           if (company.confidence_scores && !company.confidenceScores) {
@@ -447,7 +445,7 @@ class HybridDataLoader {
    */
   private saveToStorage(): void {
     try {
-      // 埋め込みベクトルを除外してサイズを削減
+      // 動的企業の埋め込みベクトルは保持し、静的データのみ軽量化
       const lightweightCache = {
         ...this.cache,
         staticData: this.cache.staticData ? {
@@ -458,10 +456,8 @@ class HybridDataLoader {
             return companyData;
           })
         } : undefined,
-        dynamicCompanies: this.cache.dynamicCompanies.map(company => {
-          const { embeddings, ...companyData } = company;
-          return companyData;
-        })
+        // 動的企業の埋め込みベクトルは保持（独自性分析に必要）
+        dynamicCompanies: this.cache.dynamicCompanies
       };
       
       let cacheString = JSON.stringify(lightweightCache);
@@ -477,7 +473,11 @@ class HybridDataLoader {
           cacheString = JSON.stringify(lightweightCache);
           
           if (cacheString.length > this.MAX_CACHE_SIZE) {
-            lightweightCache.dynamicCompanies = lightweightCache.dynamicCompanies.slice(-3);
+            // 埋め込みベクトルを除外して最小限のデータのみ保持
+            lightweightCache.dynamicCompanies = lightweightCache.dynamicCompanies.slice(-5).map(company => {
+              const { embeddings, ...companyData } = company;
+              return companyData;
+            });
             lightweightCache.cachedInsights = [];
             cacheString = JSON.stringify(lightweightCache);
           }

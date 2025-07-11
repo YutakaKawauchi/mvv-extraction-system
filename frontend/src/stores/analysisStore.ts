@@ -61,8 +61,24 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
       const managedCompanies = await companyStorage.getAll();
       
       // 3. 分析済み企業（embeddings持ち）をHybridCompany形式に変換
+      console.log(`IndexedDBから${managedCompanies.length}社を取得`);
+      
       const analyzedCompanies = managedCompanies
-        .filter(company => (company.status === 'mvv_extracted' || company.status === 'fully_completed') && company.embeddings)
+        .filter(company => {
+          const hasValidEmbeddings = company.embeddings && 
+            Array.isArray(company.embeddings) && 
+            company.embeddings.length > 0;
+          const hasValidStatus = company.status === 'mvv_extracted' || company.status === 'fully_completed';
+          
+          if (!hasValidStatus) {
+            console.log(`${company.name}: ステータス不適合 (${company.status})`);
+          }
+          if (!hasValidEmbeddings) {
+            console.log(`${company.name}: 埋め込みベクトル不適合 (${company.embeddings ? '長さ:' + company.embeddings.length : 'なし'})`);
+          }
+          
+          return hasValidStatus && hasValidEmbeddings;
+        })
         .map(company => ({
           id: company.id,
           name: company.name,
@@ -85,22 +101,52 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
       const existingIds = new Set(data.companies.map(c => c.id));
       const newCompanies = analyzedCompanies.filter(c => !existingIds.has(c.id));
       
-      // 5. 統合されたデータを作成
+      // 5. 統合されたデータを作成（静的データを無視してリアルタイムデータのみ使用）
+      console.log(`結果: 既存${data.companies.length}社 + 新規${newCompanies.length}社 = 合計${analyzedCompanies.length}社`);
+      
       const mergedData: HybridAnalysisData = {
-        ...data,
-        companies: [...data.companies, ...newCompanies],
+        summary: {
+          totalCompanies: analyzedCompanies.length,
+          avgSimilarity: 0.65, // デフォルト値
+          maxSimilarity: 0.95,  // デフォルト値
+          maxSimilarPair: [analyzedCompanies[0], analyzedCompanies[1]] as any,
+          categoryAnalysis: {}
+        },
+        companies: analyzedCompanies, // 静的データを無視してIndexedDBデータのみ使用
+        similarityMatrix: [], // リアルタイム計算するため空
+        topSimilarities: [], // リアルタイム計算するため空
+        categoryAnalysis: {},
         metadata: {
-          ...data.metadata,
-          dynamicCompaniesCount: data.metadata.dynamicCompaniesCount + newCompanies.length
+          staticDataVersion: 'none',
+          lastStaticLoad: new Date().toISOString(),
+          dynamicCompaniesCount: analyzedCompanies.length,
+          lastApiUpdate: new Date().toISOString(),
+          hybridVersion: '3.0-realtime-only'
         }
       };
       
-      // 6. カテゴリリストを更新
+      // 6. デバッグ情報を出力
+      console.log('🔍 Analysis Store データ統合結果:');
+      console.log(`  - 静的企業数: ${data.companies.length}`);
+      console.log(`  - 動的企業数: ${newCompanies.length}`);
+      console.log(`  - 総企業数: ${mergedData.companies.length}`);
+      console.log(`  - 埋め込みベクトル保持企業数: ${mergedData.companies.filter(c => c.embeddings && Array.isArray(c.embeddings) && c.embeddings.length > 0).length}`);
+      
+      // 動的企業の埋め込みベクトル状況をログ
+      if (newCompanies.length > 0) {
+        console.log('📊 動的企業の埋め込みベクトル状況:');
+        newCompanies.slice(0, 5).forEach(company => {
+          console.log(`  - ${company.name}: ${company.embeddings ? company.embeddings.length : 0} 次元`);
+        });
+      }
+      
+      // 7. カテゴリリストを更新
       const allCategories = [...new Set(mergedData.companies.map(c => c.category))];
       
       set({ 
         data: mergedData, 
         isLoading: false,
+        error: null, // エラーをクリア
         filters: {
           ...get().filters,
           selectedCategories: allCategories

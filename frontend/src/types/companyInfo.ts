@@ -206,56 +206,35 @@ export function calculateGrowthRate(currentRevenue?: number, previousRevenue?: n
   return ((currentRevenue - previousRevenue) / previousRevenue) * 100;
 }
 
-// 産業分類から自動カテゴリー生成
+// 産業分類から自動カテゴリー生成（正規化済み大分類優先）
 export function generateCategoryFromIndustryClassification(classification?: IndustryClassification): string {
+  // categoryNormalizerを使用して正規化
+  return generateNormalizedCategory(classification);
+}
+
+// categoryNormalizer関数をインポート
+import { generateNormalizedCategory, getJSICMajorCategoryFromCode } from '../utils/categoryNormalizer';
+
+// 階層別カテゴリー生成関数（分析用）
+export function getCategoryByLevel(classification?: IndustryClassification, level: 'major' | 'middle' | 'primary' | 'business' = 'primary'): string {
   if (!classification) return '未分類';
   
-  // 優先順位: 業種名 > 主業界名 > 中分類名 > 大分類名
-  if (classification.businessType) {
-    return classification.businessType;
+  switch (level) {
+    case 'major':
+      return classification.jsicMajorName || '未分類';
+    case 'middle':
+      return classification.jsicMiddleName || '未分類';
+    case 'primary':
+      return classification.primaryIndustry || '未分類';
+    case 'business':
+      return classification.businessType || '未分類';
+    default:
+      return classification.primaryIndustry || '未分類';
   }
-  
-  if (classification.primaryIndustry) {
-    return classification.primaryIndustry;
-  }
-  
-  if (classification.jsicMiddleName) {
-    return classification.jsicMiddleName;
-  }
-  
-  if (classification.jsicMajorName) {
-    return classification.jsicMajorName;
-  }
-  
-  return '未分類';
 }
 
 // JSIC大分類コードから日本語名称への変換
+// ※ categoryNormalizerに移動済み、互換性のため残す
 export function getJSICMajorCategoryName(code?: string): string {
-  if (!code) return '未分類';
-  
-  const jsicMajorCategories: Record<string, string> = {
-    'A': '農業、林業',
-    'B': '漁業',
-    'C': '鉱業、採石業、砂利採取業',
-    'D': '建設業',
-    'E': '製造業',
-    'F': '電気・ガス・熱供給・水道業',
-    'G': '情報通信業',
-    'H': '運輸業、郵便業',
-    'I': '卸売業、小売業',
-    'J': '金融業、保険業',
-    'K': '不動産業、物品賃貸業',
-    'L': '学術研究、専門・技術サービス業',
-    'M': '宿泊業、飲食サービス業',
-    'N': '生活関連サービス業、娯楽業',
-    'O': '教育、学習支援業',
-    'P': '医療、福祉',
-    'Q': '複合サービス事業',
-    'R': 'サービス業（他に分類されないもの）',
-    'S': '公務（他に分類されるものを除く）',
-    'T': '分類不能の産業'
-  };
-  
-  return jsicMajorCategories[code.toUpperCase()] || '未分類';
+  return getJSICMajorCategoryFromCode(code);
 }
