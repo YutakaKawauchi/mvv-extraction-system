@@ -2,14 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { useCompanyStore } from '../../stores/companyStore';
 import { LoadingSpinner, ErrorBoundary } from '../common';
-import { Search, AlertCircle, RefreshCw, Star, Hash, Target, Award } from 'lucide-react';
+import { Search, AlertCircle, RefreshCw, Star, Hash, Target, Award, Cloud } from 'lucide-react';
 import SimilarCompanyFinder from './SimilarCompanyFinder';
 import { UniquenessScoreDashboard } from './UniquenessScoreDashboard';
 import { MVVTrendAnalysis } from './MVVTrendAnalysis';
 import { CompetitivePositioningMap } from './CompetitivePositioningMap';
 import { MVVQualityAssessment } from './MVVQualityAssessment';
+import { WordCloudDashboard } from './WordCloudDashboard';
 
-type TabType = 'finder' | 'uniqueness' | 'trends' | 'positioning' | 'quality';
+type TabType = 'finder' | 'trends' | 'wordcloud' | 'positioning' | 'uniqueness' | 'quality';
 
 export const MVVAnalysisDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('finder');
@@ -78,22 +79,25 @@ export const MVVAnalysisDashboard: React.FC = () => {
 
   const tabs = [
     { id: 'finder', name: '類似企業検索', icon: Search, description: '特定企業の類似企業をリアルタイム検索' },
-    { id: 'uniqueness', name: '独自性分析', icon: Star, description: 'リアルタイム企業独自性スコア分析' },
     { id: 'trends', name: 'トレンド分析', icon: Hash, description: 'MVVキーワードトレンド分析' },
+    { id: 'wordcloud', name: 'ワードクラウド', icon: Cloud, description: 'インタラクティブキーワードワードクラウド' },
     { id: 'positioning', name: 'ポジショニング', icon: Target, description: '競合ポジショニングマップ' },
-    { id: 'quality', name: '品質評価', icon: Award, description: 'MVV品質評価システム' }
+    { id: 'uniqueness', name: '独自性分析', icon: Star, description: 'リアルタイム企業独自性スコア分析', beta: true },
+    { id: 'quality', name: '品質評価', icon: Award, description: 'MVV品質評価システム', beta: true }
   ] as const;
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'finder':
         return <SimilarCompanyFinder />;
-      case 'uniqueness':
-        return <UniquenessScoreDashboard />;
       case 'trends':
         return <MVVTrendAnalysis />;
+      case 'wordcloud':
+        return <WordCloudDashboard />;
       case 'positioning':
         return <CompetitivePositioningMap />;
+      case 'uniqueness':
+        return <UniquenessScoreDashboard />;
       case 'quality':
         return <MVVQualityAssessment />;
       default:
@@ -162,7 +166,12 @@ export const MVVAnalysisDashboard: React.FC = () => {
                     <Icon className={`-ml-0.5 mr-2 h-5 w-5 ${
                       isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
                     }`} />
-                    {tab.name}
+                    <span className="flex items-center">
+                      {tab.name}
+                      {(tab as any).beta && (
+                        <span className="ml-1 text-xs text-gray-500">(β)</span>
+                      )}
+                    </span>
                   </button>
                 );
               })}
