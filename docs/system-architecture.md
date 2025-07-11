@@ -4,9 +4,9 @@
 
 AI技術を活用して日本企業のMission（使命）、Vision（理念）、Values（価値観）を自動抽出・分析するWebアプリケーションシステム。
 
-**最新状況**: Phase 2-b (Real-time Embeddings Analysis) 完了済み (2025-07-09)
+**最新状況**: Phase 3準備完了 (Enhanced Company Management System) (2025-07-09)
 **対象企業**: 94社 (業界問わず、ヘルスケア中心から拡張済み)
-**主要機能**: MVV抽出、リアルタイム類似度分析、業界横断分析
+**主要機能**: MVV抽出、企業情報抽出、リアルタイム類似度分析、業界横断分析、4段階自動パイプライン
 
 ## アーキテクチャ概要
 
@@ -15,10 +15,12 @@ AI技術を活用して日本企業のMission（使命）、Vision（理念）�
 │                           Frontend (React)                             │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐          │
 │  │  Company Mgmt   │ │  MVV Extractor  │ │ Results Viewer  │          │
-│  │                 │ │                 │ │                 │          │
+│  │  (Enhanced)     │ │                 │ │                 │          │
 │  │ • CSV Import    │ │ • Batch Process │ │ • Table View    │          │
 │  │ • CRUD Ops      │ │ • Progress UI   │ │ • Export CSV    │          │
 │  │ • Status Track  │ │ • AI Selection  │ │ • Manual Edit   │          │
+│  │ • Auto Pipeline │ │ • CompanyInfo   │ │ • Info Tooltip  │          │
+│  │ • JSIC Category │ │ • 4-Step Process│ │ • Markdown Copy │          │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘          │
 │                                   │                                     │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐          │
@@ -26,8 +28,9 @@ AI技術を活用して日本企業のMission（使命）、Vision（理念）�
 │  │ (Phase 2-b)     │ │   (Zustand)     │ │   (IndexedDB)   │          │
 │  │                 │ │                 │ │                 │          │
 │  │ • Real-time Sim │ │ • Company Store │ │ • 94 Companies  │          │
-│  │ • Embeddings    │ │ • Analysis Store│ │ • Embeddings    │          │
-│  │ • Morphological │ │ • Auth Store    │ │ • LRU Cache     │          │
+│  │ • Embeddings    │ │ • Analysis Store│ │ • CompanyInfo   │          │
+│  │ • Morphological │ │ • Auth Store    │ │ • JSIC Data     │          │
+│  │ • CompanyInfo   │ │ • Progress Track│ │ • LRU Cache     │          │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘          │
 └─────────────────────────────────────────────────────────────────────────┘
                                    │ HTTPS API Calls
@@ -42,6 +45,15 @@ AI技術を活用して日本企業のMission（使命）、Vision（理念）�
 │  │ • GPT-4o Model  │ │ • sonar-pro     │ │ • Status Check  │          │
 │  │ • 3-8s process  │ │ • Web Search    │ │ • Uptime Mon    │          │
 │  │ • High accuracy │ │ • 8-15s process │ │                 │          │
+│  └─────────────────┘ └─────────────────┘ └─────────────────┘          │
+│                                   │                                     │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐          │
+│  │extract-company- │ │company-         │ │   Auth System   │          │
+│  │info-perplexity  │ │processor.js     │ │   (JWT + API)   │          │
+│  │                 │ │                 │ │                 │          │
+│  │ • Company Info  │ │ • 4-Step Auto   │ │ • JWT Auth      │          │
+│  │ • JSIC Category │ │ • Pipeline      │ │ • API Key Auth  │          │
+│  │ • Location Data │ │ • Progress Track│ │ • Rate Limiting │          │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘          │
 │                                   │                                     │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐          │
@@ -79,68 +91,89 @@ AI技術を活用して日本企業のMission（使命）、Vision（理念）�
 
 ### コンポーネント設計
 
-#### 1. Company Management Layer
+#### 1. Company Management Layer (Enhanced)
 ```typescript
-// Company CRUD操作
+// 強化された企業管理システム
 interface CompanyManager {
   components: {
     CSVImporter: () => JSX.Element;     // CSV一括インポート
     CompanyForm: () => JSX.Element;     // 単体企業登録フォーム
     CompanyList: () => JSX.Element;     // 企業一覧表示
     CompanyCard: () => JSX.Element;     // 企業カード表示
+    CompanyInfoTooltip: () => JSX.Element; // 企業情報ツールチップ
+    CompanyProcessor: () => JSX.Element;    // 統合パイプライン処理
   };
   features: [
     'CSV Import/Export',
-    'CRUD Operations',
+    'CRUD Operations', 
     'Status Tracking',
-    'Data Validation'
+    'Data Validation',
+    'Company Info Extraction',    // 新機能
+    'JSIC Auto-Classification',   // 新機能
+    'Structured Location Data',   // 新機能
+    '4-Step Auto Pipeline',       // 新機能
+    'Enhanced Backup/Restore',    // 新機能
+    'Tooltip with Markdown Copy'  // 新機能
   ];
 }
 ```
 
-#### 2. MVV Extraction Layer
+#### 2. MVV Extraction Layer (Enhanced)
 ```typescript
-// MVV抽出処理
+// 拡張されたMVV抽出処理
 interface MVVExtractor {
   components: {
     BatchProcessor: () => JSX.Element;    // バッチ処理制御
     ExtractionQueue: () => JSX.Element;   // キュー管理
     ProcessingStatus: () => JSX.Element;  // 進行状況表示
     CompanySelector: () => JSX.Element;   // 企業選択UI
+    CompanyProcessor: () => JSX.Element;  // 統合パイプライン処理
+    ProgressTracker: () => JSX.Element;   // 4段階進捗追跡
   };
   features: [
-    'Parallel Processing (5 concurrent)',
+    'Parallel Processing (2 concurrent prod)',
     'AI Provider Selection',
     'Real-time Progress',
     'Error Recovery',
-    'Flexible Company Selection'
+    'Flexible Company Selection',
+    '4-Step Auto Pipeline',         // 新機能
+    'Company Info Integration',     // 新機能
+    'JSIC Auto-Classification',     // 新機能
+    'Multi-Stage Progress Tracking' // 新機能
   ];
 }
 ```
 
-#### 3. Results Management Layer
+#### 3. Results Management Layer (Enhanced)
 ```typescript
-// 結果表示・管理
+// 拡張された結果表示・管理
 interface ResultsViewer {
   components: {
     ResultsTable: () => JSX.Element;    // テーブル表示
     MVVDisplay: () => JSX.Element;      // MVV詳細表示
     ExportControls: () => JSX.Element;  // エクスポート制御
+    CompanyInfoTooltip: () => JSX.Element; // 企業情報ツールチップ
+    BackupRestore: () => JSX.Element;   // バックアップ・リストア
   };
   features: [
     'Filter & Search',
     'Manual Editing',
     'Export (CSV/JSON)',
-    'Confidence Scoring'
+    'Confidence Scoring',
+    'Company Info Display',        // 新機能
+    'Interactive Tooltips',        // 新機能
+    'Markdown Copy Support',       // 新機能
+    'Enhanced Backup/Restore',     // 新機能
+    'Backward Compatibility'       // 新機能
   ];
 }
 ```
 
 ### State Management
 
-#### Zustand Store設計
+#### Zustand Store設計 (Enhanced)
 ```typescript
-// 企業管理ストア
+// 強化された企業管理ストア
 interface CompanyStore {
   companies: Company[];
   selectedCompany: Company | null;
@@ -148,24 +181,80 @@ interface CompanyStore {
   updateCompany: (id: string, updates: Partial<Company>) => void;
   deleteCompany: (id: string) => void;
   importFromCSV: (csvData: string) => void;
+  
+  // 新機能
+  processCompanyPipeline: (companyId: string) => Promise<void>;
+  updateCompanyInfo: (companyId: string, info: CompanyInfo) => void;
+  updateJSICCategory: (companyId: string, category: string) => void;
+  getCompanyProgress: (companyId: string) => PipelineProgress;
+  exportEnhancedBackup: () => EnhancedBackupData;
+  importWithMigration: (backupData: any) => Promise<void>;
 }
 
-// MVV処理ストア
+// 拡張されたMVV処理ストア
 interface MVVStore {
   extractionQueue: ExtractionJob[];
   results: MVVResult[];
   processingStatus: ProcessingStatus;
   startExtraction: (companies: Company[], provider: 'openai' | 'perplexity') => void;
   updateResult: (companyId: string, result: MVVResult) => void;
+  
+  // 新機能
+  processingProgress: Map<string, PipelineProgress>;
+  pipelineResults: Map<string, PipelineResult>;
+  updatePipelineProgress: (companyId: string, step: PipelineStep, status: StepStatus) => void;
+  startAutoPipeline: (companyIds: string[]) => Promise<void>;
+  retryFailedStep: (companyId: string, step: PipelineStep) => Promise<void>;
 }
 
-// 処理状況ストア
+// 拡張された処理状況ストア
 interface ProcessingStore {
   activeJobs: Map<string, JobStatus>;
   completedJobs: JobResult[];
   errorLogs: ErrorLog[];
   updateJobStatus: (jobId: string, status: JobStatus) => void;
+  
+  // 新機能
+  pipelineJobs: Map<string, PipelineJob>;
+  progressTracking: Map<string, PipelineProgress>;
+  updatePipelineJob: (jobId: string, job: PipelineJob) => void;
+  trackProgress: (companyId: string, step: PipelineStep, progress: number) => void;
+  getOverallProgress: () => OverallProgress;
 }
+
+// 新しい型定義
+interface CompanyInfo {
+  id: string;
+  establishedYear?: number;
+  employeeCount?: number;
+  capital?: number;
+  industry?: string;
+  location?: {
+    address: string;
+    prefecture: string;
+    city: string;
+    postalCode: string;
+  };
+  businessDescription?: string;
+  jsicCategory?: string;
+  extractedAt?: string;
+  extractedFrom?: string;
+  confidence?: number;
+}
+
+interface PipelineProgress {
+  companyId: string;
+  currentStep: PipelineStep;
+  completedSteps: PipelineStep[];
+  totalSteps: number;
+  overallProgress: number;
+  stepStatuses: Map<PipelineStep, StepStatus>;
+  startTime: string;
+  lastUpdateTime: string;
+}
+
+type PipelineStep = 'company' | 'mvv' | 'companyInfo' | 'jsicCategory';
+type StepStatus = 'pending' | 'processing' | 'completed' | 'failed';
 ```
 
 ## バックエンド アーキテクチャ
@@ -413,8 +502,13 @@ graph TD
 - **Memory**: ~45MB per function instance (実測)
 - **CPU**: Serverless auto-scaling (同時実行2インスタンス推奨)
 - **Storage**: IndexedDB (client-side), ~1.2MB per 100 companies (実測)
+  - **Enhanced Company Data**: +40% storage increase (company info included)
+  - **JSIC Classification Data**: +5% storage increase
 - **Network**: ~5KB per request, ~55KB per response (実測)
+  - **Company Info Extraction**: ~8KB per request, ~75KB per response
+  - **Pipeline Processing**: ~15KB per request, ~150KB per response
 - **Function timeout**: 30秒設定（Perplexity処理用）
+  - **Pipeline timeout**: 45秒設定（フルパイプライン処理用）
 
 ## スケーラビリティ
 
