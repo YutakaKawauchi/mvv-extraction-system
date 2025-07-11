@@ -11,7 +11,7 @@ import type { CompanyWithSimilarity } from '../../services/similarityCalculator'
 import { SimilarityCalculator } from '../../services/similarityCalculator';
 import { ProgressiveCalculator } from '../../services/progressiveCalculator';
 import { similarityCache } from '../../services/similarityCache';
-import { TinySegmenter } from '@birchill/tiny-segmenter';
+import { enhancedSegmentationService } from '../../services/enhancedSegmentationService';
 
 const SimilarCompanyFinder: React.FC = () => {
   const { 
@@ -88,12 +88,17 @@ const SimilarCompanyFinder: React.FC = () => {
   // 形態素解析を使ったテキスト類似度分析 (デバッグ用)
   const analyzeTextSimilarity = (company1: HybridCompany, company2: HybridCompany) => {
     const calculateWordOverlap = (text1: string, text2: string) => {
-      // TinySegmenterのインスタンス作成
-      const segmenter = new TinySegmenter();
+      // 拡張形態素解析サービスを使用
+      const segmentationOptions = {
+        preserveCompounds: true,
+        enableCustomRules: true,
+        industryFocus: 'healthcare' as const
+      };
 
       const extractKeywords = (text: string) => {
-        // 形態素解析で分かち書き
-        const segments = segmenter.segment(text);
+        // 拡張形態素解析で分かち書き（複合語保持）
+        const segmentationResult = enhancedSegmentationService.segmentWithCompounds(text, segmentationOptions);
+        const segments = segmentationResult.segments;
         
         // ストップワード定義
         const stopWords = new Set([

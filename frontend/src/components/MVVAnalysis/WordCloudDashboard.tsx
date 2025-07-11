@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { LoadingSpinner } from '../common';
 import { Cloud, Filter } from 'lucide-react';
-import { TinySegmenter } from '@birchill/tiny-segmenter';
+import { enhancedSegmentationService } from '../../services/enhancedSegmentationService';
 import { WordCloud } from './WordCloud';
 
 interface KeywordFrequency {
@@ -28,7 +28,12 @@ export const WordCloudDashboard: React.FC = () => {
     }>;
   } | null>(null);
 
-  const segmenter = useMemo(() => new TinySegmenter(), []);
+  // Enhanced segmentation service for better compound word handling
+  const segmentationOptions = useMemo(() => ({
+    preserveCompounds: true,
+    enableCustomRules: true,
+    industryFocus: 'healthcare' as const
+  }), []);
 
   // Helper function to get middle category name for a company
   const getCompanyMiddleCategoryName = (companyName: string): string => {
@@ -61,13 +66,16 @@ export const WordCloudDashboard: React.FC = () => {
     const processText = (text: string, type: 'mission' | 'vision' | 'values', companyName: string, category: string) => {
       if (!text) return;
 
-      const words = segmenter.segment(text);
+      const segmentationResult = enhancedSegmentationService.segmentWithCompounds(text, segmentationOptions);
+      const words = segmentationResult.segments;
       const filteredWords = words.filter((word: string) => {
         // 意味のある単語のみ抽出
         return word.length >= 2 && 
                !['です', 'ます', 'である', 'として', 'により', 'という', 'こと', 'もの', 'ため', 'など'].includes(word) &&
                !/^[0-9]+$/.test(word) && // 数字のみ除外
-               !/^[ぁ-ん]+$/.test(word); // ひらがなのみ除外
+               !/^[ぁ-ん]+$/.test(word) && // ひらがなのみ除外
+               !/__COMPOUND_\d+__/.test(word) && // 保護トークンの残存を除外
+               !/COMPOUND/.test(word); // 部分的なトークン残存も除外
       });
 
       filteredWords.forEach((word: string) => {
@@ -109,7 +117,7 @@ export const WordCloudDashboard: React.FC = () => {
     console.log(`✅ ワードクラウド分析完了: ${Math.round(endTime - startTime)}ms`);
 
     return { keywordAnalysis, loading: false };
-  }, [data, segmenter, minFrequency, categoryLevel, getCompanyMiddleCategoryName]);
+  }, [data, segmentationOptions, minFrequency, categoryLevel, getCompanyMiddleCategoryName]);
 
   const filteredKeywords = useMemo(() => {
     let filtered = keywordAnalysis;
@@ -231,7 +239,7 @@ export const WordCloudDashboard: React.FC = () => {
               MVVキーワードワードクラウド
             </h2>
             <p className="text-gray-600 mt-1">
-              企業のMVVから抽出されたキーワードを視覚的に表示
+              拡張形態素解析（複合語保持）で抽出されたキーワードを視覚的に表示
             </p>
           </div>
           <div className="text-sm text-gray-500">

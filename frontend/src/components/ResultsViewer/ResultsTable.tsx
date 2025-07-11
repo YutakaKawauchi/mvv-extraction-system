@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Company, MVVData } from '../../types';
 import { StatusBadge, Button, EmbeddingsDetails } from '../common';
 import { formatShortDate, formatPercentage } from '../../utils/formatters';
@@ -10,7 +10,9 @@ import {
   ChevronUp, 
   ChevronDown,
   Globe,
-  Brain
+  Brain,
+  FileSpreadsheet,
+  ChevronDown as DropdownIcon
 } from 'lucide-react';
 
 interface ResultsTableProps {
@@ -19,6 +21,7 @@ interface ResultsTableProps {
   onViewDetails: (company: Company, mvvData?: MVVData) => void;
   onEdit: (company: Company) => void;
   onExport: () => void;
+  onExcelExport?: () => void;
 }
 
 type SortField = 'name' | 'category' | 'status' | 'updatedAt' | 'confidence';
@@ -29,11 +32,28 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
   mvvDataMap,
   onViewDetails,
   onEdit,
-  onExport
+  onExport,
+  onExcelExport
 }) => {
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewingEmbeddings, setViewingEmbeddings] = useState<Company | null>(null);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowExportDropdown(false);
+      }
+    };
+
+    if (showExportDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showExportDropdown]);
 
   const sortedCompanies = useMemo(() => {
     return [...companies].sort((a, b) => {
@@ -119,10 +139,47 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
               {companies.length}件の企業データ
             </p>
           </div>
-          <Button onClick={onExport} variant="outline" size="sm" className="w-full sm:w-auto">
-            <Download className="w-4 h-4 mr-2" />
-            エクスポート
-          </Button>
+          <div className="relative" ref={dropdownRef}>
+            <Button 
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+              variant="outline" 
+              size="sm" 
+              className="w-full sm:w-auto"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              エクスポート
+              <DropdownIcon className="w-4 h-4 ml-2" />
+            </Button>
+            
+            {showExportDropdown && (
+              <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      onExport();
+                      setShowExportDropdown(false);
+                    }}
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <Download className="w-4 h-4 mr-3" />
+                    CSVエクスポート
+                  </button>
+                  {onExcelExport && (
+                    <button
+                      onClick={() => {
+                        onExcelExport();
+                        setShowExportDropdown(false);
+                      }}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 mr-3" />
+                      Excelレポート（プレミアム）
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

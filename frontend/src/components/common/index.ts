@@ -8,3 +8,4 @@ export { ProgressBar } from './ProgressBar';
 export { StatusBadge } from './StatusBadge';
 export { ScrollToTopButton } from './ScrollToTopButton';
 export { EmbeddingsDetails } from './EmbeddingsDetails';
+export { ExcelExportWizard } from './ExcelExportWizard';

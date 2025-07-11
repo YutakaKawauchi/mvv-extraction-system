@@ -5,8 +5,8 @@
  */
 
 import type { Company } from '../types';
-import { TinySegmenter } from '@birchill/tiny-segmenter';
 import { similarityCache } from './similarityCache';
+import { enhancedSegmentationService } from './enhancedSegmentationService';
 
 export interface SimilarityResult {
   companyA: Company;
@@ -56,11 +56,15 @@ export class SimilarityCalculator {
   }
 
   /**
-   * Calculate morphological text similarity using TinySegmenter
+   * Calculate morphological text similarity using Enhanced Segmentation
+   * 
+   * Enhanced with compound word preservation to address issues like:
+   * - "社会課題" being split into "社会" + "課題" 
+   * - "医療従事者" being split into "医療" + "従事" + "者"
+   * 
+   * Now preserves meaningful compound words for better semantic similarity calculation.
    */
   public static calculateTextSimilarity(companyA: Company | any, companyB: Company | any): number {
-    const segmenter = new TinySegmenter();
-    
     // Extract text from MVV data
     const valuesA = Array.isArray(companyA.values) ? companyA.values : (companyA.values ? [companyA.values] : []);
     const valuesB = Array.isArray(companyB.values) ? companyB.values : (companyB.values ? [companyB.values] : []);
@@ -69,12 +73,30 @@ export class SimilarityCalculator {
     
     if (!textA || !textB) return 0;
 
-    // Segment text
-    const segmentsA = segmenter.segment(textA);
-    const segmentsB = segmenter.segment(textB);
+    // Enhanced segmentation with compound word preservation
+    const resultA = enhancedSegmentationService.segmentWithCompounds(textA, {
+      preserveCompounds: true,
+      enableCustomRules: true,
+      industryFocus: 'healthcare' // Focus on healthcare industry for better compound detection
+    });
+    const resultB = enhancedSegmentationService.segmentWithCompounds(textB, {
+      preserveCompounds: true,
+      enableCustomRules: true,
+      industryFocus: 'healthcare'
+    });
+    
+    const segmentsA = resultA.segments;
+    const segmentsB = resultB.segments;
 
-    // Define important terms and stop words
+    // Define important terms and stop words (now including compound words that are preserved)
     const importantTerms = new Set([
+      // Compound words (now properly preserved by enhanced segmentation)
+      '社会課題', '社会貢献', '社会責任', '社会価値', '持続可能', '地球環境', '環境保護',
+      '医療従事者', '患者中心', '患者様', 'ヘルスケア', '医療技術', '人々の健康',
+      '次世代技術', '人工知能', 'デジタルトランスフォーメーション', '情報インフラ',
+      '顧客満足', '品質管理', '高い品質', '企業価値', 'グローバル企業',
+      '高齢社会', '健康寿命', '生活の質', '医療情報', '医療コスト',
+      
       // General business terms
       '社会', '貢献', '価値', '品質', '技術', '革新', '創造', '発展', '成長', '向上',
       '安全', '信頼', '責任', '持続', '環境', '未来', '世界', '地域', '人々', '顧客',

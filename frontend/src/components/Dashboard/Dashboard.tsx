@@ -4,13 +4,14 @@ import { BatchProcessor, EmbeddingsBatchProcessor, ExtractionQueue, ProcessingSt
 import { ResultsTable, MVVDisplay } from '../ResultsViewer';
 import { MVVAnalysisDashboard } from '../MVVAnalysis';
 import { BackupRestorePanel } from '../BackupRestore';
-import { Modal, Button } from '../common';
+import { Modal, Button, ExcelExportWizard } from '../common';
 import { SessionStatus } from '../auth';
 import { useCompanyStore } from '../../stores/companyStore';
 import { useMVVStore } from '../../stores/mvvStore';
 import { useCSVProcessor } from '../../hooks/useCSVProcessor';
 import { useNotification } from '../../hooks/useNotification';
-import type { Company, MVVData } from '../../types';
+import type { Company, MVVData, CompanyInfo } from '../../types';
+import { companyInfoStorage } from '../../services/storage';
 import { 
   Building2, 
   Brain, 
@@ -30,6 +31,8 @@ export const Dashboard: React.FC = () => {
     company: Company;
     mvvData?: MVVData;
   } | null>(null);
+  const [showExcelWizard, setShowExcelWizard] = useState(false);
+  const [companyInfoMap, setCompanyInfoMap] = useState<Map<string, CompanyInfo>>(new Map());
 
   const { companies, loadCompanies } = useCompanyStore();
   const { mvvDataMap, loadMVVData } = useMVVStore();
@@ -43,6 +46,9 @@ export const Dashboard: React.FC = () => {
         loadCompanies(),
         loadMVVData()
       ]);
+      // Load company info data
+      const infoMap = await companyInfoStorage.getAllAsMap();
+      setCompanyInfoMap(infoMap);
     };
     loadData();
   }, [loadCompanies, loadMVVData]);
@@ -82,6 +88,14 @@ export const Dashboard: React.FC = () => {
 
   const handleExportResults = () => {
     exportCombinedData(companies, mvvDataMap);
+  };
+
+  const handleExcelExport = () => {
+    setShowExcelWizard(true);
+  };
+
+  const handleExcelExportComplete = () => {
+    success('Excelエクスポート完了', 'プレミアムExcelレポートが正常に生成されました');
   };
 
   const tabs = [
@@ -233,6 +247,7 @@ export const Dashboard: React.FC = () => {
         {activeTab === 'companies' && (
           <div>
             <CompanyList />
+
             {(companies.filter(c => c.status === 'pending').length > 0 || companies.filter(c => c.status === 'mvv_extracted').length > 0) && (
               <div className="mt-6 space-y-4">
                 {companies.filter(c => c.status === 'pending').length > 0 && (
@@ -347,6 +362,7 @@ export const Dashboard: React.FC = () => {
                 // Note: This would need additional logic to pre-select the company for editing
               }}
               onExport={handleExportResults}
+              onExcelExport={handleExcelExport}
             />
           </div>
         )}
@@ -369,16 +385,15 @@ export const Dashboard: React.FC = () => {
                   現在のIndexedDBデータの詳細を確認できます。ブラウザのコンソールで結果を確認してください。
                 </p>
                 <Button
-                  onClick={() => {
-                    // 新しいデバッグ手順を案内
-                    console.log('📦 デバッグ手順:');
-                    console.log('1. fetch(\'/debug-category-status.js\').then(r => r.text()).then(code => eval(code));');
-                    console.log('2. debugCategoryStatus();');
-                    success('デバッグコード表示', 'コンソールで上記コードを実行してください');
+                  onClick={async () => {
+                    // companyInfoMapを再読み込み
+                    const infoMap = await companyInfoStorage.getAllAsMap();
+                    setCompanyInfoMap(infoMap);
+                    success('データ再読み込み完了', `企業情報: ${infoMap.size}件`);
                   }}
-                  className="bg-yellow-600 hover:bg-yellow-700"
+                  className="bg-green-600 hover:bg-green-700"
                 >
-                  IndexedDBデータを確認
+                  企業情報を再読み込み
                 </Button>
               </div>
             )}
@@ -413,6 +428,16 @@ export const Dashboard: React.FC = () => {
           )}
         </Modal>
       )}
+
+      {/* Excel Export Wizard Modal */}
+      <ExcelExportWizard
+        isOpen={showExcelWizard}
+        onClose={() => setShowExcelWizard(false)}
+        companies={companies}
+        mvvDataMap={mvvDataMap}
+        companyInfoMap={companyInfoMap}
+        onExportComplete={handleExcelExportComplete}
+      />
     </div>
   );
 };

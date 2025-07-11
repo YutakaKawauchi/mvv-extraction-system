@@ -48,6 +48,12 @@ AI-powered system for extracting Mission, Vision, and Values (MVV) from Japanese
   - Created comprehensive company-management-enhancement.md implementation record
   - Updated testing guides with new API endpoints and procedures
   - Documented 4-stage automated pipeline and enterprise features
+- ✅ **Professional Excel Export System (2025-07-11)**
+  - ExcelJS-based comprehensive Excel export with 5 specialized data sheets
+  - Step-by-step export wizard with preview and progress tracking
+  - Advanced Excel features: window freezing, auto-filters, text wrapping, conditional formatting
+  - JSIC industry classification integration and professional styling
+  - Mobile-responsive export interface with detailed configuration options
 
 ## Common Commands
 
@@ -120,13 +126,13 @@ netlify env:set JWT_EXPIRATION "24h"
 
 ### Frontend Structure (`/frontend`)
 - **src/components/**: UI components organized by feature (Company/, MVV/, Results/)
-  - **common/**: Reusable UI components with accessibility support (Button, LoadingSpinner, StatusBadge, ScrollToTopButton)
+  - **common/**: Reusable UI components with accessibility support (Button, LoadingSpinner, StatusBadge, ScrollToTopButton, ExcelExportWizard)
   - **CompanyManager/**: Company CRUD operations with mobile-optimized layouts
   - **ResultsViewer/**: Responsive data display (dual mobile/desktop views)
   - **MVVExtractor/**: Batch processing interfaces
   - **Dashboard/**: Main navigation and overview with session status
   - **auth/**: Authentication components (Login, AuthGuard, SessionStatus)
-- **src/services/**: API clients (api.ts, indexedDB.ts)
+- **src/services/**: API clients (api.ts, indexedDB.ts, excelProcessor.ts)
 - **src/stores/**: Zustand state management (companies, MVV data, authentication)
 - **src/types/**: TypeScript interfaces (including auth types)
 - **src/utils/**: Helper functions (formatters, authApi.ts)
@@ -156,7 +162,7 @@ netlify env:set JWT_EXPIRATION "24h"
   - `fixtures/`: Test data fixtures
 
 ### Key Technologies
-- **Frontend**: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB) + TinySegmenter (Japanese morphological analysis)
+- **Frontend**: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB) + TinySegmenter (Japanese morphological analysis) + ExcelJS 4.4.0 (Professional Excel export)
 - **Backend**: Netlify Functions + OpenAI 5.8.2 + Perplexity AI + jsonwebtoken 9.0.2 (JWT authentication)
 - **Testing**: Jest 29.7.0 with comprehensive API testing (mock/integration/minimal modes)
 - **Authentication**: JWT-based with environment variable credentials
@@ -164,6 +170,7 @@ netlify env:set JWT_EXPIRATION "24h"
 - **Logging**: Environment-aware logging (console + file output)
 - **Accessibility**: WCAG 2.1 AA compliance, ARIA labels, screen reader support, keyboard navigation
 - **Mobile**: Responsive design, touch-friendly (44px+ targets), mobile-first layouts
+- **Data Export**: ExcelJS-based professional Excel export with advanced formatting and multiple specialized sheets
 
 ### Authentication Features
 - **Login Interface**: Mobile-responsive login with password visibility toggle
@@ -179,10 +186,11 @@ netlify env:set JWT_EXPIRATION "24h"
 3. **AI Similarity Analysis**: 62-company similarity analysis, interactive dashboard, Japanese morphological analysis
 4. **Data Persistence**: IndexedDB for local storage
 5. **Results Management**: Filter/search, manual editing, CSV/JSON export
-6. **Responsive Design**: Mobile-first approach with adaptive layouts (card/table views)
-7. **Accessibility**: Full WCAG 2.1 AA compliance with screen reader and keyboard support
-8. **Enhanced UX**: Smooth scroll-to-top, improved error handling, detailed feedback
-9. **Performance**: Optimized rendering, throttled events, 60fps smooth interactions
+6. **Professional Excel Export**: 5 specialized data sheets with advanced formatting and business intelligence features
+7. **Responsive Design**: Mobile-first approach with adaptive layouts (card/table views)
+8. **Accessibility**: Full WCAG 2.1 AA compliance with screen reader and keyboard support
+9. **Enhanced UX**: Smooth scroll-to-top, improved error handling, detailed feedback
+10. **Performance**: Optimized rendering, throttled events, 60fps smooth interactions
 
 ### API Endpoints
 - `POST /.netlify/functions/extract-mvv`: OpenAI GPT-4o extraction (auth protected)
@@ -229,6 +237,74 @@ netlify env:set JWT_EXPIRATION "24h"
 - WSL2 compatible with network configuration
 - **Testing**: Use `npm test` for mock tests, `TEST_MODE=integration npm test` for real API tests
 - 日本語での対話可
+
+### Professional Excel Export System
+
+#### Overview
+Comprehensive Excel export system using ExcelJS 4.4.0 for generating professional business reports with 5 specialized data sheets, advanced formatting, and business intelligence features.
+
+#### Excel Export Features
+- **5 Specialized Data Sheets**: Executive Summary, MVV Analysis (Simple/Detail), Company Master Data, Company Detailed Profiles
+- **Advanced Excel Functions**: Window pane freezing, auto-filters, conditional formatting, text wrapping
+- **Professional Styling**: Color-coded confidence scores, alternating row colors, proper borders and fonts
+- **Step-by-step Wizard**: Interactive export configuration with preview and progress tracking
+- **Mobile-responsive Interface**: Touch-friendly controls and adaptive layouts
+
+#### Data Sheets Specification
+
+**1. Executive Summary**
+- Project overview and key statistics
+- Industry breakdown with completion rates
+- Data quality distribution (high/medium/low confidence)
+- Generated report metadata
+
+**2. MVV Analysis (Simple)**
+- Basic MVV data: No, Company Name, Industry, Mission, Vision, Values
+- Confidence scores with color-coded indicators
+- Investigation date and source URLs
+- Window freezing: No + Company Name columns
+- Full auto-filtering on all columns
+
+**3. MVV Analysis (Detail)**
+- Comprehensive JOIN of MVV + Company Information data
+- JSIC industry classifications (Major/Middle/Minor categories)
+- Financial data, business segments, listing information
+- Text wrapping for Mission/Vision/Values with automatic row height
+- 29 total columns with complete business intelligence data
+
+**4. Company Master Data**
+- Basic company information and processing status
+- Creation/update timestamps and error tracking
+- Website URLs and category classifications
+- Processing pipeline status indicators
+
+**5. Company Detailed Profiles**
+- Complete company profiles with 43 data fields
+- Financial metrics, ESG information, competitive positioning
+- JSIC classifications and industry positioning
+- MVV extraction status and confidence indicators
+
+#### Technical Implementation
+```typescript
+// Excel Export Service
+src/services/excelProcessor.ts - Core Excel generation engine
+src/components/common/ExcelExportWizard.tsx - Step-by-step UI wizard
+
+// Key Features
+- ExcelJS workbook generation with professional themes
+- Conditional formatting for confidence scores
+- Dynamic column width adjustment
+- Multi-sheet generation with cross-referencing
+- Progress tracking and error handling
+```
+
+#### Usage Example
+```bash
+# Access via Results tab → Excel Export button
+# Configure export options in step-by-step wizard
+# Preview settings and start generation
+# Download professional Excel report with multiple sheets
+```
 
 ### Company Information Extraction API
 New endpoint for extracting comprehensive company information using Perplexity API with automatic industry classification:
@@ -444,7 +520,7 @@ git push origin main  # Deploy rollback
 - **Features**: Sensitive data masking, request/response tracking, performance metrics
 - **Log files**: Automatically excluded from git commits via .gitignore
 
-### Perplexity AI Integration Details (Updated 2025-07-08)
+### Perplexity AI Integration Details (Updated 2025-07-11)
 - **Model**: `sonar-pro` (Latest model with web search capabilities)
 - **Features**: Real-time web search, prioritized official website information
 - **Cost**: ~$0.011 per company processed (extremely cost-effective)
@@ -453,7 +529,8 @@ git push origin main  # Deploy rollback
 - **Accuracy**: Mission 95%+, Vision 90%+, Values 85%+
 - **Production Results**: 100% success rate (89/89 companies processed without errors)
 - **Performance Optimization**: Highly optimized batch processing (2min 49sec for 89 companies)
-- **Recent Improvements**: Enhanced CSV import with duplicate checking, better error handling
+- **Cost Optimization (2025-07-11)**: Fixed duplicate API call issue reducing cost from ~$0.022 to ~$0.011 per company
+- **Recent Improvements**: Enhanced CSV import with duplicate checking, better error handling, admin panel integration
 
 ### Tested Functionality
 ```bash
@@ -506,7 +583,19 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
    - ✅ Uniqueness Analysis (β): Multi-factor scoring algorithm
    - ✅ Quality Assessment (β): Rule-based MVV quality evaluation
 4. **✅ Enhanced Company Management**: Comprehensive company information extraction with JSIC integration
-5. **📊 Next Phase**: AI-powered insights and recommendations (Phase 4)
+5. **✅ Professional Excel Export System**: ExcelJS-based comprehensive business reporting
+   - ✅ 5 Specialized Data Sheets: Executive Summary, MVV Analysis (Simple/Detail), Company Master, Detailed Profiles
+   - ✅ Advanced Excel Features: Window freezing, auto-filters, text wrapping, conditional formatting
+   - ✅ Step-by-step Export Wizard: Interactive configuration with preview and progress tracking
+   - ✅ Business Intelligence Integration: JSIC classifications, financial data, competitive analysis
+6. **✅ Admin Panel with Hidden Menu Access (2025-07-11)**
+   - ✅ Hidden Menu Access: Ctrl+Shift+A keyboard shortcut activation
+   - ✅ Data Diagnostics: Company data integrity and MVV consistency checks
+   - ✅ Recovery Tools: Bulk extraction, single test execution, batch processing
+   - ✅ System Diagnostics: API health check and performance monitoring
+   - ✅ Cost Optimization: Fixed duplicate API call issue (50% cost reduction)
+   - ✅ Access Control: Admin-only features removed from standard UI
+7. **📊 Next Phase**: AI-powered insights and recommendations (Phase 4)
 
 ### Real-time Analysis System Architecture (Updated 2025-07-11)
 
@@ -550,5 +639,5 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
 ---
 
 *Last Updated: 2025-07-11*  
-*Current Status: Real-time Analysis Dashboard (Production)*  
+*Current Status: Professional Excel Export System with Real-time Analysis Dashboard (Production)*  
 *Next Phase: AI-powered insights and enterprise features*
