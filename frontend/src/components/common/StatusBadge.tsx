@@ -58,6 +58,17 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   };
 
   const config = configs[status];
+  
+  // config または icon が存在しない場合のフォールバック
+  if (!config || !config.icon) {
+    console.warn('Status config or icon is undefined:', { status, config });
+    return (
+      <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800`}>
+        {status}
+      </span>
+    );
+  }
+  
   const Icon = config.icon;
 
   const sizeClasses = {

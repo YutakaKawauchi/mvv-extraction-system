@@ -192,6 +192,24 @@ const CompanyQueueItem: React.FC<CompanyQueueItemProps> = ({
   };
 
   const config = statusConfig[status];
+  
+  // config または icon が存在しない場合のフォールバック
+  if (!config || !config.icon) {
+    console.warn('Status config or icon is undefined:', { status, config });
+    return (
+      <div className="px-4 py-3 bg-gray-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="text-sm font-medium text-gray-900">
+              {company.name}
+            </div>
+            <span className="text-xs text-gray-500">Status: {status}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   const Icon = config.icon;
 
   return (
