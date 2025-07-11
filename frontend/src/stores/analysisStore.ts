@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { AnalysisFilters } from '../types/analysis';
-import { hybridDataLoader, type HybridAnalysisData, type HybridCompany } from '../services/hybridDataLoader';
+import { type HybridAnalysisData, type HybridCompany } from '../services/hybridDataLoader';
 import { companyStorage } from '../services/storage';
 // import { generateEmbeddings } from '../services/openai';
 
@@ -49,18 +49,15 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
   
   selectedCompany: null,
   
-  // ハイブリッド分析データ読み込み
-  loadAnalysisData: async (forceRefresh = false) => {
+  // リアルタイム分析データ読み込み（IndexedDBのみ）
+  loadAnalysisData: async (_forceRefresh = false) => {
     set({ isLoading: true, error: null });
     
     try {
-      // 1. 静的分析データを読み込み
-      const data = await hybridDataLoader.loadHybridData(forceRefresh);
-      
-      // 2. 企業管理（IndexedDB）から全企業を取得
+      // 1. 企業管理（IndexedDB）から全企業を取得
       const managedCompanies = await companyStorage.getAll();
       
-      // 3. 分析済み企業（embeddings持ち）をHybridCompany形式に変換
+      // 2. 分析済み企業（embeddings持ち）をHybridCompany形式に変換
       console.log(`IndexedDBから${managedCompanies.length}社を取得`);
       
       const analyzedCompanies = managedCompanies
@@ -97,54 +94,48 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
           lastUpdated: company.updatedAt.toISOString()
         } as HybridCompany));
       
-      // 4. 既存の企業と統合（重複チェック）
-      const existingIds = new Set(data.companies.map(c => c.id));
-      const newCompanies = analyzedCompanies.filter(c => !existingIds.has(c.id));
+      // 3. リアルタイムデータのみでの分析データ作成
+      console.log(`結果: IndexedDBから${analyzedCompanies.length}社を取得`);
       
-      // 5. 統合されたデータを作成（静的データを無視してリアルタイムデータのみ使用）
-      console.log(`結果: 既存${data.companies.length}社 + 新規${newCompanies.length}社 = 合計${analyzedCompanies.length}社`);
-      
-      const mergedData: HybridAnalysisData = {
+      const realtimeData: HybridAnalysisData = {
         summary: {
           totalCompanies: analyzedCompanies.length,
           avgSimilarity: 0.65, // デフォルト値
           maxSimilarity: 0.95,  // デフォルト値
-          maxSimilarPair: [analyzedCompanies[0], analyzedCompanies[1]] as any,
+          maxSimilarPair: analyzedCompanies.slice(0, 2) as any,
           categoryAnalysis: {}
         },
-        companies: analyzedCompanies, // 静的データを無視してIndexedDBデータのみ使用
+        companies: analyzedCompanies, // IndexedDBデータのみ使用
         similarityMatrix: [], // リアルタイム計算するため空
         topSimilarities: [], // リアルタイム計算するため空
         categoryAnalysis: {},
         metadata: {
           staticDataVersion: 'none',
-          lastStaticLoad: new Date().toISOString(),
+          lastStaticLoad: 'none',
           dynamicCompaniesCount: analyzedCompanies.length,
           lastApiUpdate: new Date().toISOString(),
-          hybridVersion: '3.0-realtime-only'
+          hybridVersion: '4.0-indexeddb-only'
         }
       };
       
-      // 6. デバッグ情報を出力
-      console.log('🔍 Analysis Store データ統合結果:');
-      console.log(`  - 静的企業数: ${data.companies.length}`);
-      console.log(`  - 動的企業数: ${newCompanies.length}`);
-      console.log(`  - 総企業数: ${mergedData.companies.length}`);
-      console.log(`  - 埋め込みベクトル保持企業数: ${mergedData.companies.filter(c => c.embeddings && Array.isArray(c.embeddings) && c.embeddings.length > 0).length}`);
+      // 4. デバッグ情報を出力
+      console.log('🔍 Analysis Store リアルタイムデータ読み込み結果:');
+      console.log(`  - 総企業数: ${realtimeData.companies.length}`);
+      console.log(`  - 埋め込みベクトル保持企業数: ${realtimeData.companies.filter(c => c.embeddings && Array.isArray(c.embeddings) && c.embeddings.length > 0).length}`);
       
-      // 動的企業の埋め込みベクトル状況をログ
-      if (newCompanies.length > 0) {
-        console.log('📊 動的企業の埋め込みベクトル状況:');
-        newCompanies.slice(0, 5).forEach(company => {
+      // IndexedDB企業の埋め込みベクトル状況をログ
+      if (analyzedCompanies.length > 0) {
+        console.log('📊 IndexedDB企業の埋め込みベクトル状況:');
+        analyzedCompanies.slice(0, 5).forEach(company => {
           console.log(`  - ${company.name}: ${company.embeddings ? company.embeddings.length : 0} 次元`);
         });
       }
       
-      // 7. カテゴリリストを更新
-      const allCategories = [...new Set(mergedData.companies.map(c => c.category))];
+      // 5. カテゴリリストを更新
+      const allCategories = [...new Set(realtimeData.companies.map(c => c.category))];
       
       set({ 
-        data: mergedData, 
+        data: realtimeData, 
         isLoading: false,
         error: null, // エラーをクリア
         filters: {
@@ -162,10 +153,11 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
   },
 
 
-  // AI洞察生成
-  generateInsights: async (type, companyIds, analysisData, language = 'ja') => {
+  // AI洞察生成（現在無効化）
+  generateInsights: async (_type, _companyIds, _analysisData, _language = 'ja') => {
     try {
-      return await hybridDataLoader.generateInsights(type, companyIds, analysisData, language);
+      // AI洞察機能は現在無効化（静的データ依存削除のため）
+      throw new Error('AI洞察機能は現在利用できません');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '洞察の生成に失敗しました';
       set({ error: errorMessage });
@@ -190,9 +182,9 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     set({ error: null });
   },
 
-  // キャッシュクリア
+  // キャッシュクリア（IndexedDBベース）
   clearCache: () => {
-    hybridDataLoader.clearCache();
+    // IndexedDBベースのため、データをnullに設定するのみ
     set({ data: null });
   },
   
@@ -255,8 +247,16 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     return Object.keys(data.categoryAnalysis);
   },
 
-  // キャッシュ統計取得
+  // キャッシュ統計取得（IndexedDBベース）
   getCacheStats: () => {
-    return hybridDataLoader.getCacheStats();
+    const { data } = get();
+    return {
+      staticDataExists: false,
+      dynamicCompanies: data?.companies?.length || 0,
+      cachedInsights: 0,
+      lastLoad: data?.metadata?.lastApiUpdate || 'none',
+      cacheValid: !!data,
+      cacheSize: data ? JSON.stringify(data).length : 0
+    };
   }
 }));
