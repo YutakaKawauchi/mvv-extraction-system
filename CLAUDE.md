@@ -490,271 +490,60 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
 - **System Uptime**: 100% availability
 - **Cost Efficiency**: ~$0.011 per company processed (Perplexity API cost)
 
-### Current Roadmap (Updated 2025-07-09)
-1. **✅ Production Deploy**: Completed - System fully operational with zero errors
-2. **✅ Stability Optimization**: Completed - Zero error rate achieved (100% success rate)  
-3. **✅ Enhanced UI/UX**: Completed - CSV import improvements and better error handling
-4. **✅ Authentication System**: JWT-based authentication deployed to production
-5. **✅ AI Analysis System Phase 1**: Static data visualization completed
-   - ✅ 62 companies similarity analysis with OpenAI Embeddings (text-embedding-3-small)
-   - ✅ Interactive dashboard with 4-tab interface
-   - ✅ Japanese morphological analysis with TinySegmenter
-   - ✅ Color-coded similarity explanations (Mission/Vision/Values)
-   - ✅ Real-time keyword extraction and matching
-   - ✅ Development debug tools for analysis validation
-6. **✅ AI Analysis System Phase 2-b**: Real-time Embeddings Analysis (COMPLETED 2025-07-09)
-   - ✅ Real-time similarity calculation using client-side embeddings
-   - ✅ Combined embeddings + morphological analysis for enhanced accuracy
-   - ✅ Industry-agnostic keyword extraction (supports all industries)
-   - ✅ High similarity scores (0.8xx) with detailed explanations
-   - ✅ Mission/Vision/Values breakdown with common keywords
-   - ✅ No pre-calculation needed - fully dynamic analysis
-   - ✅ Progressive calculation with caching for performance optimization
-   - ✅ Interactive tooltips with pinnable MVV information
-   - ✅ Enhanced UI/UX with tag-based similarity explanations
-   - ✅ Optimized tab loading performance (removed heavy calculations)
-7. **✅ Enhanced Company Management System (Phase 3 Preparation)**: (COMPLETED 2025-07-09)
-   - ✅ Comprehensive company information extraction system
-   - ✅ Japanese Standard Industrial Classification (JSIC) integration
-   - ✅ Structured location data (prefecture, city, postal code)
-   - ✅ Automatic category classification from JSIC data
-   - ✅ Enhanced backup/restore functionality for company info
-   - ✅ Company information tooltips with markdown export
-   - ✅ Unified automatic pipeline: Company → MVV → CompanyInfo → Category
-   - ✅ Real-time progress tracking for multi-step processes
-   - ✅ Backward compatibility for all data formats
-8. **📊 AI Insights System**: See "Phase 3: AI Insights Implementation Plan" section below
+### Current System Status (Updated 2025-07-11)
+1. **✅ Production Deploy**: System fully operational with zero errors
+2. **✅ Authentication System**: JWT-based authentication deployed to production
+3. **✅ Real-time Analysis Dashboard**: Dynamic MVV analysis using IndexedDB
+   - ✅ Similar Company Search: Real-time embedding similarity calculation
+   - ✅ Trend Analysis: Morphological analysis with JSIC categories
+   - ✅ Interactive Word Cloud: Independent tab with zoom/pan/drag functionality
+   - ✅ Competitive Positioning Map: MDS-based with industry filtering and drag navigation
+   - ✅ Uniqueness Analysis (β): Multi-factor scoring algorithm
+   - ✅ Quality Assessment (β): Rule-based MVV quality evaluation
+4. **✅ Enhanced Company Management**: Comprehensive company information extraction with JSIC integration
+5. **📊 Next Phase**: AI-powered insights and recommendations (Phase 4)
 
-### AI Analysis System (Updated 2025-07-08)
+### Real-time Analysis System Architecture (Updated 2025-07-11)
 
-#### Phase 1: Static Data Visualization (✅ COMPLETED)
-- **Location**: 
-  - Analysis Scripts: `/scripts/ai-analysis/` - Data preprocessing and embedding generation
-  - Frontend Integration: `/frontend/src/components/MVVAnalysis/` - React components
-  - Static Data: `/frontend/public/mvv-analysis-data.json` - 13MB preprocessed analysis data
-- **Key Features**:
-  - **Similarity Analysis**: 62 companies with complete MVV data
-  - **Japanese Morphological Analysis**: TinySegmenter (@birchill/tiny-segmenter) for keyword extraction
-  - **Interactive Dashboard**: 4-tab interface (Overview, Company Finder, Industry Analysis, Insights)
-  - **Similarity Explanation**: Visual breakdown of why companies are similar
-  - **Color-coded Analysis**: Mission(green), Vision(blue), Values(purple), Industry(orange)
-  - **Development Debug**: Detailed morphological analysis results (dev environment only)
-- **Technical Implementation**:
-  - **Embedding Model**: OpenAI text-embedding-3-small
-  - **Similarity Metric**: Cosine similarity with 62×62 matrix
-  - **Frontend Processing**: Real-time keyword extraction and matching
-  - **Data Compression**: 72% compression ratio (13MB from 36MB raw)
-- **Key Results**:
-  - Highest similarity: Terumo ⟷ Medtronic Japan (0.8466)
-  - Average similarity: 0.6466
-  - Industry clustering: Medical devices show highest internal coherence
-  - Performance: Instant load time with static data
+#### Current Implementation: Dynamic Analysis Dashboard
+- **Data Source**: IndexedDB (client-side storage with embeddings)
+- **Processing**: Real-time similarity calculation using OpenAI text-embedding-3-small
+- **Analysis**: Combined embeddings + morphological analysis for enhanced accuracy
+- **Performance**: LRU caching, progressive calculation, symmetric matrix optimization
 
-#### Phase 2-b: Real-time Embeddings Analysis (✅ COMPLETED 2025-07-09)
-- **Implementation**: Full client-side similarity calculation using IndexedDB embeddings
-- **Algorithm**: Combined approach - 70% embeddings + 25% morphological analysis + 15% industry bonus
-- **Morphological Analysis**: TinySegmenter with industry-agnostic keyword dictionary
-  - General business terms (社会, 貢献, 技術, 品質, etc.)
-  - Digital/IT terms (AI, DX, データ, テクノロジー, etc.)
-  - Manufacturing terms (製造, ものづくり, 工場, etc.)
-  - Finance terms (金融, 投資, ファイナンス, etc.)
-  - Infrastructure terms (エネルギー, インフラ, 建設, etc.)
-  - Retail terms (顧客, ブランド, マーケティング, etc.)
-  - Healthcare terms (医療, 健康, 患者, etc.)
-- **Similarity Scores**: Enhanced to 0.8xx range through intelligent scaling
-- **Real-time Performance**: No pre-calculation needed, instant results
-- **Performance Optimization**: 
-  - LRU caching system for similarity calculations
-  - Progressive calculation with quick display and enhanced accuracy
-  - Symmetric matrix optimization (50% reduction in calculations)
-  - Eliminated heavy matrix calculations from initial load
-- **UI/UX Enhancements**:
-  - Interactive tooltips with pinnable MVV information
-  - Tag-based similarity explanations with color coding
-  - Markdown copy functionality for easy sharing
-  - Removed unnecessary UI elements (brain icons, redundant statistics)
-- **Future Ready**: Supports any industry beyond healthcare
+#### Key Components
+- **Similar Company Search**: Real-time embedding similarity with detailed explanations
+- **Trend Analysis**: TinySegmenter morphological analysis with JSIC category support
+- **Interactive Word Cloud**: Independent component with zoom/pan/drag functionality
+- **Competitive Positioning Map**: MDS-based visualization with industry filtering
+- **Uniqueness Analysis (β)**: Multi-factor scoring (base + industry-relative + cross-industry + rarity)
+- **Quality Assessment (β)**: Rule-based MVV maturity evaluation
 
-## Phase 3: AI Insights Implementation Plan (Updated 2025-07-09)
+#### Technical Features
+- **Multi-industry Support**: Industry-agnostic keyword extraction and analysis
+- **Performance Optimization**: Client-side caching, progressive loading, optimized calculations
+- **Interactive UI**: Drag navigation, modal interactions, responsive design
+- **Real-time Processing**: No pre-calculation required, instant similarity results
 
-### Phase 3.1: Static Analysis Dashboard (Zero-Cost Features)
-**Timeline**: 1-2 weeks
-**Status**: Ready to implement (all dependencies completed)
-**Objective**: Leverage existing similarity data and company information for intelligent insights
+## Future Development Roadmap
 
-#### Core Features (Ready for Implementation)
-1. **Company Uniqueness Score Dashboard**
-   - Differentiation metrics based on existing similarity matrix (62 companies)
-   - Uniqueness heatmap showing market positioning
-   - Industry-specific uniqueness rankings
-   - **Data Source**: Existing embeddings similarity calculations
-   - **Performance**: ⚡ Instant (pre-computed data)
-   - **Cost**: 💰 $0.00/month
+### Phase 4: AI-Powered Insights and Recommendations
+**Status**: Planning Phase  
+**Timeline**: Q2-Q3 2025
 
-2. **MVV Industry Trend Analysis**
-   - Keyword frequency analysis across industries using TinySegmenter
-   - Popular mission/vision themes by industry vertical
-   - Values distribution and commonality patterns
-   - **Data Source**: Existing MVV data + morphological analysis
-   - **Performance**: ⚡ Real-time keyword processing
-   - **Cost**: 💰 $0.00/month
+#### Planned Features
+1. **AI Enhancement Suggestions**: GPT-4o-mini powered MVV improvement recommendations
+2. **Predictive Analysis**: Market trend prediction and competitive positioning insights  
+3. **Multi-language Support**: International company analysis capabilities
+4. **Enterprise Integration**: SSO, custom branding, advanced security features
 
-3. **Competitive Positioning Map**
-   - 2D visualization of company relationships using t-SNE/PCA
-   - Interactive clustering by industry and similarity
-   - Market gap identification for strategic positioning
-   - **Data Source**: Existing similarity matrix + company info
-   - **Performance**: ⚡ Client-side computation
-   - **Cost**: 💰 $0.00/month
-
-4. **MVV Quality Assessment**
-   - Rule-based maturity scoring (clarity, specificity, actionability)
-   - Benchmark comparison against industry standards
-   - Quality improvement recommendations (template-based)
-   - **Data Source**: Text analysis of existing MVV statements
-   - **Performance**: ⚡ Real-time scoring
-   - **Cost**: 💰 $0.00/month
-
-#### Technical Implementation
-- **New Components**: `/frontend/src/components/InsightsDashboard/`
-- **Data Processing**: Client-side analysis using existing IndexedDB data
-- **UI Integration**: New tab in MVV Analysis section
-- **Dependencies**: None (uses existing infrastructure)
-
-### Phase 3.2: AI-Enhanced Insights (Controlled Cost Features)
-**Timeline**: 2-3 weeks  
-**Objective**: Intelligent recommendations using GPT-4o-mini with cost optimization
-
-#### Smart Analysis Features
-1. **AI-Powered MVV Enhancement Suggestions**
-   - GPT-4o-mini analysis for improvement recommendations
-   - Industry-specific contextualization using JSIC data
-   - Competitive differentiation suggestions
-   - **Cost Structure**: Tiered usage (5 free → $0.02/analysis)
-   - **Caching**: 24-hour result caching (80% cost reduction)
-
-2. **Automated Competitive Intelligence**
-   - Similar company identification with reasoning
-   - Market positioning analysis and recommendations
-   - Strategic differentiation opportunities
-   - **Cost Optimization**: Bulk processing discounts
-
-3. **Industry Benchmark Analysis**
-   - AI-powered industry trend interpretation
-   - Custom insights based on company profile
-   - Strategic recommendations for market positioning
-   - **Smart Caching**: Industry-level analysis shared across companies
-
-#### Cost Management Strategy
-- **Free Tier**: 5 AI analyses per month per user
+#### Cost Optimization Strategy
 - **Smart Caching**: 24-hour analysis caching to minimize API costs
-- **Batch Processing**: Bulk analysis for cost efficiency
+- **Tiered Usage**: Freemium model with professional tiers
 - **Target Cost**: <$0.05/user/month operational cost
-
-### Phase 4: Enterprise & Scale Features
-**Timeline**: 4-6 weeks
-**Objective**: Production-ready enterprise features with advanced analytics
-
-#### Phase 4.1: Multi-language Support
-- **Language Detection**: Automatic language detection for international companies
-- **Translation Pipeline**: Seamless translation for analysis across languages
-- **Localized Insights**: Region-specific business context and recommendations
-- **Global Database**: Expanded company database beyond Japanese market
-
-#### Phase 4.2: Advanced Analytics
-- **Predictive Analysis**: ML-powered trend prediction and market positioning
-- **Sentiment Analysis**: Emotional tone analysis of MVV statements
-- **Competitive Intelligence**: Automated competitor identification and analysis
-- **Industry Benchmarking**: Comprehensive industry-wide comparison metrics
-
-#### Phase 4.3: Enterprise Integration
-- **SSO Integration**: Enterprise authentication systems (SAML, OAuth)
-- **API Rate Limits**: Scalable rate limiting for enterprise usage
-- **Custom Branding**: White-label solutions for enterprise clients
-- **Advanced Security**: SOC 2 compliance and enterprise-grade security
-
-### Technical Architecture Evolution
-
-#### Current Architecture (Phase 2-b)
-```
-Frontend (React + IndexedDB) → Real-time Embeddings Analysis
-Backend (Netlify Functions) → MVV Extraction + Authentication
-```
-
-#### Target Architecture (Phase 3-4)
-```
-Frontend (React + IndexedDB) → Real-time Analysis + AI Insights
-Backend (Netlify Functions) → MVV Extraction + AI Analysis + Enterprise APIs
-AI Layer (OpenAI GPT-4o-mini) → Intelligent Insights + Recommendations
-Caching Layer (Redis/Memory) → Performance Optimization
-Analytics Layer (Custom) → Usage Tracking + Business Intelligence
-```
-
-### Cost Optimization Strategy
-
-#### Phase 3 Cost Structure
-- **Static Analysis**: $0.00/month (pre-computed data)
-- **AI Analysis**: $0.02/request (GPT-4o-mini)
-- **Caching**: 80% cost reduction through intelligent caching
-- **Target**: <$50/month for 1000 active users
-
-#### Phase 4 Revenue Model
-- **Freemium**: Free basic features + paid advanced AI analysis
-- **Professional**: $29/month for unlimited AI analysis + advanced features
-- **Enterprise**: Custom pricing for bulk usage + white-label solutions
-
-### Implementation Priorities (2025-07-09)
-
-#### Immediate Priority (Phase 3.1 - Week 1)
-1. **Company Uniqueness Score Dashboard** - Ready for implementation
-   - Uses existing similarity matrix (62 companies)
-   - Zero additional infrastructure required
-   - High user value, zero cost
-
-2. **MVV Industry Trend Analysis** - Ready for implementation
-   - Leverages existing morphological analysis
-   - Real-time keyword processing capability
-   - Valuable market insights
-
-#### High Priority (Phase 3.1 - Week 2)
-3. **Competitive Positioning Map** - Visual enhancement of existing data
-   - 2D visualization using existing similarity data
-   - Interactive clustering and gap analysis
-   - Strategic positioning insights
-
-4. **MVV Quality Assessment** - Rule-based scoring system
-   - Template-based recommendations
-   - Benchmarking against industry standards
-   - Quality improvement guidance
-
-#### Medium Priority (Phase 3.2)
-1. **AI Enhancement Suggestions** - Controlled rollout with cost management
-2. **Smart Caching System** - Minimize API costs while providing AI insights  
-3. **Tiered Usage Model** - Sustainable monetization strategy
-
-### Success Metrics (Revised for Current Implementation)
-
-#### Phase 3.1 KPIs (Static Analysis)
-- **Implementation Speed**: Complete in 1-2 weeks
-- **User Engagement**: 50% of users explore insights dashboard within first month
-- **Performance**: <1 second response time for all static analysis
-- **Cost**: $0.00 operational cost (client-side processing)
-- **Data Utilization**: 100% of existing similarity and company data leveraged
-
-#### Phase 3.2 KPIs (AI-Enhanced Features)
-- **Cost Efficiency**: <$0.02/user/month average operational cost
-- **User Adoption**: 30% of users try AI-powered features
-- **Response Time**: <3 seconds for AI analysis (with caching)
-- **Cache Hit Rate**: >80% (cost reduction through smart caching)
-
-#### System Health KPIs
-- **Data Quality**: >95% of companies have complete MVV + CompanyInfo
-- **Processing Success**: >98% success rate for automatic pipeline
-- **User Satisfaction**: Positive feedback on unified company management system
 
 ---
 
-*Last Updated: 2025-07-09*
-*Current Implementation: Enhanced Company Management System (Phase 3 Preparation Complete)*
-*Next Milestone: Phase 3.1 (Static Analysis Dashboard)*
-*Ready for Implementation: All Phase 3.1 features have zero dependencies and can begin immediately*
+*Last Updated: 2025-07-11*  
+*Current Status: Real-time Analysis Dashboard (Production)*  
+*Next Phase: AI-powered insights and enterprise features*
