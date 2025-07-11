@@ -30,6 +30,116 @@ export const CompetitivePositioningMap: React.FC = () => {
   const [viewBox, setViewBox] = useState({ x: -100, y: -100, width: 200, height: 200 });
   const svgRef = useRef<SVGSVGElement>(null);
 
+  // 簡易MDS実装（安定化版）
+  const performMDS = (distanceMatrix: number[][], companies: any[]): CompanyPosition[] => {
+    const n = companies.length;
+    const positions: CompanyPosition[] = [];
+
+    // データ検証
+    if (n === 0 || !distanceMatrix || distanceMatrix.length !== n) {
+      console.warn('Invalid data for MDS calculation');
+      return [];
+    }
+
+    // 初期配置（円形、決定論的）
+    for (let i = 0; i < n; i++) {
+      const angle = (2 * Math.PI * i) / n;
+      const radius = 35 + (i % 3) * 10; // 決定論的なバリエーション
+      positions.push({
+        id: companies[i].id,
+        name: companies[i].name,
+        category: companies[i].category || '未分類',
+        x: radius * Math.cos(angle),
+        y: radius * Math.sin(angle),
+        uniquenessScore: 0,
+        clusterGroup: 0
+      });
+    }
+
+    // ストレス最小化（安定化版）
+    const iterations = 50;
+    const learningRate = 0.1;
+    const minDistance = 0.1; // 最小距離制限
+
+    for (let iter = 0; iter < iterations; iter++) {
+      for (let i = 0; i < n; i++) {
+        let forceX = 0;
+        let forceY = 0;
+
+        for (let j = 0; j < n; j++) {
+          if (i === j) continue;
+
+          const dx = positions[i].x - positions[j].x;
+          const dy = positions[i].y - positions[j].y;
+          const currentDistance = Math.max(minDistance, Math.sqrt(dx * dx + dy * dy));
+          const targetDistance = Math.max(minDistance, distanceMatrix[i][j] * 100);
+
+          // NaN/Infinity チェック
+          if (!isFinite(currentDistance) || !isFinite(targetDistance)) {
+            continue;
+          }
+
+          const force = (currentDistance - targetDistance) / currentDistance;
+          const dampedForce = Math.max(-0.5, Math.min(0.5, force)); // 力の制限
+
+          forceX += dampedForce * dx * learningRate;
+          forceY += dampedForce * dy * learningRate;
+        }
+
+        // NaN/Infinity チェック
+        if (isFinite(forceX) && isFinite(forceY)) {
+          positions[i].x -= forceX;
+          positions[i].y -= forceY;
+        }
+      }
+    }
+
+    return positions;
+  };
+
+  // カテゴリ別クラスタリング
+  const performCategoryClustering = (positions: CompanyPosition[]): ClusterGroup[] => {
+    const categoryMap = new Map<string, CompanyPosition[]>();
+    
+    positions.forEach(pos => {
+      if (!categoryMap.has(pos.category)) {
+        categoryMap.set(pos.category, []);
+      }
+      categoryMap.get(pos.category)!.push(pos);
+    });
+
+    const colors = [
+      '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+      '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#84CC16'
+    ];
+
+    const clusters: ClusterGroup[] = [];
+    let colorIndex = 0;
+
+    categoryMap.forEach((categoryPositions, category) => {
+      const centerX = categoryPositions.reduce((sum, pos) => sum + pos.x, 0) / categoryPositions.length;
+      const centerY = categoryPositions.reduce((sum, pos) => sum + pos.y, 0) / categoryPositions.length;
+      
+      const clusterId = clusters.length;
+      categoryPositions.forEach(pos => {
+        pos.clusterGroup = clusterId;
+      });
+
+      clusters.push({
+        id: clusterId,
+        companies: categoryPositions,
+        centerX,
+        centerY,
+        color: colors[colorIndex % colors.length],
+        category
+      });
+      
+      colorIndex++;
+    });
+
+    return clusters;
+  };
+
   const { positions, clusters, loading } = useMemo(() => {
     if (!data || !data.companies) {
       return { positions: [], clusters: [], loading: true };
@@ -96,109 +206,6 @@ export const CompetitivePositioningMap: React.FC = () => {
       loading: false 
     };
   }, [data]);
-
-  // 簡易MDS実装（安定化版）
-  const performMDS = (distanceMatrix: number[][], companies: any[]): CompanyPosition[] => {
-    const n = companies.length;
-    const positions: CompanyPosition[] = [];
-
-    // データ検証
-    if (n === 0 || !distanceMatrix || distanceMatrix.length !== n) {
-      console.warn('Invalid data for MDS calculation');
-      return [];
-    }
-
-    // 初期配置（円形、決定論的）
-    for (let i = 0; i < n; i++) {
-      const angle = (2 * Math.PI * i) / n;
-      const radius = 35 + (i % 3) * 10; // 決定論的なバリエーション
-      positions.push({
-        id: companies[i].id,
-        name: companies[i].name,
-        category: companies[i].category || '未分類',
-        x: radius * Math.cos(angle),
-        y: radius * Math.sin(angle),
-        uniquenessScore: 0,
-        clusterGroup: 0
-      });
-    }
-
-    // ストレス最小化（安定化版）
-    const iterations = 50;
-    const learningRate = 0.1;
-    const minDistance = 0.1; // 最小距離制限
-
-    for (let iter = 0; iter < iterations; iter++) {
-      for (let i = 0; i < n; i++) {
-        let forceX = 0;
-        let forceY = 0;
-
-        for (let j = 0; j < n; j++) {
-          if (i === j) continue;
-
-          const dx = positions[i].x - positions[j].x;
-          const dy = positions[i].y - positions[j].y;
-          const currentDistance = Math.max(minDistance, Math.sqrt(dx * dx + dy * dy));
-          const targetDistance = Math.max(minDistance, distanceMatrix[i][j] * 100);
-
-          // NaN/Infinity チェック
-          if (!isFinite(currentDistance) || !isFinite(targetDistance)) {
-            continue;
-          }
-
-          const force = (currentDistance - targetDistance) / currentDistance;
-          const deltaX = force * dx * learningRate;
-          const deltaY = force * dy * learningRate;
-
-          // フォース制限（発散防止）
-          const maxForce = 5;
-          forceX += Math.max(-maxForce, Math.min(maxForce, deltaX));
-          forceY += Math.max(-maxForce, Math.min(maxForce, deltaY));
-        }
-
-        // 位置更新（境界制限）
-        const maxPosition = 200;
-        positions[i].x = Math.max(-maxPosition, Math.min(maxPosition, positions[i].x - forceX));
-        positions[i].y = Math.max(-maxPosition, Math.min(maxPosition, positions[i].y - forceY));
-      }
-    }
-
-    return positions;
-  };
-
-  // カテゴリ別クラスタリング
-  const performCategoryClustering = (positions: CompanyPosition[]): ClusterGroup[] => {
-    const categoryGroups = positions.reduce((groups, pos) => {
-      if (!groups[pos.category]) {
-        groups[pos.category] = [];
-      }
-      groups[pos.category].push(pos);
-      return groups;
-    }, {} as Record<string, CompanyPosition[]>);
-
-    const colors = [
-      '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
-      '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
-    ];
-
-    return Object.entries(categoryGroups).map(([category, companies], index) => {
-      companies.forEach(company => {
-        company.clusterGroup = index;
-      });
-
-      const centerX = companies.reduce((sum, c) => sum + c.x, 0) / companies.length;
-      const centerY = companies.reduce((sum, c) => sum + c.y, 0) / companies.length;
-
-      return {
-        id: index,
-        companies,
-        centerX,
-        centerY,
-        color: colors[index % colors.length],
-        category
-      };
-    });
-  };
 
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev * 1.2, 3));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev / 1.2, 0.3));
