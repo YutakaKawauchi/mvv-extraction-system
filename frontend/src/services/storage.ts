@@ -383,6 +383,20 @@ export const companyInfoStorage = {
       .where('companyId')
       .equals(companyId)
       .delete();
+  },
+
+  async getAll(): Promise<CompanyInfo[]> {
+    const dbInfoList = await db.companyInfo.toArray();
+    return dbInfoList.map(fromDBCompanyInfo);
+  },
+
+  async getAllAsMap(): Promise<Map<string, CompanyInfo>> {
+    const infos = await this.getAll();
+    const map = new Map<string, CompanyInfo>();
+    infos.forEach(info => {
+      map.set(info.companyId, info);
+    });
+    return map;
   }
 };
 
