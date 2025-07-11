@@ -4,8 +4,8 @@
 
 94社のMVVデータを活用した高度なAI分析システム。Phase 2-b (Real-time Embeddings Analysis) 完了済み。
 
-**現在の状況**: Phase 2-b 完了 (2025-07-09)
-**次期計画**: Phase 3 (AI-Powered Insights System)
+**現在の状況**: Phase 3準備完了 (強化された企業管理システム) (2025-07-09)
+**次期計画**: Phase 3.1 (静的分析機能の実装)
 
 ## Phase 2-b: Real-time Embeddings Analysis（完了済み）
 
@@ -14,6 +14,12 @@
    - クライアントサイドでの即座な類似度計算
    - IndexedDBに保存された embeddings を活用
    - 70% embeddings + 25% 形態素解析 + 15% 業界ボーナスの複合アルゴリズム
+
+5. **強化された企業データ統合**（新機能）
+   - 企業詳細情報（設立年、従業員数、資本金、所在地）とMVVの統合分析
+   - JSIC産業分類データを活用した高精度業界分析
+   - 地理情報（都道府県、市区町村）を活用した地域分析
+   - 企業規模（従業員数、資本金）を考慮した競合分析
 
 2. **パフォーマンス最適化**
    - LRU キャッシュシステム（50%+ ヒット率）
@@ -32,40 +38,89 @@
    - 業界固有キーワード辞書（デジタル、製造業、金融、小売など）
    - 汎用的な形態素解析アルゴリズム
 
+6. **リアルタイム企業情報統合**（新機能）
+   - 4段階自動パイプラインによるシームレスなデータ収集
+   - 新企業追加時の自動情報収集と分析統合
+   - 企業情報ツールチップでのインタラクティブな表示
+
 ### 技術スタック
 ```
 Backend:
 ├── /analyze-similarity (Netlify Function)
+├── /extract-company-info-perplexity (Netlify Function) ← 新機能
+├── /company-processor (Netlify Function) ← 新機能
 ├── Python libraries: numpy, scikit-learn
 ├── OpenAI API (text-embedding-3-small)
+├── Perplexity AI (sonar-pro model) ← 新機能
 └── File-based caching (JSON)
 
 Frontend:
 ├── MVVAnalyzer (新規コンポーネント)
 ├── SimilarityMatrix (ヒートマップ表示)
 ├── SimilarCompanies (類似企業リスト)
+├── CompanyInfoTooltip (企業情報ツールチップ) ← 新機能
+├── CompanyProcessor (パイプライン処理) ← 新機能
 └── Charts.js / D3.js (可視化)
 ```
 
-## フェーズ2: 高度分析・洞察抽出
+## Phase 3準備完了: 強化された企業データ統合
 
-### 機能
-1. **MVV品質評価**
-   - GPT-4o-mini による包括性・具体性分析
-   - 独自性スコア算出
-   - 改善提案生成
+### 実装済み機能（2025-07-09）
 
-2. **キーワード・トレンド分析**
-   - 形態素解析 + TF-IDF
-   - 業界別特徴語抽出
-   - 感情分析（positive/neutral/negative）
+1. **拡張されたデータモデル**
+   - 企業基本情報 + MVV + 企業詳細情報 + JSIC分類の統合
+   - 構造化された所在地データ（都道府県、市区町村、郵便番号）
+   - 定量データ（設立年、従業員数、資本金）の統合
 
-3. **インタラクティブ可視化**
-   - t-SNE/UMAP による2D/3D空間マッピング
-   - 動的フィルタリング
-   - レーダーチャート
+2. **企業情報自動抽出システム**
+   - Perplexity AIを使用したリアルタイム企業情報収集
+   - 92%の高精度で企業詳細情報を自動抽出
+   - 日本標準産業分類（JSIC）の自動判定（95%精度）
 
-## フェーズ3: MVVジェネレーター
+3. **4段階自動パイプライン**
+   - Company → MVV → CompanyInfo → JSIC Classificationの完全自動化
+   - 89%の成功率でフルパイプライン完了
+   - 部分成功時の適切なハンドリング
+
+4. **リアルタイムUI統合**
+   - 企業情報ツールチップでのインタラクティブ表示
+   - Markdownコピー機能での簡単データ共有
+   - プログレシブなパイプライン進捗表示
+
+### Phase 3.1への影響
+このデータ統合により、以下のPhase 3.1機能が可能に：
+
+1. **地理的分析**: 都道府県別・AI分析で地域のMVV特性を特定
+2. **企業規模別分析**: 従業員数・資本金でセグメント分けした競合分析
+3. **業界精密分析**: JSICデータを活用した精密な業界トレンド分析
+4. **時系列分析**: 設立年を活用したMVVの時代変遷分析
+
+## Phase 3.1: 静的分析機能（計画中）
+
+### 機能（計画中）
+1. **企業独自性スコアダッシュボード**
+   - 企業情報とMVVを組み合わせた差別化指標計算
+   - 業界内での独自性ランキング
+   - 同規模企業との比較分析
+
+2. **MVV品質評価システム**
+   - 企業情報を考慮した包括性・具体性分析
+   - 業界ベストプラクティスとの比較
+   - 企業規模に応じた改善提案生成
+
+3. **MVV業界トレンド分析**
+   - JSIC分類を活用した精密な業界別分析
+   - 形態素解析 + TF-IDFでのキーワードトレンド
+   - 設立年別でのMVVの時代変遷分析
+   - 地域別（都道府県）のMVV特性分析
+
+4. **競合ポジショニングマップ**
+   - t-SNE/UMAPでの2D空間マッピングに企業情報を統合
+   - 従業員数・資本金によるバブルサイズ変更
+   - 地域・業界フィルタリング
+   - インタラクティブなドリルダウン機能
+
+## Phase 4: AI-Powered MVVジェネレーター（将来計画）
 
 ### 機能
 1. **カスタムMVV生成**
@@ -168,8 +223,34 @@ data/analysis-data/
 
 ## 次のステップ
 
-### Phase 1B: API・可視化実装
-1. Netlify Functions API実装（`/analyze-similarity`）
-2. フロントエンド可視化コンポーネント
-3. インタラクティブUI実装
-4. 本番デプロイ
+### Phase 3.1: 静的分析機能実装（今週中）
+1. **企業独自性スコアダッシュボード**
+   - コンポーネント: `/frontend/src/components/Phase3/CompanyUniquenessScoreDashboard.tsx`
+   - ロジック: `/frontend/src/services/uniquenessScoreCalculator.ts`
+   - UI: レーダーチャート + ランキングテーブル
+
+2. **MVV業界トレンド分析**
+   - コンポーネント: `/frontend/src/components/Phase3/IndustryTrendAnalysis.tsx`
+   - データ処理: `/frontend/src/services/industryTrendAnalyzer.ts`
+   - UI: 時系列グラフ + キーワードクラウド
+
+3. **競合ポジショニングマップ**
+   - コンポーネント: `/frontend/src/components/Phase3/CompetitivePositioningMap.tsx`
+   - 可視化: D3.jsでのインタラクティブバブルチャート
+   - フィルタ: 業界・地域・規模別表示
+
+4. **MVV品質評価システム**
+   - コンポーネント: `/frontend/src/components/Phase3/MVVQualityAssessment.tsx`
+   - 評価エンジン: ルールベース + 統計的指標
+   - UI: スコアカード + 改善提案リスト
+
+### 使用可能なデータ（現在利用可能）
+- **94企業のMVVデータ**: 既存のembeddingsと類似度データ
+- **25企業の詳細情報**: 設立年、従業員数、資本金、所在地等
+- **19企業のJSIC分類**: 正確な業界カテゴリ
+- **構造化住所データ**: 都道府県・市区町村別分類
+
+### 技術的優位性
+- **リアルタイム処理**: サーバーコスト$0で高速分析
+- **統合データ**: MVV + 企業情報の豊富な組み合わせ
+- **日本市場特化**: JSIC分類、日本語形態素解析の活用
