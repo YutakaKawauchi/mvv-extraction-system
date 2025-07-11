@@ -414,8 +414,10 @@ export class ExcelProcessor {
       };
       cell.font.color = { argb: 'FFFFFFFF' };
       
-      // Mission、Vision、Values列のヘッダーにも折り返し設定
-      if (index === 7 || index === 8 || index === 9) { // Mission, Vision, Values
+      // テキスト折り返し設定が必要なヘッダー列
+      if (index === 7 || index === 8 || index === 9 || // Mission, Vision, Values
+          index === 17 || index === 18 || // 事業セグメント、主要製品・サービス
+          index === 23 || index === 24) { // 主要競合企業、業界ポジション
         cell.alignment = {
           wrapText: true,
           vertical: 'middle',
@@ -478,8 +480,10 @@ export class ExcelProcessor {
         const cell = worksheet.getCell(row, index + 1);
         cell.value = value;
         
-        // Mission、Vision、Values列のテキスト折り返し設定
-        if (index === 7 || index === 8 || index === 9) { // Mission, Vision, Values
+        // テキスト折り返し設定（MVV列 + 事業情報列）
+        if (index === 7 || index === 8 || index === 9 || // Mission, Vision, Values
+            index === 17 || index === 18 || // 事業セグメント、主要製品・サービス
+            index === 23 || index === 24) { // 主要競合企業、業界ポジション
           cell.alignment = {
             wrapText: true,
             vertical: 'top',
@@ -511,18 +515,22 @@ export class ExcelProcessor {
         }
       });
       
-      // MVV列がある行の高さを調整（内容に応じて自動調整）
+      // 折り返し対象列がある行の高さを調整（内容に応じて自動調整）
       const currentRow = worksheet.getRow(row);
-      const mvvCells = [
+      const wrapTextCells = [
         currentRow.getCell(8), // Mission
         currentRow.getCell(9), // Vision  
-        currentRow.getCell(10) // Values
+        currentRow.getCell(10), // Values
+        currentRow.getCell(18), // 事業セグメント
+        currentRow.getCell(19), // 主要製品・サービス
+        currentRow.getCell(24), // 主要競合企業
+        currentRow.getCell(25)  // 業界ポジション
       ];
       
-      // MVV列に内容がある場合、行の高さを調整
-      const hasMVVContent = mvvCells.some(cell => cell.value && String(cell.value).length > 50);
-      if (hasMVVContent) {
-        currentRow.height = 60; // MVV内容が長い場合は高さを60に設定
+      // 折り返し対象列に長いコンテンツがある場合、行の高さを調整
+      const hasLongContent = wrapTextCells.some(cell => cell.value && String(cell.value).length > 50);
+      if (hasLongContent) {
+        currentRow.height = 60; // 長いコンテンツがある場合は高さを60に設定
       }
       
       row++;
@@ -535,9 +543,10 @@ export class ExcelProcessor {
       else if (index === 2 || index === 3) column.width = 20; // JSIC大分類、中分類
       else if (index === 7 || index === 8) column.width = 40; // Mission, Vision
       else if (index === 9) column.width = 50; // Values
-      else if (index === 17 || index === 18) column.width = 30; // 事業セグメント、主要製品
-      else if (index === 24 || index === 25) column.width = 30; // 競合企業、ポジション
-      else if (index === 28) column.width = 15; // ID
+      else if (index === 17 || index === 18) column.width = 35; // 事業セグメント、主要製品・サービス（折り返し対応で幅拡大）
+      else if (index === 23 || index === 24) column.width = 35; // 主要競合企業、業界ポジション（折り返し対応で幅拡大）
+      else if (index === 25) column.width = 10; // 調査日（さらに幅縮小）
+      else if (index === 27) column.width = 15; // ID
       else column.width = 15;
     });
 
