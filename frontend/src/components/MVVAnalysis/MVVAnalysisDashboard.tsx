@@ -2,15 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { useCompanyStore } from '../../stores/companyStore';
 import { LoadingSpinner, ErrorBoundary } from '../common';
-import { Search, AlertCircle, RefreshCw, Star, Hash, Target, Award, Cloud } from 'lucide-react';
+import { Search, AlertCircle, RefreshCw, Star, Hash, Target, Award, Cloud, Camera } from 'lucide-react';
 import SimilarCompanyFinder from './SimilarCompanyFinder';
 import { UniquenessScoreDashboard } from './UniquenessScoreDashboard';
 import { MVVTrendAnalysis } from './MVVTrendAnalysis';
 import { CompetitivePositioningMap } from './CompetitivePositioningMap';
 import { MVVQualityAssessment } from './MVVQualityAssessment';
 import { WordCloudDashboard } from './WordCloudDashboard';
+import { VisualAnalyticsGallery } from './VisualAnalyticsGallery';
 
-type TabType = 'finder' | 'trends' | 'wordcloud' | 'positioning' | 'uniqueness' | 'quality';
+type TabType = 'finder' | 'trends' | 'wordcloud' | 'positioning' | 'uniqueness' | 'quality' | 'gallery';
 
 export const MVVAnalysisDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('finder');
@@ -83,23 +84,26 @@ export const MVVAnalysisDashboard: React.FC = () => {
     { id: 'wordcloud', name: 'ワードクラウド', icon: Cloud, description: 'インタラクティブキーワードワードクラウド' },
     { id: 'positioning', name: 'ポジショニング', icon: Target, description: '競合ポジショニングマップ' },
     { id: 'uniqueness', name: '独自性分析', icon: Star, description: 'リアルタイム企業独自性スコア分析', beta: true },
-    { id: 'quality', name: '品質評価', icon: Award, description: 'MVV品質評価システム', beta: true }
+    { id: 'quality', name: '品質評価', icon: Award, description: 'MVV品質評価システム', beta: true },
+    { id: 'gallery', name: 'ギャラリー', icon: Camera, description: 'AI分析画面キャプチャ・Excel統合', new: true }
   ] as const;
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'finder':
-        return <SimilarCompanyFinder />;
+        return <div data-analysis-screen="finder"><SimilarCompanyFinder /></div>;
       case 'trends':
-        return <MVVTrendAnalysis />;
+        return <div data-analysis-screen="trends"><MVVTrendAnalysis /></div>;
       case 'wordcloud':
-        return <WordCloudDashboard />;
+        return <div data-analysis-screen="wordcloud"><WordCloudDashboard /></div>;
       case 'positioning':
-        return <CompetitivePositioningMap />;
+        return <div data-analysis-screen="positioning"><CompetitivePositioningMap /></div>;
       case 'uniqueness':
-        return <UniquenessScoreDashboard />;
+        return <div data-analysis-screen="uniqueness"><UniquenessScoreDashboard /></div>;
       case 'quality':
-        return <MVVQualityAssessment />;
+        return <div data-analysis-screen="quality"><MVVQualityAssessment /></div>;
+      case 'gallery':
+        return <VisualAnalyticsGallery />;
       default:
         return null;
     }
@@ -162,6 +166,7 @@ export const MVVAnalysisDashboard: React.FC = () => {
                 return (
                   <button
                     key={tab.id}
+                    data-tab-id={tab.id}
                     onClick={() => setActiveTab(tab.id as TabType)}
                     className={`group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                       isActive
@@ -176,6 +181,9 @@ export const MVVAnalysisDashboard: React.FC = () => {
                       {tab.name}
                       {(tab as any).beta && (
                         <span className="ml-1 text-xs text-gray-500">(β)</span>
+                      )}
+                      {(tab as any).new && (
+                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">NEW</span>
                       )}
                     </span>
                   </button>

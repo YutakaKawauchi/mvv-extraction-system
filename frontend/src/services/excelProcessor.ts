@@ -112,15 +112,10 @@ export class ExcelProcessor {
         const aiAnalysisData = await excelAIAnalysisProcessor.collectAIAnalysisData(
           companies,
           mvvDataMap,
-          companyInfoMap
+          companyInfoMap,
+          this.options.includeVisualAnalytics // 保存済みスクリーンショット使用
         );
         await excelAIAnalysisProcessor.addAIAnalysisSheets(this.workbook, aiAnalysisData);
-      }
-      
-      // Phase 2: ビジュアル分析（将来実装）
-      if (this.options.includeVisualAnalytics) {
-        // await this.generateVisualAnalytics();
-        console.log('📊 ビジュアル分析シートは Phase 2 で実装予定');
       }
 
       // Excel ファイルをダウンロード

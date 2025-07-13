@@ -7,6 +7,18 @@ import ExcelJS from 'exceljs';
 import type { Company, MVVData, CompanyInfo } from '../types';
 // import { SimilarityCalculator } from './similarityCalculator'; // Not used in current implementation
 import { enhancedSegmentationService } from './enhancedSegmentationService';
+import type { AnalysisScreenshot } from './screenshotCapture';
+
+// TabID名の定義（VisualAnalyticsGalleryと同期）
+const TAB_NAMES = {
+  finder: '類似企業検索',
+  trends: 'トレンド分析',
+  wordcloud: 'ワードクラウド',
+  positioning: 'ポジショニング',
+  uniqueness: '独自性分析 (β)',
+  quality: '品質評価 (β)'
+} as const;
+
 
 interface AIAnalysisData {
   similarityMatrix: SimilarityMatrixEntry[];
@@ -14,6 +26,14 @@ interface AIAnalysisData {
   qualityScores: QualityScoreData[];
   positioningData: PositioningData[];
   wordCloudData: WordCloudEntry[];
+  screenshotGroups?: GroupedScreenshots;
+}
+
+interface GroupedScreenshots {
+  [tabId: string]: {
+    tabName: string;
+    screenshots: AnalysisScreenshot[];
+  };
 }
 
 interface SimilarityMatrixEntry {
@@ -65,7 +85,8 @@ export class ExcelAIAnalysisProcessor {
   async collectAIAnalysisData(
     companies: Company[],
     mvvDataMap: Map<string, MVVData>,
-    companyInfoMap: Map<string, CompanyInfo>
+    companyInfoMap: Map<string, CompanyInfo>,
+    useStoredScreenshots: boolean = false
   ): Promise<AIAnalysisData> {
     console.log('🤖 AI分析データ収集開始...');
 
@@ -100,12 +121,31 @@ export class ExcelAIAnalysisProcessor {
       mvvDataMap
     );
 
+    // 保存済みスクリーンショットの取得
+    let screenshots: AnalysisScreenshot[] | undefined;
+    if (useStoredScreenshots) {
+      try {
+        console.log('📸 保存済みスクリーンショットをIndexedDBから取得中...');
+        const { ScreenshotStorageService } = await import('./screenshotStorage');
+        await ScreenshotStorageService.initialize();
+        screenshots = await ScreenshotStorageService.getScreenshots();
+        console.log(`📸 ${screenshots.length}件の保存済みスクリーンショットを取得`);
+      } catch (error) {
+        console.error('📸 保存済みスクリーンショット取得でエラーが発生:', error);
+        screenshots = undefined;
+      }
+    }
+
+    // スクリーンショットのTabID別グループ化
+    const screenshotGroups = screenshots ? this.groupScreenshotsByTabId(screenshots) : undefined;
+
     return {
       similarityMatrix,
       trendKeywords,
       qualityScores,
       positioningData,
-      wordCloudData
+      wordCloudData,
+      screenshotGroups
     };
   }
 
@@ -130,6 +170,11 @@ export class ExcelAIAnalysisProcessor {
 
     // 5. ワードクラウド分析シート
     await this.addWordCloudSheet(workbook, analysisData.wordCloudData);
+
+    // 6. Visual Analytics Gallery シート（TabID別）
+    if (analysisData.screenshotGroups) {
+      await this.addStoredScreenshotSheets(workbook, analysisData.screenshotGroups);
+    }
   }
 
   /**
@@ -228,6 +273,40 @@ export class ExcelAIAnalysisProcessor {
     }
 
     return results.sort((a, b) => b.similarity - a.similarity);
+  }
+
+  /**
+   * スクリーンショットをTabID別にグループ化
+   */
+  private groupScreenshotsByTabId(screenshots: AnalysisScreenshot[]): GroupedScreenshots {
+    const groups: GroupedScreenshots = {};
+    
+    // 全TabIDの初期化（空の配列でも表示）
+    Object.entries(TAB_NAMES).forEach(([tabId, tabName]) => {
+      groups[tabId] = {
+        tabName,
+        screenshots: []
+      };
+    });
+    
+    // スクリーンショットを各TabIDに分類
+    screenshots.forEach(screenshot => {
+      const tabId = screenshot.tabId;
+      if (groups[tabId]) {
+        groups[tabId].screenshots.push(screenshot);
+      }
+    });
+    
+    // 各グループ内で時系列順にソート（新しい順）
+    Object.values(groups).forEach(group => {
+      group.screenshots.sort((a, b) => b.timestamp - a.timestamp);
+    });
+    
+    console.log(`📋 スクリーンショットをTabID別にグループ化完了:`, 
+      Object.entries(groups).map(([_tabId, group]) => `${group.tabName}: ${group.screenshots.length}件`).join(', ')
+    );
+    
+    return groups;
   }
 
   /**
@@ -809,6 +888,206 @@ export class ExcelAIAnalysisProcessor {
       });
     });
   }
+
+
+  /**
+   * ファイルサイズのフォーマット
+   */
+  private formatFileSize(dataUrl: string): string {
+    const base64 = dataUrl.split(',')[1];
+    const bytes = base64.length * 0.75;
+    return bytes < 1024 * 1024 
+      ? `${Math.round(bytes / 1024)}KB` 
+      : `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  }
+
+  /**
+   * Base64をArrayBufferに変換（ブラウザ環境用）
+   */
+  private base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const binaryString = atob(base64);
+    const length = binaryString.length;
+    const bytes = new Uint8Array(length);
+    
+    for (let i = 0; i < length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    return bytes.buffer;
+  }
+
+  /**
+   * 画像サイズの計算（アスペクト比を保持）
+   */
+  private calculateImageSize(
+    originalWidth: number, 
+    originalHeight: number, 
+    maxWidth: number, 
+    maxHeight: number
+  ): { width: number; height: number } {
+    const aspectRatio = originalWidth / originalHeight;
+    
+    let width = Math.min(originalWidth, maxWidth);
+    let height = width / aspectRatio;
+    
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * aspectRatio;
+    }
+    
+    return { width, height };
+  }
+
+  /**
+   * 保存済みスクリーンショットをTabID別シートで追加
+   */
+  private async addStoredScreenshotSheets(
+    workbook: ExcelJS.Workbook,
+    screenshotGroups: GroupedScreenshots
+  ): Promise<void> {
+    console.log('📊 TabID別スクリーンショットシートを作成中...');
+    
+    for (const [tabId, group] of Object.entries(screenshotGroups)) {
+      // スクリーンショットがある場合のみシートを作成
+      if (group.screenshots.length > 0) {
+        await this.addScreenshotSheetForTab(workbook, tabId, group);
+      }
+    }
+    
+    console.log('📊 TabID別スクリーンショットシート作成完了');
+  }
+
+  /**
+   * 個別TabIDのスクリーンショットシートを作成
+   */
+  private async addScreenshotSheetForTab(
+    workbook: ExcelJS.Workbook,
+    _tabId: string,
+    group: { tabName: string; screenshots: AnalysisScreenshot[] }
+  ): Promise<void> {
+    const sheet = workbook.addWorksheet(group.tabName);
+    
+    // タイトル行
+    sheet.mergeCells('A1:F1');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = `📊 ${group.tabName}`;
+    titleCell.font = { bold: true, size: 16, color: { argb: 'FF1565C0' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    titleCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE3F2FD' }
+    };
+
+    // サブタイトル行
+    sheet.mergeCells('A2:F2');
+    const subtitleCell = sheet.getCell('A2');
+    const dateRange = this.getDateRange(group.screenshots);
+    subtitleCell.value = `撮影期間: ${dateRange} | ${group.screenshots.length}件のスクリーンショット（時系列順）`;
+    subtitleCell.font = { size: 12, color: { argb: 'FF424242' } };
+    titleCell.alignment = { 
+      vertical: 'middle', 
+      horizontal: 'center',
+      wrapText: true
+    };
+
+    // ヘッダー設定
+    sheet.getRow(4).values = [
+      '撮影日時',
+      '解像度',
+      'ファイルサイズ',
+      '説明',
+      '画面ID',
+      '画像'
+    ];
+    
+    // ヘッダーのスタイル設定
+    const headerRow = sheet.getRow(4);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1565C0' }
+    };
+
+    // データ行の追加
+    let currentRow = 5;
+    for (const screenshot of group.screenshots) {
+      await this.addScreenshotRow(sheet, screenshot, currentRow);
+      currentRow++;
+    }
+
+    // 列幅の調整
+    sheet.getColumn(1).width = 18; // 撮影日時
+    sheet.getColumn(2).width = 12; // 解像度
+    sheet.getColumn(3).width = 12; // ファイルサイズ
+    sheet.getColumn(4).width = 25; // 説明
+    sheet.getColumn(5).width = 12; // 画面ID
+    sheet.getColumn(6).width = 30; // 画像
+
+    console.log(`📋 ${group.tabName}シート作成完了: ${group.screenshots.length}件の画像`);
+  }
+
+  /**
+   * スクリーンショット行をシートに追加
+   */
+  private async addScreenshotRow(
+    sheet: ExcelJS.Worksheet,
+    screenshot: AnalysisScreenshot,
+    rowIndex: number
+  ): Promise<void> {
+    const row = sheet.getRow(rowIndex);
+    
+    // メタデータの設定
+    row.getCell(1).value = new Date(screenshot.timestamp).toLocaleString('ja-JP');
+    row.getCell(2).value = `${screenshot.width}×${screenshot.height}`;
+    row.getCell(3).value = this.formatFileSize(screenshot.dataUrl);
+    row.getCell(4).value = screenshot.description;
+    row.getCell(5).value = screenshot.tabId;
+
+    // 画像の追加
+    try {
+      const base64Data = screenshot.dataUrl.split(',')[1];
+      const imageBuffer = this.base64ToArrayBuffer(base64Data);
+      const imageId = sheet.workbook.addImage({
+        buffer: imageBuffer,
+        extension: 'png',
+      });
+
+      // 画像サイズの計算（最大400×300px）
+      const imageSize = this.calculateImageSize(screenshot.width, screenshot.height, 400, 300);
+      
+      // 画像をF列に配置
+      sheet.addImage(imageId, {
+        tl: { col: 5, row: rowIndex - 1 }, // F列（0-based index）
+        ext: { width: imageSize.width, height: imageSize.height }
+      });
+
+      // 行の高さを画像に合わせて調整
+      row.height = Math.max(imageSize.height * 0.75, 20);
+      
+    } catch (error) {
+      console.error(`画像の追加に失敗: ${screenshot.name}`, error);
+      row.getCell(6).value = '[画像の追加に失敗]';
+    }
+  }
+
+  /**
+   * 撮影日時の範囲を取得
+   */
+  private getDateRange(screenshots: AnalysisScreenshot[]): string {
+    if (screenshots.length === 0) return '未撮影';
+    if (screenshots.length === 1) {
+      return new Date(screenshots[0].timestamp).toLocaleDateString('ja-JP');
+    }
+    
+    const timestamps = screenshots.map(s => s.timestamp).sort((a, b) => a - b);
+    const earliest = new Date(timestamps[0]).toLocaleDateString('ja-JP');
+    const latest = new Date(timestamps[timestamps.length - 1]).toLocaleDateString('ja-JP');
+    
+    return earliest === latest ? earliest : `${earliest} 〜 ${latest}`;
+  }
+
 }
 
 // シングルトンインスタンス
