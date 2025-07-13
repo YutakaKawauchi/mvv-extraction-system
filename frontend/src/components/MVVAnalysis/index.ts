@@ -5,5 +5,6 @@ export { CompetitivePositioningMap } from './CompetitivePositioningMap';
 export { MVVQualityAssessment } from './MVVQualityAssessment';
 export { WordCloudDashboard } from './WordCloudDashboard';
 export { VisualAnalyticsGallery } from './VisualAnalyticsGallery';
+export { BusinessInnovationLab } from './BusinessInnovationLab';
 export { default as SimilarCompanyFinder } from './SimilarCompanyFinder';
 export { WordCloud } from './WordCloud';
