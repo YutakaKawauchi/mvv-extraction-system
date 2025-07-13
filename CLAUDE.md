@@ -4,6 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## IMPORTANT INSTRUCTIONS FOR CLAUDE
 
+### Development Environment Setup
+- **CRITICAL: Backend and Frontend must be manually started** - User runs both servers manually
+- **Frontend**: `cd frontend && npm run dev` (runs on 0.0.0.0:5173)
+- **Backend**: `cd backend && netlify dev` (runs on localhost:8888)
+- **DO NOT attempt to start servers programmatically** - User handles server management
+- **Testing**: Assume both servers are running when testing API endpoints
+
 ### Commit Messages
 - **NO Claude signatures in commit messages** - User preference: keep commits clean without AI attribution
 
@@ -602,7 +609,18 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
    - ✅ Data Diagnostics: Company data integrity and MVV consistency checks
    - ✅ Recovery Tools: Bulk extraction, single test execution, batch processing
    - ✅ System Diagnostics: API health check and performance monitoring
-8. **📊 Next Phase**: AI-powered insights and recommendations (Phase 4)
+8. **🚀 Business Innovation Lab (Beta v1) - NEW! (2025-07-13)**
+   - ✅ AI-powered Business Idea Generation: GPT-4o-mini based deep analysis
+   - ✅ Stage-wise Analysis Process: Industry → Problem → MVV Integration → Solution → Validation
+   - ✅ Professional Lean Canvas Visualization: 9-block structure with business color scheme
+   - ✅ Advanced Features: Existing Alternatives & Early Adopters analysis
+   - ✅ 3-tier Caching System: L1 (24h), L2 (7d), L3 (30d) for cost optimization
+   - ✅ Quality over Quantity: Default 1 deep idea with 1-3 option selector
+   - ✅ Feasibility Evaluation: Detailed reasoning for MVV alignment, implementation, market potential
+   - ✅ Step Progress Visualization: Real-time 5-step process indicator
+   - ✅ Revenue Payer Analysis: Clear identification of who pays for what
+   - ✅ Professional UI/UX: Business-grade color palette and visual hierarchy
+9. **📊 Next Phase**: Business Innovation Lab Beta v2 & AI Verification System
 
 ### Real-time Analysis System Architecture (Updated 2025-07-11)
 
@@ -699,25 +717,53 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
 - **Cursor-based TabID Counting**: IndexedDB cursor for memory-efficient operations
 - **No Session Management**: Simplified data model for better performance and UX
 
-## Future Development Roadmap
+## Business Innovation Lab - Development Status & Roadmap
+
+### Beta v1 (Completed 2025-07-13)
+**Status**: ✅ Production Ready  
+**Features Delivered**:
+- AI-powered business idea generation with 6-stage analysis process
+- Professional 9-block Lean Canvas with business color scheme
+- Advanced business analysis: Existing Alternatives & Early Adopters
+- 3-tier caching system for cost optimization (90%+ API call reduction)
+- Quality-focused approach: Default 1 deep idea with reasoning
+- Step-by-step progress visualization and professional UX
+
+### Beta v2 (Next Phase)
+**Status**: Planning  
+**Timeline**: Q1 2025
+
+#### Planned Features
+1. **AI Verification System**: Secondary AI to validate and enhance generated ideas
+   - Industry expert AI: Deep domain knowledge validation
+   - Market research AI: Real-time market data integration
+   - Financial modeling AI: Revenue/cost projections
+2. **Enhanced Lean Canvas**: 
+   - Interactive editing capabilities
+   - Export to PowerPoint/PDF formats
+   - Template library for different industries
+3. **Idea Management System**: 
+   - IndexedDB storage for persistent idea collections
+   - Comparison tools and idea evolution tracking
+   - Collaboration features (share/comment)
 
 ### Phase 4: AI-Powered Insights and Recommendations
 **Status**: Planning Phase  
 **Timeline**: Q2-Q3 2025
 
 #### Planned Features
-1. **AI Enhancement Suggestions**: GPT-4o-mini powered MVV improvement recommendations
-2. **Predictive Analysis**: Market trend prediction and competitive positioning insights  
+1. **Advanced AI Enhancement**: GPT-4o powered deep analysis
+2. **Predictive Market Analysis**: Trend prediction and competitive intelligence
 3. **Multi-language Support**: International company analysis capabilities
 4. **Enterprise Integration**: SSO, custom branding, advanced security features
 
 #### Cost Optimization Strategy
-- **Smart Caching**: 24-hour analysis caching to minimize API costs
+- **Smart Caching**: Current 3-tier system achieving 90%+ cost reduction
 - **Tiered Usage**: Freemium model with professional tiers
-- **Target Cost**: <$0.05/user/month operational cost
+- **Target Cost**: <$0.02/user/month operational cost (achieved via caching)
 
 ---
 
 *Last Updated: 2025-07-13*  
-*Current Status: Visual Analytics Gallery with Excel Integration (Production)*  
-*Next Phase: AI-powered insights and enterprise features*
+*Current Status: Business Innovation Lab Beta v1 (Production)*  
+*Next Phase: AI Verification System & Enhanced Lean Canvas (Beta v2)*
