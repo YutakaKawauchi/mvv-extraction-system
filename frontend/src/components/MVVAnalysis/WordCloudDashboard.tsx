@@ -19,6 +19,7 @@ export const WordCloudDashboard: React.FC = () => {
   const [categoryLevel, setCategoryLevel] = useState<'major' | 'middle'>('major');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [minFrequency, setMinFrequency] = useState<number>(2);
+  const [industryFocus, setIndustryFocus] = useState<'general' | 'healthcare' | 'technology'>('general');
   const [selectedWordDetails, setSelectedWordDetails] = useState<{
     keyword: string;
     companies: Array<{
@@ -32,8 +33,8 @@ export const WordCloudDashboard: React.FC = () => {
   const segmentationOptions = useMemo(() => ({
     preserveCompounds: true,
     enableCustomRules: true,
-    industryFocus: 'healthcare' as const
-  }), []);
+    industryFocus
+  }), [industryFocus]);
 
   // Helper function to get middle category name for a company
   const getCompanyMiddleCategoryName = (companyName: string): string => {
@@ -255,7 +256,7 @@ export const WordCloudDashboard: React.FC = () => {
           <h3 className="text-lg font-medium text-gray-900">フィルター設定</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">MVVタイプ:</label>
             <select
@@ -313,6 +314,19 @@ export const WordCloudDashboard: React.FC = () => {
               <option value={2}>2回以上</option>
               <option value={3}>3回以上</option>
               <option value={5}>5回以上</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">業界フォーカス:</label>
+            <select
+              value={industryFocus}
+              onChange={(e) => setIndustryFocus(e.target.value as 'general' | 'healthcare' | 'technology')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="general">汎用</option>
+              <option value="healthcare">医療・ヘルスケア</option>
+              <option value="technology">技術・IT</option>
             </select>
           </div>
           

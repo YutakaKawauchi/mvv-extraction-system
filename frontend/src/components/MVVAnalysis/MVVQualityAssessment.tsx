@@ -29,13 +29,14 @@ export const MVVQualityAssessment: React.FC = () => {
   const { data, isLoading } = useAnalysisStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'overall' | 'mission' | 'vision' | 'values'>('overall');
+  const [industryFocus, setIndustryFocus] = useState<'general' | 'healthcare' | 'technology'>('general');
 
   // Enhanced segmentation service for better compound word handling
   const segmentationOptions = useMemo(() => ({
     preserveCompounds: true,
     enableCustomRules: true,
-    industryFocus: 'healthcare' as const
-  }), []);
+    industryFocus
+  }), [industryFocus]);
 
   // MVVテキストの品質評価（安全化版）
   const assessMVVText = (text: string, type: 'mission' | 'vision' | 'values'): QualityMetrics => {
@@ -363,7 +364,7 @@ export const MVVQualityAssessment: React.FC = () => {
 
       {/* フィルター */}
       <div className="bg-white rounded-lg shadow-sm border p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">カテゴリ:</label>
             <select
@@ -390,6 +391,19 @@ export const MVVQualityAssessment: React.FC = () => {
               <option value="mission">ミッション</option>
               <option value="vision">ビジョン</option>
               <option value="values">バリュー</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">業界フォーカス:</label>
+            <select
+              value={industryFocus}
+              onChange={(e) => setIndustryFocus(e.target.value as 'general' | 'healthcare' | 'technology')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="general">汎用</option>
+              <option value="healthcare">医療・ヘルスケア</option>
+              <option value="technology">技術・IT</option>
             </select>
           </div>
           

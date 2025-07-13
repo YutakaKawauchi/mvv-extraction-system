@@ -357,10 +357,6 @@ export const Dashboard: React.FC = () => {
               companies={companies}
               mvvDataMap={mvvDataMap}
               onViewDetails={handleViewMVVDetails}
-              onEdit={() => {
-                setActiveTab('companies');
-                // Note: This would need additional logic to pre-select the company for editing
-              }}
               onExport={handleExportResults}
               onExcelExport={handleExcelExport}
             />

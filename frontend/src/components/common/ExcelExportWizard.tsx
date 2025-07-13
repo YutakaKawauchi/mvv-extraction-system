@@ -5,10 +5,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, LoadingSpinner } from './';
-import { Download, Eye, CheckCircle, AlertCircle } from 'lucide-react';
+import { Download, Eye, CheckCircle, AlertCircle, Camera, AlertTriangle } from 'lucide-react';
 import { ExcelProcessor, type ExcelReportOptions } from '../../services/excelProcessor';
 import type { Company, MVVData, CompanyInfo } from '../../types';
 import { useNotification } from '../../hooks/useNotification';
+import { ScreenshotStorageService } from '../../services/screenshotStorage';
+import { formatDate } from '../../utils/formatters';
 
 interface ExcelExportWizardProps {
   isOpen: boolean;
@@ -29,6 +31,12 @@ interface ExportStats {
   estimatedGenerationTime: string;
 }
 
+interface ScreenshotStats {
+  totalCount: number;
+  byTab: Record<string, number>;
+  totalSize: number;
+}
+
 export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
   isOpen,
   onClose,
@@ -45,6 +53,7 @@ export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
     includeCompanyMaster: true,
     includeDetailedProfiles: true, // デフォルトでtrueに設定
     includeVisualAnalytics: false,
+    includeAIAnalysis: true, // AI分析シート追加
     corporateTheme: 'professional',
     includeCharts: true,
     highResolution: true,
@@ -53,6 +62,8 @@ export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [screenshotStats, setScreenshotStats] = useState<ScreenshotStats | null>(null);
+  const [isLoadingScreenshots, setIsLoadingScreenshots] = useState(false);
   const { success, error: notifyError } = useNotification();
 
   // 統計計算
@@ -81,6 +92,42 @@ export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
       estimatedGenerationTime: estimatedTime
     };
   }, [companies, mvvDataMap, options]);
+
+  // スクリーンショット統計の読み込み（効率的）
+  useEffect(() => {
+    const loadScreenshotStats = async () => {
+      if (!isOpen) return;
+      
+      setIsLoadingScreenshots(true);
+      try {
+        await ScreenshotStorageService.initialize();
+        
+        // 効率的にカウントを取得（全データの読み込み不要）
+        const [totalCount, byTab, storageUsage] = await Promise.all([
+          ScreenshotStorageService.getTotalScreenshotCount(),
+          ScreenshotStorageService.getScreenshotCountsByTabId(),
+          ScreenshotStorageService.getStorageUsage()
+        ]);
+        
+        setScreenshotStats({
+          totalCount,
+          byTab,
+          totalSize: storageUsage.totalSize
+        });
+      } catch (error) {
+        console.error('Failed to load screenshot stats:', error);
+        setScreenshotStats({
+          totalCount: 0,
+          byTab: {},
+          totalSize: 0
+        });
+      } finally {
+        setIsLoadingScreenshots(false);
+      }
+    };
+    
+    loadScreenshotStats();
+  }, [isOpen]);
 
   // ステップリセット
   useEffect(() => {
@@ -276,17 +323,65 @@ export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
             </div>
           </label>
 
+          {/* AI分析シート */}
+          <div className="pt-4 border-t border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">🤖 AI分析レポート (NEW)</h4>
+            <label className="flex items-start space-x-3">
+              <input
+                type="checkbox"
+                checked={options.includeAIAnalysis}
+                onChange={(e) => handleOptionChange('includeAIAnalysis', e.target.checked)}
+                className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <div>
+                <div className="font-medium text-gray-900">AI Analysis Reports</div>
+                <div className="text-sm text-gray-600">
+                  類似企業分析・トレンドキーワード・品質スコア・ポジショニング
+                </div>
+                <div className="text-xs text-blue-600 mt-1">
+                  ✨ ビジネスインサイトを視覚的に表現
+                </div>
+              </div>
+            </label>
+          </div>
 
-          <label className="flex items-start space-x-3 opacity-50">
+
+          <label className="flex items-start space-x-3">
             <input
               type="checkbox"
-              checked={false}
-              disabled={true}
+              checked={options.includeVisualAnalytics}
+              onChange={(e) => handleOptionChange('includeVisualAnalytics', e.target.checked)}
               className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
             />
-            <div>
-              <div className="font-medium text-gray-900">Visual Analytics Gallery</div>
-              <div className="text-sm text-gray-600">AI分析画面キャプチャ (Phase 2で実装予定)</div>
+            <div className="flex-1">
+              <div className="font-medium text-gray-900 flex items-center space-x-2">
+                <span>Visual Analytics Gallery</span>
+                {isLoadingScreenshots && <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600" />}
+              </div>
+              <div className="text-sm text-gray-600">
+                AI分析画面の高品質キャプチャ - 視覚的なビジネスレポート
+              </div>
+              {screenshotStats && (
+                <div className="text-xs text-blue-600 mt-1 space-y-1">
+                  <div className="flex items-center space-x-1">
+                    <Camera className="w-3 h-3" />
+                    <span>
+                      保存済み: {screenshotStats.totalCount}件
+                      {screenshotStats.totalCount > 0 && 
+                        ` (${(screenshotStats.totalSize / (1024 * 1024)).toFixed(1)}MB)`
+                      }
+                    </span>
+                  </div>
+                  {screenshotStats.totalCount > 0 && (
+                    <div className="text-xs text-gray-500">
+                      各分析タイプ別に時系列シートを生成
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="text-xs text-green-600 mt-1">
+                📸 NEW! 分析画面を美しくExcelに統合
+              </div>
             </div>
           </label>
         </div>
@@ -370,16 +465,25 @@ export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
             <span className="text-blue-700">業界数:</span>
             <span className="font-medium ml-2">{stats.categoriesCount}業界</span>
           </div>
-          <div>
-            <span className="text-blue-700">推定ファイルサイズ:</span>
-            <span className="font-medium ml-2">{stats.estimatedFileSize}</span>
-          </div>
-          <div className="col-span-2">
-            <span className="text-blue-700">推定生成時間:</span>
-            <span className="font-medium ml-2">{stats.estimatedGenerationTime}</span>
-          </div>
         </div>
       </div>
+
+      {/* Visual Analytics警告 */}
+      {screenshotStats && screenshotStats.totalCount > 0 && options.includeVisualAnalytics && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-start space-x-2">
+            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-amber-900">画像データについて</h4>
+              <p className="text-sm text-amber-800 mt-1">
+                Visual Analytics有効時: {screenshotStats.totalCount}件の画像により
+                ファイルサイズが大幅に増加する可能性があります
+                （{(screenshotStats.totalSize / (1024 * 1024)).toFixed(1)}MB程度）
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 選択されたシート */}
       <div className="space-y-3">
@@ -415,6 +519,18 @@ export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
               <span>Company Detailed Profiles</span>
             </div>
           )}
+          {options.includeAIAnalysis && (
+            <div className="flex items-center space-x-2 text-sm">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>AI Analysis Reports (5シート)</span>
+            </div>
+          )}
+          {options.includeVisualAnalytics && screenshotStats && (
+            <div className="flex items-center space-x-2 text-sm">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>Visual Analytics Gallery ({screenshotStats.totalCount}件のスクリーンショット)</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -440,22 +556,27 @@ export const ExcelExportWizard: React.FC<ExcelExportWizardProps> = ({
     </div>
   );
 
-  const renderCompleteStep = () => (
-    <div className="space-y-6 text-center">
-      <div>
-        <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">エクスポート完了！</h3>
-        <p className="text-gray-600">Excelレポートが正常に生成されました</p>
-      </div>
+  const renderCompleteStep = () => {
+    // 実際のファイル名を生成
+    const currentFilename = `MVV_Analysis_Report_${formatDate(new Date()).replace(/[/:]/g, '-')}.xlsx`;
+    
+    return (
+      <div className="space-y-6 text-center">
+        <div>
+          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">エクスポート完了！</h3>
+          <p className="text-gray-600">Excelレポートが正常に生成されました</p>
+        </div>
 
-      <div className="bg-green-50 rounded-lg p-4">
-        <p className="text-sm text-green-800">
-          ファイルがダウンロードフォルダに保存されました。<br />
-          ファイル名: MVV_Analysis_Report_[日付].xlsx
-        </p>
+        <div className="bg-green-50 rounded-lg p-4">
+          <p className="text-sm text-green-800">
+            ファイルがダウンロードフォルダに保存されました。<br />
+            ファイル名: {currentFilename}
+          </p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderContent = () => {
     switch (currentStep) {

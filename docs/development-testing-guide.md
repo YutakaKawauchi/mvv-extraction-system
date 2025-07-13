@@ -1,7 +1,7 @@
 # 開発環境テストガイド
 
-**最終更新**: 2025-07-09  
-**対象システム**: MVV抽出システム + 強化された企業管理システム
+**最終更新**: 2025-07-13  
+**対象システム**: MVV抽出システム + Phase 3完了（Visual Analytics Gallery + Professional Excel Export）
 
 ## 🚀 セットアップ手順
 
@@ -346,7 +346,7 @@ curl -X GET "http://localhost:8888/.netlify/functions/pipeline-status/test-004" 
 - 「admin」として表示される
 - セッション残り時間が表示される
 
-#### 新機能テスト
+#### Phase 3新機能テスト
 1. **企業情報ツールチップ**
    - 企業一覧で企業名にホバー
    - 詳細情報がツールチップで表示されることを確認
@@ -357,10 +357,46 @@ curl -X GET "http://localhost:8888/.netlify/functions/pipeline-status/test-004" 
    - 4段階のプログレスバーが表示されることを確認
    - 各ステップの成功/失敗が明確に表示されることを確認
 
-3. **バックアップ・リストア機能**
+3. **リアルタイム分析ダッシュボード（5つの分析機能）**
+   - MVV分析タブにアクセス
+   - 類似企業検索：企業選択→類似度ランキング表示
+   - トレンド分析：業界フィルター→キーワード分析表示
+   - ワードクラウド：独立タブ→インタラクティブ操作確認
+   - ポジショニングマップ：MDS可視化→ドラッグナビゲーション
+   - 独自性分析：スコア計算→ランキングテーブル表示
+   - 品質評価：3軸評価→改善提案表示
+
+4. **Visual Analytics Gallery（新機能）**
+   - MVV分析タブ→「Visual Analytics」タブ選択
+   - 各分析画面でのスクリーンショットキャプチャテスト
+   - キャプチャ品質確認（2100×1350px高解像度）
+   - IndexedDBストレージへの保存確認
+   - TabID別分類確認（finder, trends, wordcloud等）
+   - ストレージ使用量表示確認
+
+5. **Professional Excel Export（新機能）**
+   - Results画面→「Excel Export」ボタン
+   - ステップバイステップウィザード操作
+   - エクスポート設定：データシート選択、Visual Analytics含む/含まない
+   - プレビュー画面確認：設定内容の表示
+   - Excel生成・ダウンロード実行
+   - 生成されたExcelファイルの確認：
+     - Executive Summary シート
+     - MVV Analysis (Simple) シート
+     - MVV Analysis (Detail) シート
+     - Company Master Data シート
+     - Visual Analytics シート（画像付き）
+
+6. **バックアップ・リストア機能**
    - 設定画面からバックアップを実行
    - 企業情報が含まれることを確認
    - 古い形式のバックアップをリストアして互換性を確認
+
+7. **Admin Panel（隠しメニュー）**
+   - Ctrl+Shift+A でアクセス
+   - データ診断：企業データ整合性チェック
+   - 回復ツール：バルク抽出、テスト実行
+   - システム診断：API健全性確認
 
 #### ログアウトテスト
 1. ヘッダーの「ログアウト」ボタンをクリック
@@ -456,6 +492,76 @@ done
 wait
 ```
 
+### Visual Analytics Gallery負荷テスト（新機能）
+
+#### スクリーンショット連続キャプチャテスト
+1. ブラウザでMVV分析画面を開く
+2. Visual Analytics Galleryタブを選択
+3. 各分析画面で連続キャプチャ（10回）を実行
+4. IndexedDBストレージの応答時間を確認
+5. メモリ使用量の増加を監視
+
+#### 大量画像データExcel統合テスト
+1. 50件のスクリーンショットを生成
+2. Excel Export実行
+3. 生成時間とファイルサイズを測定
+4. 画像品質とレイアウトを確認
+
+### リアルタイム分析パフォーマンステスト
+
+#### 5つの分析機能同時負荷テスト
+```javascript
+// ブラウザのコンソールで実行
+const testAnalysisPerformance = async () => {
+  const startTime = performance.now();
+  
+  // 5つの分析を同時実行
+  const promises = [
+    // 類似企業検索
+    analysisStore.findSimilarCompanies('company-1'),
+    // トレンド分析
+    analysisStore.calculateTrends('製造業'),
+    // ワードクラウド生成
+    analysisStore.generateWordCloud(['mission', 'vision']),
+    // ポジショニングマップ
+    analysisStore.calculatePositioning(),
+    // 独自性分析
+    analysisStore.calculateUniqueness('company-1')
+  ];
+  
+  await Promise.all(promises);
+  const endTime = performance.now();
+  
+  console.log(`5分析同時実行時間: ${Math.round(endTime - startTime)}ms`);
+};
+
+testAnalysisPerformance();
+```
+
+#### キャッシュ効率テスト
+```javascript
+// ブラウザのコンソールで実行
+const testCacheEfficiency = async () => {
+  const companyId = 'test-company-1';
+  
+  // 初回計算（キャッシュミス）
+  const start1 = performance.now();
+  await analysisStore.calculateSimilarity(companyId, 'test-company-2');
+  const time1 = performance.now() - start1;
+  
+  // 2回目計算（キャッシュヒット）
+  const start2 = performance.now();
+  await analysisStore.calculateSimilarity(companyId, 'test-company-2');
+  const time2 = performance.now() - start2;
+  
+  console.log(`キャッシュミス: ${Math.round(time1)}ms`);
+  console.log(`キャッシュヒット: ${Math.round(time2)}ms`);
+  console.log(`高速化率: ${Math.round((time1 - time2) / time1 * 100)}%`);
+};
+
+testCacheEfficiency();
+```
+
 ### エラーハンドリングテスト
 
 #### タイムアウトテスト
@@ -503,7 +609,7 @@ curl -X POST "http://localhost:8888/.netlify/functions/company-processor" \
 - [ ] 企業情報抽出API テスト完了
 - [ ] 4段階パイプラインAPI テスト完了
 
-### フロントエンドUI
+### フロントエンドUI（基本機能）
 - [ ] 認証画面の表示確認
 - [ ] ログイン成功
 - [ ] ダッシュボード表示確認
@@ -512,6 +618,35 @@ curl -X POST "http://localhost:8888/.netlify/functions/company-processor" \
 - [ ] 企業情報ツールチップ表示確認
 - [ ] 4段階プログレスバー表示確認
 - [ ] バックアップ・リストア機能確認
+
+### Phase 3新機能（リアルタイム分析）
+- [ ] 類似企業検索：企業選択→類似度計算→ランキング表示
+- [ ] トレンド分析：業界フィルター→形態素解析→キーワード抽出
+- [ ] ワードクラウド：独立タブ→インタラクティブ操作→ズーム/パン
+- [ ] ポジショニングマップ：MDS計算→2D可視化→ドラッグナビゲーション
+- [ ] 独自性分析：4要素スコア→ランキングテーブル→詳細分解
+- [ ] 品質評価：3軸評価→改善提案→ベンチマーク比較
+
+### Visual Analytics Gallery（新機能）
+- [ ] スクリーンショットキャプチャ：高解像度（2100×1350px）撮影成功
+- [ ] IndexedDBストレージ：メタデータ+画像データ永続化確認
+- [ ] TabID分類：finder/trends/wordcloud/positioning/uniqueness/quality
+- [ ] ストレージ管理：使用量表示、自動LRU削除（50件上限）
+- [ ] 画像品質：PNG形式、高品質（95%品質）維持
+
+### Professional Excel Export（新機能）
+- [ ] エクスポートウィザード：3ステップ（設定→プレビュー→生成）
+- [ ] データシート生成：Executive Summary, MVV Analysis, Company Master
+- [ ] Visual Analytics統合：TabID別画像シート自動生成
+- [ ] Excel高度機能：ウィンドウ固定、オートフィルタ、条件付き書式
+- [ ] ファイル品質：レイアウト、画像表示、データ整合性
+- [ ] ダウンロード機能：適切なファイル名、実行時間確認
+
+### Admin Panel（隠しメニュー）
+- [ ] 隠しアクセス：Ctrl+Shift+A→管理者パネル表示
+- [ ] データ診断：企業データ整合性、MVV完全性チェック
+- [ ] 回復ツール：バルク抽出、単体テスト、バッチ処理
+- [ ] システム診断：API健全性、パフォーマンス監視
 
 ### セキュリティ
 - [ ] レート制限テスト（連続5回以上のログイン失敗で制限）
@@ -525,6 +660,10 @@ curl -X POST "http://localhost:8888/.netlify/functions/company-processor" \
 - [ ] タイムアウト処理の確認
 - [ ] 部分失敗時の適切なハンドリング
 - [ ] エラーリトライ機能の確認
+- [ ] リアルタイム分析レスポンス時間（<1秒目標）
+- [ ] LRUキャッシュ効率（50%+ヒット率目標）
+- [ ] Visual Analytics キャプチャ時間（<1秒目標）
+- [ ] Excel生成時間（50件画像で<5秒目標）
 
 ### モバイル対応
 - [ ] スマートフォンサイズでの表示確認
@@ -554,6 +693,79 @@ curl -X POST "http://localhost:8888/.netlify/functions/company-processor" \
 - businessDescriptionの内容を確認
 - 手動でJSICカテゴリを設定
 
+### Visual Analytics Gallery関連問題
+
+#### スクリーンショットキャプチャが失敗する場合
+**問題**: 画像が生成されない、または品質が低い
+**解決策**:
+- html2canvasライブラリの動作確認
+- ブラウザのCanvas APIサポート確認
+- 対象要素の表示状態確認（display: none等）
+- キャプチャ対象領域のサイズ確認
+
+#### IndexedDBストレージエラー
+**問題**: 画像保存/読み込みに失敗
+**解決策**:
+- ブラウザのIndexedDBサポート確認
+- ストレージ容量制限チェック（Chrome: ~75% of disk）
+- データベーススキーマの確認
+- プライベートブラウジングモードの無効化
+
+#### Excel画像統合エラー
+**問題**: ExcelファイルにVBase64が正しく埋め込まれない
+**解決策**:
+```javascript
+// ブラウザ環境でのArrayBuffer変換確認
+const testBase64Conversion = (base64Data) => {
+  try {
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    console.log('変換成功:', bytes.buffer.byteLength, 'bytes');
+    return bytes.buffer;
+  } catch (error) {
+    console.error('Base64変換エラー:', error);
+    return null;
+  }
+};
+```
+
+### リアルタイム分析関連問題
+
+#### 分析処理が遅い場合
+**問題**: 類似度計算やスコアリングに時間がかかる
+**解決策**:
+- LRUキャッシュのヒット率確認
+- 計算対象データの件数確認
+- ブラウザの開発者ツールでメモリ使用量監視
+- Web Workersの利用検討（重い計算処理）
+
+#### キャッシュが機能しない場合
+**問題**: 同じ計算を繰り返し実行してしまう
+**解決策**:
+```javascript
+// キャッシュ動作確認
+const debugCache = () => {
+  const cache = analysisStore.similarityCache;
+  console.log('キャッシュサイズ:', cache.size);
+  console.log('キャッシュ内容:', Array.from(cache.keys()).slice(0, 10));
+  
+  // ヒット率計算
+  const stats = analysisStore.getCacheStats();
+  console.log('ヒット率:', (stats.hits / (stats.hits + stats.misses) * 100).toFixed(1) + '%');
+};
+```
+
+#### ワードクラウドが表示されない場合
+**問題**: インタラクティブワードクラウドが空白
+**解決策**:
+- 形態素解析データの確認
+- TinySegmenterの動作確認
+- キーワード頻度データの検証
+- Canvas/SVGレンダリングエラーの確認
+
 ## 🎯 次のステップ
 
 テストが完了したら：
@@ -573,13 +785,20 @@ curl -X POST "http://localhost:8888/.netlify/functions/company-processor" \
    - エラーハンドリングの改善
    - パフォーマンス最適化
 
-4. **新機能の統合テスト**
-   - CSVインポート→パイプライン実行の一連のフロー
-   - バックアップ→リストア→データ検証
-   - 大量データでのパフォーマンステスト
+4. **Phase 3機能の統合テスト**
+   - CSVインポート→パイプライン実行→リアルタイム分析の一連のフロー
+   - MVV分析→Visual Analytics Gallery→Excel Export統合フロー
+   - 大量データでのパフォーマンステスト（94社+Visual Analytics）
+   - リアルタイム分析5機能の安定性確認
+
+5. **Phase 4準備**
+   - AI-powered insights機能の技術検証
+   - 多言語対応の基盤テスト
+   - エンタープライズ機能の要件定義
+   - 1000社規模スケーラビリティの事前検証
 
 ---
 
-**最終更新日**: 2025-07-09  
+**最終更新日**: 2025-07-13  
 **作成者**: Claude  
-**対象システムバージョン**: 2.0.0（強化された企業管理システム）
+**対象システムバージョン**: 3.0.0（Phase 3完了：Visual Analytics Gallery + Professional Excel Export）

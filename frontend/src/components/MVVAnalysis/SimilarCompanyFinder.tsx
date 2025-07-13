@@ -27,6 +27,7 @@ const SimilarCompanyFinder: React.FC = () => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculationProgress, setCalculationProgress] = useState(0);
   const [pinnedTooltips, setPinnedTooltips] = useState<Set<string>>(new Set());
+  const [industryFocus, _setIndustryFocus] = useState<'general' | 'healthcare' | 'technology'>('general');
   
   const companies = getFilteredCompanies();
   
@@ -92,7 +93,7 @@ const SimilarCompanyFinder: React.FC = () => {
       const segmentationOptions = {
         preserveCompounds: true,
         enableCustomRules: true,
-        industryFocus: 'healthcare' as const
+        industryFocus
       };
 
       const extractKeywords = (text: string) => {

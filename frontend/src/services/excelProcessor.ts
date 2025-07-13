@@ -8,6 +8,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import type { Company, MVVData, CompanyInfo } from '../types';
 import { formatDate } from '../utils/formatters';
+import { excelAIAnalysisProcessor } from './excelAIAnalysisProcessor';
 
 export interface ExcelReportOptions {
   includeExecutiveSummary?: boolean;
@@ -16,6 +17,7 @@ export interface ExcelReportOptions {
   includeCompanyMaster?: boolean;
   includeDetailedProfiles?: boolean;
   includeVisualAnalytics?: boolean; // Phase 2 機能
+  includeAIAnalysis?: boolean; // AI分析シート
   
   // フィルター・オプション
   selectedCategories?: string[];
@@ -57,6 +59,7 @@ export class ExcelProcessor {
       includeCompanyMaster: true,
       includeDetailedProfiles: true,
       includeVisualAnalytics: false, // Phase 2
+      includeAIAnalysis: true, // AI分析シート
       corporateTheme: 'professional',
       includeCharts: true,
       highResolution: true,
@@ -103,10 +106,16 @@ export class ExcelProcessor {
       }
       
 
-      // Phase 2: ビジュアル分析（将来実装）
-      if (this.options.includeVisualAnalytics) {
-        // await this.generateVisualAnalytics();
-        console.log('📊 ビジュアル分析シートは Phase 2 で実装予定');
+      // Phase 2: AI分析シート
+      if (this.options.includeAIAnalysis && companyInfoMap) {
+        console.log('🤖 AI分析シート生成中...');
+        const aiAnalysisData = await excelAIAnalysisProcessor.collectAIAnalysisData(
+          companies,
+          mvvDataMap,
+          companyInfoMap,
+          this.options.includeVisualAnalytics // 保存済みスクリーンショット使用
+        );
+        await excelAIAnalysisProcessor.addAIAnalysisSheets(this.workbook, aiAnalysisData);
       }
 
       // Excel ファイルをダウンロード
