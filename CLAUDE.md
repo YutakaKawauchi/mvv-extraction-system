@@ -729,23 +729,24 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
 - Quality-focused approach: Default 1 deep idea with reasoning
 - Step-by-step progress visualization and professional UX
 
-### Beta v2 (Next Phase)
-**Status**: Planning  
-**Timeline**: Q1 2025
+### Beta v2 (In Development)
+**Status**: 🔄 In Progress  
+**Timeline**: 2025-07-13 - 2025-07-20
 
-#### Planned Features
+#### Implementation Plan (Phase α+ → β)
 1. **AI Verification System**: Secondary AI to validate and enhance generated ideas
-   - Industry expert AI: Deep domain knowledge validation
-   - Market research AI: Real-time market data integration
-   - Financial modeling AI: Revenue/cost projections
+   - **Industry Analysis AI**: Deep domain knowledge validation with Perplexity API
+   - **Business Model Validation**: Revenue/cost structure verification
+   - **Market Reality Check**: Real-time market data integration for feasibility validation
+   - **Competitive Intelligence**: Advanced competitor analysis and positioning validation
 2. **Enhanced Lean Canvas**: 
-   - Interactive editing capabilities
-   - Export to PowerPoint/PDF formats
-   - Template library for different industries
+   - Interactive editing capabilities with real-time validation
+   - Export integration with existing Excel system
+   - Visual improvement with validation indicators
 3. **Idea Management System**: 
    - IndexedDB storage for persistent idea collections
-   - Comparison tools and idea evolution tracking
-   - Collaboration features (share/comment)
+   - Version tracking and iteration history
+   - Comparison tools between verified vs original ideas
 
 ### Phase 4: AI-Powered Insights and Recommendations
 **Status**: Planning Phase  

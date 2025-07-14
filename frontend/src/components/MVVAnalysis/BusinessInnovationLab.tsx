@@ -49,6 +49,24 @@ interface BusinessIdea {
     marketPotential: number;
     marketPotentialReason: string;
   };
+  verification?: VerificationResult; // Beta v2: AI検証結果
+}
+
+interface VerificationResult {
+  industryAnalysis: any;
+  marketValidation: any;
+  businessModelValidation: any;
+  competitiveAnalysis: any;
+  improvementSuggestions: any;
+  overallAssessment: any;
+  metadata: {
+    verificationLevel: string;
+    totalTokens: number;
+    totalCost: number;
+    model: string;
+    confidence: number;
+    version: string;
+  };
 }
 
 interface GenerationResult {
@@ -78,6 +96,12 @@ export const BusinessInnovationLab: React.FC = () => {
   const [savedIdeas, setSavedIdeas] = useState<any[]>([]);
   const [progress, setProgress] = useState(0);
   const [maxIdeas, setMaxIdeas] = useState(1); // デフォルト1案
+  
+  // Beta v2: AI検証機能のstate
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationResults, setVerificationResults] = useState<{[ideaIndex: number]: VerificationResult}>({});
+  const [selectedIdeaForVerification, setSelectedIdeaForVerification] = useState<number | null>(null);
+  const [verificationLevel, setVerificationLevel] = useState<'basic' | 'comprehensive' | 'expert'>('comprehensive');
 
   useEffect(() => {
     loadCompanies();
@@ -184,6 +208,57 @@ export const BusinessInnovationLab: React.FC = () => {
     
     // TODO: IndexedDBに保存
     console.log('Saving idea to IndexedDB:', savedIdea);
+  };
+
+  // Beta v2: AI検証機能
+  const handleVerifyIdea = async (idea: BusinessIdea, index: number) => {
+    if (!selectedCompany) {
+      setError('企業情報が必要です');
+      return;
+    }
+
+    setIsVerifying(true);
+    setSelectedIdeaForVerification(index);
+    setError(null);
+
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      
+      const response = await fetch(`${API_BASE_URL}/verify-business-idea`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': import.meta.env.VITE_API_SECRET,
+        },
+        body: JSON.stringify({
+          originalIdea: idea,
+          companyData: selectedCompany,
+          verificationLevel
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `検証API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setVerificationResults(prev => ({
+          ...prev,
+          [index]: result.data
+        }));
+      } else {
+        throw new Error(result.error || 'アイデア検証に失敗しました');
+      }
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'アイデア検証中にエラーが発生しました');
+    } finally {
+      setIsVerifying(false);
+      setSelectedIdeaForVerification(null);
+    }
   };
 
   const renderCompanySelection = () => (
@@ -481,13 +556,30 @@ export const BusinessInnovationLab: React.FC = () => {
                     <h4 className="text-2xl font-bold text-gray-900 mb-3 leading-tight">{idea.title}</h4>
                     <p className="text-gray-700 text-lg leading-relaxed">{idea.description}</p>
                   </div>
-                  <button
-                    onClick={() => handleSaveIdea(idea, index)}
-                    className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-lg hover:from-blue-100 hover:to-blue-200 hover:text-blue-700 transition-all duration-200 shadow-sm hover:shadow-md ml-4"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    保存
-                  </button>
+                  <div className="flex items-center space-x-2 ml-4">
+                    {/* Beta v2: AI検証ボタン */}
+                    <button
+                      onClick={() => handleVerifyIdea(idea, index)}
+                      disabled={isVerifying && selectedIdeaForVerification === index}
+                      className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-purple-100 to-purple-200 text-purple-700 rounded-lg hover:from-purple-200 hover:to-purple-300 hover:text-purple-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isVerifying && selectedIdeaForVerification === index ? (
+                        <LoadingSpinner size="sm" className="mr-2" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                      )}
+                      <span className="text-xs">β</span>
+                      検証
+                    </button>
+                    
+                    <button
+                      onClick={() => handleSaveIdea(idea, index)}
+                      className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-lg hover:from-blue-100 hover:to-blue-200 hover:text-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      保存
+                    </button>
+                  </div>
                 </div>
 
                 <div className="bg-blue-50 p-4 rounded-md mb-4">
@@ -676,6 +768,121 @@ export const BusinessInnovationLab: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Beta v2: AI検証結果表示 */}
+                {verificationResults[index] && (
+                  <div className="mt-6 border-t border-gray-200 pt-6">
+                    <div className="flex items-center mb-4">
+                      <div className="bg-purple-100 p-2 rounded-lg mr-3">
+                        <CheckCircle className="h-5 w-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-gray-900">AI検証結果</h5>
+                        <p className="text-sm text-gray-600">専門AI による多角的分析結果</p>
+                      </div>
+                      <div className="ml-auto text-right">
+                        <div className="text-xs text-gray-500">
+                          検証レベル: {verificationResults[index].metadata.verificationLevel}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          信頼度: {(verificationResults[index].metadata.confidence * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 総合評価 */}
+                    {verificationResults[index].overallAssessment && (
+                      <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
+                        <h6 className="font-semibold text-purple-900 mb-3">総合評価</h6>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-purple-600">
+                              {verificationResults[index].overallAssessment.overallScore?.viabilityScore || 'N/A'}
+                            </div>
+                            <div className="text-xs text-purple-700">実行可能性</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-blue-600">
+                              {verificationResults[index].overallAssessment.overallScore?.innovationScore || 'N/A'}
+                            </div>
+                            <div className="text-xs text-blue-700">革新性</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-green-600">
+                              {verificationResults[index].overallAssessment.overallScore?.marketPotentialScore || 'N/A'}
+                            </div>
+                            <div className="text-xs text-green-700">市場ポテンシャル</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-orange-600">
+                              {verificationResults[index].overallAssessment.overallScore?.totalScore || 'N/A'}
+                            </div>
+                            <div className="text-xs text-orange-700">総合スコア</div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            verificationResults[index].overallAssessment.recommendation?.decision === 'GO' ? 'bg-green-100 text-green-800' :
+                            verificationResults[index].overallAssessment.recommendation?.decision === 'CONDITIONAL-GO' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            推奨: {verificationResults[index].overallAssessment.recommendation?.decision || 'N/A'}
+                          </div>
+                          <p className="text-sm text-purple-800">
+                            {verificationResults[index].overallAssessment.recommendation?.reasoning || '詳細な理由は分析中です'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 改善提案 */}
+                    {verificationResults[index].improvementSuggestions && (
+                      <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                        <h6 className="font-semibold text-orange-900 mb-3">改善提案</h6>
+                        {verificationResults[index].improvementSuggestions.improvementRecommendations?.slice(0, 3).map((rec: any, recIndex: number) => (
+                          <div key={recIndex} className="mb-3 p-3 bg-orange-100 rounded border">
+                            <div className="font-medium text-orange-900 text-sm">{rec.area}</div>
+                            <div className="text-orange-800 text-xs mt-1">{rec.recommendedChange}</div>
+                            <div className="text-orange-700 text-xs mt-1">期待効果: {rec.expectedImpact}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 業界分析サマリー */}
+                    {verificationResults[index].industryAnalysis && (
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <h6 className="font-semibold text-blue-900 mb-2">業界専門分析</h6>
+                          <div className="text-sm text-blue-800 space-y-1">
+                            <div>
+                              <span className="font-medium">緊急度:</span> 
+                              {verificationResults[index].industryAnalysis.problemValidation?.urgencyLevel || 'N/A'}/10
+                            </div>
+                            <div>
+                              <span className="font-medium">革新性:</span> 
+                              {verificationResults[index].industryAnalysis.solutionAssessment?.innovationLevel || 'N/A'}/10
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <h6 className="font-semibold text-green-900 mb-2">競合分析</h6>
+                          <div className="text-sm text-green-800 space-y-1">
+                            <div>
+                              <span className="font-medium">直接競合:</span> 
+                              {verificationResults[index].competitiveAnalysis?.directCompetitors?.length || 0}社
+                            </div>
+                            <div>
+                              <span className="font-medium">優位性持続:</span> 
+                              {verificationResults[index].competitiveAnalysis?.competitiveAdvantageAnalysis?.sustainabilityScore || 'N/A'}/10
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -690,16 +897,35 @@ export const BusinessInnovationLab: React.FC = () => {
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-6">
         <div className="flex items-center mb-2">
           <Lightbulb className="h-6 w-6 mr-2" />
-          <h2 className="text-2xl font-bold">ビジネス革新ラボ (α版)</h2>
+          <h2 className="text-2xl font-bold">ビジネス革新ラボ (β版)</h2>
+          <span className="bg-purple-500 bg-opacity-90 text-white px-2 py-1 rounded-full text-xs font-medium ml-2">
+            v2 NEW
+          </span>
         </div>
         <p className="text-blue-100">
-          企業のMVVと事業プロファイルから、AI powered 新規事業アイデアを生成します
+          企業のMVVと事業プロファイルから、AI powered 新規事業アイデアを生成・検証します
         </p>
         <div className="mt-4 flex items-center space-x-4 text-sm">
-          <span className="bg-white bg-opacity-20 px-2 py-1 rounded">Phase α</span>
-          <span>最大3案生成</span>
-          <span>GPT-4o-mini使用</span>
-          <span>基本保存機能</span>
+          <span className="bg-white bg-opacity-20 px-2 py-1 rounded">Phase β</span>
+          <span>AI検証システム</span>
+          <span>業界エキスパート分析</span>
+          <span>改善提案機能</span>
+        </div>
+        
+        {/* Beta v2: 検証レベル選択 */}
+        <div className="mt-4 bg-white bg-opacity-10 rounded-lg p-3">
+          <label className="block text-sm font-medium text-blue-100 mb-2">
+            AI検証レベル選択
+          </label>
+          <select
+            value={verificationLevel}
+            onChange={(e) => setVerificationLevel(e.target.value as 'basic' | 'comprehensive' | 'expert')}
+            className="bg-white bg-opacity-20 text-white border border-white border-opacity-30 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+          >
+            <option value="basic" className="text-gray-900">Basic - 基本的な検証</option>
+            <option value="comprehensive" className="text-gray-900">Comprehensive - 包括的な分析（推奨）</option>
+            <option value="expert" className="text-gray-900">Expert - 専門家レベル分析</option>
+          </select>
         </div>
       </div>
 
