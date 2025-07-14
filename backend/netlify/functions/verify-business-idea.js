@@ -30,13 +30,13 @@ const usageTracker = new UsageTracker();
 exports.handler = async (event, context) => {
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: corsHeaders, body: '' };
+    return { statusCode: 200, headers: corsHeaders(event.headers.origin || event.headers.Origin), body: '' };
   }
 
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      headers: corsHeaders,
+      headers: corsHeaders(event.headers.origin || event.headers.Origin),
       body: JSON.stringify({ error: 'Method not allowed' })
     };
   }
@@ -47,7 +47,7 @@ exports.handler = async (event, context) => {
     if (!authResult.valid) {
       return {
         statusCode: 401,
-        headers: corsHeaders,
+        headers: corsHeaders(event.headers.origin || event.headers.Origin),
         body: JSON.stringify({ error: authResult.error || 'Authentication required' })
       };
     }
@@ -64,7 +64,7 @@ exports.handler = async (event, context) => {
     if (!originalIdea || !companyData) {
       return {
         statusCode: 400,
-        headers: corsHeaders,
+        headers: corsHeaders(event.headers.origin || event.headers.Origin),
         body: JSON.stringify({ error: 'originalIdea and companyData are required' })
       };
     }
@@ -81,7 +81,7 @@ exports.handler = async (event, context) => {
     if (!usageCheck.allowed) {
       return {
         statusCode: 429,
-        headers: corsHeaders,
+        headers: corsHeaders(event.headers.origin || event.headers.Origin),
         body: JSON.stringify({ 
           error: 'Usage limit exceeded',
           details: usageCheck.details,
@@ -123,7 +123,7 @@ exports.handler = async (event, context) => {
 
     return {
       statusCode: 200,
-      headers: corsHeaders,
+      headers: corsHeaders(event.headers.origin || event.headers.Origin),
       body: JSON.stringify({
         success: true,
         data: verificationResult,
@@ -144,7 +144,7 @@ exports.handler = async (event, context) => {
     
     return {
       statusCode: 500,
-      headers: corsHeaders,
+      headers: corsHeaders(event.headers.origin || event.headers.Origin),
       body: JSON.stringify({ 
         error: 'Internal server error',
         message: error.message,

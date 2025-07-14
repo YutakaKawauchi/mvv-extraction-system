@@ -1,5 +1,5 @@
 const { OpenAI } = require('openai');
-const { cors } = require('../../utils/cors');
+const { corsHeaders } = require('../../utils/cors');
 const { validateAuth } = require('../../utils/auth');
 const { logger } = require('../../utils/logger');
 const { CacheManager } = require('./cache-manager');
@@ -25,17 +25,18 @@ const usageTracker = new UsageTracker();
  * - コスト最適化（キャッシュ、トークン最適化）
  */
 exports.handler = async (event, context) => {
-  // CORS headers
-  const corsHeaders = cors();
+  // CORS headers  
+  const origin = event.headers.origin || event.headers.Origin;
+  const headers = corsHeaders(origin);
   
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: corsHeaders, body: '' };
+    return { statusCode: 200, headers: headers, body: '' };
   }
 
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      headers: corsHeaders,
+      headers: headers,
       body: JSON.stringify({ error: 'Method not allowed' })
     };
   }
@@ -46,7 +47,7 @@ exports.handler = async (event, context) => {
     if (!authResult.isValid) {
       return {
         statusCode: 401,
-        headers: corsHeaders,
+        headers: headers,
         body: JSON.stringify({ error: 'Authentication required' })
       };
     }
@@ -63,7 +64,7 @@ exports.handler = async (event, context) => {
     if (!companyId) {
       return {
         statusCode: 400,
-        headers: corsHeaders,
+        headers: headers,
         body: JSON.stringify({ error: 'companyId is required' })
       };
     }
@@ -79,7 +80,7 @@ exports.handler = async (event, context) => {
     if (!usageCheck.allowed) {
       return {
         statusCode: 429,
-        headers: corsHeaders,
+        headers: headers,
         body: JSON.stringify({ 
           error: 'Usage limit exceeded',
           details: usageCheck.details,
@@ -104,7 +105,7 @@ exports.handler = async (event, context) => {
 
       return {
         statusCode: 200,
-        headers: corsHeaders,
+        headers: headers,
         body: JSON.stringify({
           success: true,
           data: cachedResult.data,
@@ -122,7 +123,7 @@ exports.handler = async (event, context) => {
     if (!companyData) {
       return {
         statusCode: 404,
-        headers: corsHeaders,
+        headers: headers,
         body: JSON.stringify({ error: 'Company not found' })
       };
     }
@@ -161,7 +162,7 @@ exports.handler = async (event, context) => {
 
     return {
       statusCode: 200,
-      headers: corsHeaders,
+      headers: headers,
       body: JSON.stringify({
         success: true,
         data: analysisResult,
@@ -182,7 +183,7 @@ exports.handler = async (event, context) => {
     
     return {
       statusCode: 500,
-      headers: corsHeaders,
+      headers: headers,
       body: JSON.stringify({ 
         error: 'Internal server error',
         message: process.env.NODE_ENV === 'development' ? error.message : undefined

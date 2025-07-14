@@ -20,7 +20,9 @@ import {
   Clock,
   Users,
   Brain,
-  Target
+  Target,
+  Lightbulb,
+  Building2
 } from 'lucide-react';
 
 export const BackupRestorePanel: React.FC = () => {
@@ -129,7 +131,7 @@ export const BackupRestorePanel: React.FC = () => {
               バックアップ
             </h3>
             <p className="text-sm text-blue-700 mb-4">
-              全ての企業データ、MVV情報、Embeddingsを一括エクスポート
+              全ての企業データ、MVV情報、Embeddings、ビジネスアイデアを一括エクスポート
             </p>
             <div className="flex space-x-3">
               <Button
@@ -283,6 +285,16 @@ export const BackupRestorePanel: React.FC = () => {
                         <span className="text-blue-600">{restoreResult.details.companyInfo.updated}件更新</span>
                       </span>
                     </div>
+                    {restoreResult.details.businessIdeas && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">ビジネスアイデア:</span>
+                        <span className="text-right">
+                          <span className="text-green-600">{restoreResult.details.businessIdeas.created}件作成</span>
+                          <span className="text-gray-400 mx-1">/</span>
+                          <span className="text-blue-600">{restoreResult.details.businessIdeas.updated}件更新</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -347,6 +359,20 @@ export const BackupRestorePanel: React.FC = () => {
                   <span className="text-gray-600">完全完了:</span>
                   <span className="ml-2 font-medium">{backupPreview.stats.fullyCompleted}</span>
                 </div>
+                {backupPreview.stats.totalIdeas !== undefined && (
+                  <div className="flex items-center">
+                    <Lightbulb className="mr-2 h-4 w-4 text-orange-600" />
+                    <span className="text-gray-600">アイデア総数:</span>
+                    <span className="ml-2 font-medium">{backupPreview.stats.totalIdeas}</span>
+                  </div>
+                )}
+                {backupPreview.stats.companiesWithIdeas !== undefined && (
+                  <div className="flex items-center">
+                    <Building2 className="mr-2 h-4 w-4 text-indigo-600" />
+                    <span className="text-gray-600">アイデア保有企業:</span>
+                    <span className="ml-2 font-medium">{backupPreview.stats.companiesWithIdeas}</span>
+                  </div>
+                )}
                 {/* 企業情報統計を追加 */}
                 {backupPreview.stats.companiesWithInfo !== undefined && (
                   <div className="flex items-center">

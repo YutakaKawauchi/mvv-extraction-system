@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CompanyList } from '../CompanyManager';
 import { BatchProcessor, EmbeddingsBatchProcessor, ExtractionQueue, ProcessingStatus, CompanySelector, AddCompanySection } from '../MVVExtractor';
 import { ResultsTable, MVVDisplay } from '../ResultsViewer';
-import { MVVAnalysisDashboard } from '../MVVAnalysis';
+import { MVVAnalysisDashboard, BusinessInnovationLab } from '../MVVAnalysis';
 import { BackupRestorePanel } from '../BackupRestore';
 import { Modal, Button, ExcelExportWizard } from '../common';
 import { SessionStatus } from '../auth';
@@ -19,10 +19,11 @@ import {
   Zap,
   Network,
   Sparkles,
-  Database
+  Database,
+  Lightbulb
 } from 'lucide-react';
 
-type ActiveTab = 'companies' | 'extraction' | 'results' | 'analytics' | 'backup';
+type ActiveTab = 'companies' | 'extraction' | 'results' | 'analytics' | 'innovation' | 'backup';
 
 export const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('companies');
@@ -122,6 +123,12 @@ export const Dashboard: React.FC = () => {
       name: 'AI分析',
       icon: Network,
       description: 'MVV類似度・業界分析'
+    },
+    {
+      id: 'innovation' as const,
+      name: 'ビジネス革新',
+      icon: Lightbulb,
+      description: 'AI powered 新規事業アイデア生成'
     },
     {
       id: 'backup' as const,
@@ -365,6 +372,10 @@ export const Dashboard: React.FC = () => {
 
         {activeTab === 'analytics' && (
           <MVVAnalysisDashboard />
+        )}
+
+        {activeTab === 'innovation' && (
+          <BusinessInnovationLab />
         )}
 
         {activeTab === 'backup' && (

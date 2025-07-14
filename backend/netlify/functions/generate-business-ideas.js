@@ -76,7 +76,7 @@ exports.handler = async (event, context) => {
     if (!usageCheck.allowed) {
       return {
         statusCode: 429,
-        headers: corsHeaders,
+        headers: corsHeaders(event.headers.origin || event.headers.Origin),
         body: JSON.stringify({ 
           error: 'Usage limit exceeded',
           details: usageCheck.details,
@@ -116,7 +116,7 @@ exports.handler = async (event, context) => {
 
     return {
       statusCode: 200,
-      headers: corsHeaders,
+      headers: corsHeaders(event.headers.origin || event.headers.Origin),
       body: JSON.stringify({
         success: true,
         data: analysisResult,
@@ -138,7 +138,7 @@ exports.handler = async (event, context) => {
     
     return {
       statusCode: 500,
-      headers: corsHeaders,
+      headers: corsHeaders(event.headers.origin || event.headers.Origin),
       body: JSON.stringify({ 
         error: 'Internal server error',
         message: error.message,
