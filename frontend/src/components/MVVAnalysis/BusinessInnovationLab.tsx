@@ -108,9 +108,7 @@ export const BusinessInnovationLab: React.FC = () => {
   const [results, setResults] = useState<GenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedIdeas, setSavedIdeas] = useState<StoredBusinessIdea[]>([]);
-  const [showIdeaManager, setShowIdeaManager] = useState(false);
   const [showSavedIdeasPanel, setShowSavedIdeasPanel] = useState(false);
-  const [ideaFilter, setIdeaFilter] = useState<'all' | 'verified' | 'draft' | 'starred'>('all');
   const [isLoadingIdeas, setIsLoadingIdeas] = useState(false);
   const [selectedIdeaForDetail, setSelectedIdeaForDetail] = useState<StoredBusinessIdea | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -458,20 +456,6 @@ export const BusinessInnovationLab: React.FC = () => {
     }
   }, [showDetailModal]);
 
-  const getFilteredIdeas = () => {
-    return savedIdeas.filter(idea => {
-      switch (ideaFilter) {
-        case 'verified':
-          return idea.verification;
-        case 'draft':
-          return !idea.verification;
-        case 'starred':
-          return idea.starred;
-        default:
-          return true;
-      }
-    });
-  };
 
   const renderIdeaDetailModal = () => {
     if (!showDetailModal || !selectedIdeaForDetail) return null;
@@ -1094,8 +1078,6 @@ export const BusinessInnovationLab: React.FC = () => {
     );
   };
 
-  const renderIdeaManager = () => {
-    const filteredIdeas = getFilteredIdeas();
     
     return (
       <div className="bg-white rounded-lg shadow p-6">
@@ -1924,18 +1906,6 @@ export const BusinessInnovationLab: React.FC = () => {
             <span className="text-blue-100 opacity-90">業界エキスパート分析</span>
             <span className="text-blue-100 opacity-90">改善提案機能</span>
           </div>
-          <button
-            onClick={() => setShowIdeaManager(!showIdeaManager)}
-            className="flex items-center px-3 py-2 bg-purple-600 bg-opacity-90 text-white rounded-lg hover:bg-purple-700 hover:bg-opacity-100 transition-all duration-200 shadow-lg"
-          >
-            <Database className="h-4 w-4 mr-2" />
-            保存済みアイデア
-            {savedIdeas.length > 0 && (
-              <span className="ml-2 bg-purple-500 text-white px-2 py-1 rounded-full text-xs">
-                {savedIdeas.length}
-              </span>
-            )}
-          </button>
         </div>
         
         {/* Beta v2: 検証レベル選択 */}
@@ -1978,7 +1948,7 @@ export const BusinessInnovationLab: React.FC = () => {
       )}
 
       {/* メインコンテンツ */}
-      {!showIdeaManager && (
+      {true && (
         <>
           {renderCompanySelection()}
           {renderAnalysisParams()}
@@ -1988,7 +1958,6 @@ export const BusinessInnovationLab: React.FC = () => {
       )}
 
       {/* アイデア管理画面 */}
-      {showIdeaManager && renderIdeaManager()}
 
       {/* アイデア詳細モーダル */}
       {renderIdeaDetailModal()}
