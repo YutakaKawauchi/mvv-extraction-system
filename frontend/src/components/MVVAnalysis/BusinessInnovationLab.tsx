@@ -416,6 +416,14 @@ export const BusinessInnovationLab: React.FC = () => {
     try {
       await ideaStorageService.toggleStar(ideaId);
       await loadSavedIdeas();
+      
+      // モーダル表示中のアイデアも更新
+      if (selectedIdeaForDetail && selectedIdeaForDetail.id === ideaId) {
+        const updatedIdea = await ideaStorageService.getIdea(ideaId);
+        if (updatedIdea) {
+          setSelectedIdeaForDetail(updatedIdea);
+        }
+      }
     } catch (error) {
       console.error('Failed to toggle star:', error);
       setError('スター状態の変更に失敗しました');
@@ -466,9 +474,22 @@ export const BusinessInnovationLab: React.FC = () => {
 
     const idea = selectedIdeaForDetail;
 
+    // 背景クリックでモーダルを閉じる
+    const handleBackgroundClick = (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget) {
+        handleCloseDetailModal();
+      }
+    };
+
     return (
-      <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-6xl max-h-[90vh] overflow-y-auto w-full relative">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4"
+        onClick={handleBackgroundClick}
+      >
+        <div 
+          className="bg-white rounded-xl shadow-2xl max-w-6xl max-h-[90vh] overflow-y-auto w-full relative"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* ヘッダー */}
           <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center">
