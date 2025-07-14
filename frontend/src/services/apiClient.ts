@@ -10,6 +10,7 @@ import type {
 } from '../types';
 import { CONSTANTS } from '../utils/constants';
 import { AppError, logError } from './errorHandler';
+import { aiCacheService } from './aiCacheService';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -197,13 +198,43 @@ class ApiClient {
     });
   }
 
-  // MVV extraction (Perplexity AI - Enhanced with retry)
+  // MVV extraction (Perplexity AI - Enhanced with retry and cache)
   async extractMVVPerplexity(request: MVVExtractionRequest): Promise<MVVExtractionResponse['data']> {
-    return this.requestWithRetry({
+    const { companyId, companyName, companyWebsite, ...otherParams } = request;
+    
+    // キャッシュチェック（決定論的API: temperature 0.1）
+    const cachedResult = await aiCacheService.getCompanyInfoCache(
+      'mvv-extraction',
+      companyId,
+      companyName,
+      otherParams
+    );
+
+    if (cachedResult) {
+      console.log(`📦 Using cached MVV extraction for ${companyName} (instant response)`);
+      return cachedResult as MVVExtractionResponse['data'];
+    }
+
+    // APIリクエスト実行
+    const result = await this.requestWithRetry({
       method: 'POST',
       url: '/extract-mvv-perplexity',
       data: request
     });
+
+    // キャッシュに保存（推定コスト: $0.011）
+    await aiCacheService.setCompanyInfoCache(
+      'mvv-extraction',
+      companyId,
+      companyName,
+      companyWebsite,
+      otherParams,
+      result,
+      '/extract-mvv-perplexity',
+      0.011
+    );
+
+    return result as MVVExtractionResponse['data'];
   }
 
   // Batch MVV extraction
@@ -227,13 +258,165 @@ class ApiClient {
     });
   }
 
-  // Extract company information
+  // Extract company information (with cache support)
   async extractCompanyInfo(request: CompanyInfoExtractionRequest): Promise<CompanyInfoExtractionResponse['data']> {
-    return this.requestWithRetry({
+    const { companyId, companyName, companyWebsite, ...otherParams } = request;
+    
+    // キャッシュチェック（決定論的API: temperature 0.1）
+    const cachedResult = await aiCacheService.getCompanyInfoCache(
+      'company-info',
+      companyId,
+      companyName,
+      otherParams
+    );
+
+    if (cachedResult) {
+      console.log(`📦 Using cached company info for ${companyName} (instant response)`);
+      return cachedResult as CompanyInfoExtractionResponse['data'];
+    }
+
+    // APIリクエスト実行
+    const result = await this.requestWithRetry({
       method: 'POST',
       url: '/extract-company-info',
       data: request
     });
+
+    // キャッシュに保存（推定コスト: $0.011）
+    await aiCacheService.setCompanyInfoCache(
+      'company-info',
+      companyId,
+      companyName,
+      companyWebsite,
+      otherParams,
+      result,
+      '/extract-company-info',
+      0.011
+    );
+
+    return result as CompanyInfoExtractionResponse['data'];
+  }
+
+  // Company classification (add-company with cache support)
+  async classifyCompany(request: { companyId: string; companyName: string; companyWebsite?: string; [key: string]: any }): Promise<any> {
+    const { companyId, companyName, companyWebsite, ...otherParams } = request;
+    
+    // キャッシュチェック（決定論的API: temperature 0.1）
+    const cachedResult = await aiCacheService.getCompanyInfoCache(
+      'company-classification',
+      companyId,
+      companyName,
+      otherParams
+    );
+
+    if (cachedResult) {
+      console.log(`📦 Using cached company classification for ${companyName}`);
+      return cachedResult;
+    }
+
+    // APIリクエスト実行
+    const result = await this.request({
+      method: 'POST',
+      url: '/add-company',
+      data: request
+    });
+
+    // キャッシュに保存（推定コスト: $0.005）
+    await aiCacheService.setCompanyInfoCache(
+      'company-classification',
+      companyId,
+      companyName,
+      companyWebsite,
+      otherParams,
+      result,
+      '/add-company',
+      0.005
+    );
+
+    return result;
+  }
+
+  // Business idea generation (with cache optimization)
+  async generateBusinessIdeas(request: { companyData: any; analysisParams?: any; options?: any }): Promise<any> {
+    // ビジネスアイデア生成は創造的プロセス（temperature 0.7）なのでキャッシュしない
+    // ただし、企業の基本分析部分は別途キャッシュ可能
+    console.log(`💡 Generating fresh business ideas for ${request.companyData?.name || 'company'}`);
+    
+    return this.requestWithRetry({
+      method: 'POST',
+      url: '/generate-business-ideas',
+      data: request
+    });
+  }
+
+  // Business idea verification (with enhanced industry analysis cache)
+  async verifyBusinessIdea(request: { businessIdea: any; verificationLevel: string; companyData: any }): Promise<any> {
+    const { businessIdea, verificationLevel, companyData } = request;
+    
+    // 業界分析部分のキャッシュ戦略
+    const industry = companyData?.industry || companyData?.jsic_middle_name || 'general';
+    const analysisType = `verification_${verificationLevel}`;
+    
+    const industryParams = {
+      industry,
+      businessModel: businessIdea.leanCanvas?.revenueStreams?.[0] || 'general',
+      targetMarket: businessIdea.leanCanvas?.targetCustomers?.[0] || 'general',
+      verificationLevel
+    };
+
+    // 業界分析キャッシュチェック（basic除く、comprehensive/expert レベルのみ）
+    let cachedIndustryAnalysis = null;
+    if (verificationLevel !== 'basic') {
+      cachedIndustryAnalysis = await aiCacheService.getIndustryAnalysisCache(
+        industry,
+        analysisType,
+        industryParams
+      );
+
+      if (cachedIndustryAnalysis) {
+        console.log(`🏭 Using cached industry analysis for ${industry}/${analysisType}`);
+        // Note: For now, we'll proceed with full API call and cache the industry analysis part
+        // Future enhancement: Implement backend support for partial cache utilization
+      }
+    }
+
+    // 完全なAPIリクエスト実行（キャッシュなしまたはフォールバック）
+    // バックエンドが期待する形式に変換
+    const backendRequest = {
+      originalIdea: request.businessIdea,
+      companyData: request.companyData,
+      verificationLevel: request.verificationLevel
+    };
+
+    const result = await this.requestWithRetry({
+      method: 'POST',
+      url: '/verify-business-idea',
+      data: backendRequest
+    });
+
+    // 業界分析結果をキャッシュに保存（basic除く）
+    if ((result as any).industryAnalysis && 
+        verificationLevel !== 'basic' && 
+        !(result as any).metadata?.cacheUsed) {
+      
+      const industryAnalysisData = (result as any).industryAnalysis;
+      
+      // フォールバックモードでない場合のみキャッシュ
+      if (!industryAnalysisData.fallbackUsed) {
+        await aiCacheService.setIndustryAnalysisCache(
+          industry,
+          analysisType,
+          industryParams,
+          industryAnalysisData,
+          0.08, // 推定コスト（業界分析部分）
+          0.85  // 信頼度（高い再利用性）
+        );
+        
+        console.log(`🏭 Cached industry analysis for ${industry}/${analysisType}`);
+      }
+    }
+
+    return result;
   }
 
   // Generic POST method for hybrid data loader
@@ -257,6 +440,9 @@ export const useApiClient = () => {
     extractMVV: (request: MVVExtractionRequest) => apiClient.extractMVV(request),
     extractMVVPerplexity: (request: MVVExtractionRequest) => apiClient.extractMVVPerplexity(request),
     extractMVVBatch: (requests: MVVExtractionRequest[]) => apiClient.extractMVVBatch(requests),
-    extractCompanyInfo: (request: CompanyInfoExtractionRequest) => apiClient.extractCompanyInfo(request)
+    extractCompanyInfo: (request: CompanyInfoExtractionRequest) => apiClient.extractCompanyInfo(request),
+    classifyCompany: (request: { companyId: string; companyName: string; companyWebsite?: string; [key: string]: any }) => apiClient.classifyCompany(request),
+    generateBusinessIdeas: (request: { companyData: any; analysisParams?: any; options?: any }) => apiClient.generateBusinessIdeas(request),
+    verifyBusinessIdea: (request: { businessIdea: any; verificationLevel: string; companyData: any }) => apiClient.verifyBusinessIdea(request)
   };
 };

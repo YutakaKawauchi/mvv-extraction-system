@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Activity, Zap, Globe, Server, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { Button, LoadingSpinner } from '../common';
+import { Button, LoadingSpinner, CacheStatus } from '../common';
 import { useNotification } from '../../hooks/useNotification';
 
 interface SystemStatus {
@@ -227,6 +227,12 @@ export const SystemDiagnostics: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* AIキャッシュ状態 */}
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">AIキャッシュシステム</h4>
+        <CacheStatus />
+      </div>
 
       {/* システム情報 */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
