@@ -2,7 +2,6 @@ const { OpenAI } = require('openai');
 const { handleCors, corsHeaders } = require('../../utils/cors');
 const { validateApiAccess } = require('../../utils/auth');
 const { logger } = require('../../utils/logger');
-const { CacheManager } = require('./cache-manager');
 const { UsageTracker } = require('./usage-tracker');
 
 // OpenAI クライアント初期化
@@ -16,8 +15,7 @@ const perplexity = new OpenAI({
   baseURL: 'https://api.perplexity.ai',
 });
 
-// キャッシュとトラッカー初期化
-const cacheManager = new CacheManager();
+// トラッカー初期化
 const usageTracker = new UsageTracker();
 
 /**
@@ -92,50 +90,21 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // キャッシュチェック
-    const cacheKey = generateVerificationCacheKey(originalIdea, companyData, verificationLevel);
-    const cachedResult = await cacheManager.getCached(cacheKey);
-    
-    if (cachedResult) {
-      logger.info('Returning cached verification result', { cacheKey });
-      
-      await usageTracker.recordUsage(authResult.user?.username, {
-        type: 'verification_cache_hit',
-        companyId: companyData.id,
-        cost: 0
-      });
-
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({
-          success: true,
-          data: cachedResult.data,
-          metadata: {
-            ...cachedResult.metadata,
-            cached: true,
-            cacheAge: Date.now() - cachedResult.timestamp
-          }
-        })
-      };
-    }
+    // 検証は業界分析（部分キャッシュ）とビジネス固有検証（非キャッシュ）の混合
+    // クライアントサイドで選択的キャッシュを使用し、サーバーサイドキャッシュは無効
+    logger.info('Performing AI verification (client-side cache optimization)', { 
+      companyId: companyData.id,
+      verificationLevel,
+      ideaTitle: originalIdea?.title 
+    });
 
     // AI検証実行
     const startTime = Date.now();
     const verificationResult = await performAIVerification(originalIdea, companyData, verificationLevel);
     const processingTime = Date.now() - startTime;
 
-    // キャッシュに保存
-    await cacheManager.setCached(cacheKey, {
-      data: verificationResult,
-      metadata: {
-        companyId: companyData.id,
-        ideaTitle: originalIdea.title,
-        verificationLevel,
-        processingTime,
-        verifiedAt: Date.now()
-      }
-    });
+    // サーバーサイドキャッシュは使用しない（Netlify Functions stateless）
+    // 業界分析部分のみクライアントサイドでキャッシュ
 
     // 利用量記録
     await usageTracker.recordUsage(authResult.user?.username, {
@@ -222,9 +191,10 @@ async function performAIVerification(originalIdea, companyData, verificationLeve
       };
     } else {
       // Comprehensive/Expert レベルのみ詳細な業界分析
-      logger.info('Starting industry expert analysis');
+      // TODO: expert レベルでより詳細な分析を実装
+      logger.info('Starting industry expert analysis', { verificationLevel });
       try {
-        const industryResult = await performIndustryAnalysis(originalIdea, companyData);
+        const industryResult = await performIndustryAnalysis(originalIdea, companyData, verificationLevel);
         results.industryAnalysis = industryResult.data;
         totalTokens += industryResult.tokens;
         totalCost += industryResult.cost;
@@ -261,9 +231,10 @@ async function performAIVerification(originalIdea, companyData, verificationLeve
     );
     
     // 競合分析（条件付き）
+    // TODO: comprehensive と expert の詳細度を区別する
     if (verificationLevel === 'comprehensive' || verificationLevel === 'expert') {
       parallelPromises.push(
-        performCompetitiveAnalysis(originalIdea, companyData)
+        performCompetitiveAnalysis(originalIdea, companyData, verificationLevel)
           .then(result => ({ type: 'competitive', result }))
           .catch(error => ({ type: 'competitive', error }))
       );
@@ -326,7 +297,8 @@ async function performAIVerification(originalIdea, companyData, verificationLeve
         totalCost,
         model: 'gpt-4o-mini + sonar-pro',
         confidence: 0.9,
-        version: 'beta'
+        version: 'beta',
+        note: verificationLevel === 'expert' ? 'Expert mode currently equivalent to Comprehensive' : undefined
       }
     };
 
@@ -470,8 +442,9 @@ function getDefaultPrompts() {
 
 /**
  * 業界エキスパート分析 (Perplexity API)
+ * TODO: verificationLevel に応じて詳細度を調整
  */
-async function performIndustryAnalysis(originalIdea, companyData) {
+async function performIndustryAnalysis(originalIdea, companyData, verificationLevel = 'comprehensive') {
   // 業界特化プロンプトの取得
   const industrySpecific = getIndustrySpecificPrompts(
     companyData.industry || companyData.category,
@@ -645,8 +618,9 @@ ${JSON.stringify(industryAnalysis, null, 2)}
 
 /**
  * 競合分析 (Perplexity API)
+ * TODO: verificationLevel に応じて詳細度を調整
  */
-async function performCompetitiveAnalysis(originalIdea, companyData) {
+async function performCompetitiveAnalysis(originalIdea, companyData, verificationLevel = 'comprehensive') {
   const industrySpecific = getIndustrySpecificPrompts(
     companyData.industry || companyData.category,
     companyData.jsicMajorCategory
@@ -858,23 +832,9 @@ ${JSON.stringify(verificationResults, null, 2)}
 }
 
 /**
- * 検証用キャッシュキー生成
+ * 検証用キャッシュキー生成 (DEPRECATED - クライアントサイドキャッシュに移行)
+ * サーバーサイドキャッシュはNetlify Functions statelessly性により無効
  */
-function generateVerificationCacheKey(originalIdea, companyData, verificationLevel) {
-  const crypto = require('crypto');
-  
-  const keyData = {
-    ideaTitle: originalIdea.title,
-    ideaDescription: originalIdea.description,
-    companyId: companyData.id,
-    verificationLevel,
-    version: 'beta-v2'
-  };
-  
-  return crypto.createHash('md5')
-    .update(JSON.stringify(keyData))
-    .digest('hex');
-}
 
 /**
  * OpenAI API利用コスト計算

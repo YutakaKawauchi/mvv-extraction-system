@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCompanyStore } from '../../stores/companyStore';
 import { LoadingSpinner } from '../common';
+import { useApiClient } from '../../services/apiClient';
 import { 
   Lightbulb, 
   Building2, 
@@ -17,9 +18,11 @@ import {
   RefreshCw,
   X,
   Clock,
-  Tag
+  Tag,
+  FileSpreadsheet
 } from 'lucide-react';
 import { ideaStorageService, type StoredBusinessIdea } from '../../services/ideaStorage';
+import { IdeaExportWizard } from './IdeaExportWizard';
 
 interface AnalysisParams {
   focusAreas: string[];
@@ -92,6 +95,7 @@ interface GenerationResult {
 
 export const BusinessInnovationLab: React.FC = () => {
   const { companies, loadCompanies } = useCompanyStore();
+  const { verifyBusinessIdea } = useApiClient();
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [analysisParams, setAnalysisParams] = useState<AnalysisParams>({
     focusAreas: [],
@@ -116,6 +120,9 @@ export const BusinessInnovationLab: React.FC = () => {
   const [verificationResults, setVerificationResults] = useState<{[ideaIndex: number]: VerificationResult}>({});
   const [selectedIdeaForVerification, setSelectedIdeaForVerification] = useState<number | null>(null);
   const [verificationLevel, setVerificationLevel] = useState<'basic' | 'comprehensive' | 'expert'>('basic');
+  
+  // Excel Export機能のstate
+  const [showExportWizard, setShowExportWizard] = useState(false);
 
   useEffect(() => {
     loadCompanies();
@@ -293,34 +300,19 @@ export const BusinessInnovationLab: React.FC = () => {
     setError(null);
 
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      // API Clientを使用してキャッシュ機能付きで検証実行
+      console.log(`🔍 Starting ${verificationLevel} verification for "${idea.title}"`);
       
-      // タイムアウト設定 (60秒)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-      const response = await fetch(`${API_BASE_URL}/verify-business-idea`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': import.meta.env.VITE_API_SECRET,
-        },
-        body: JSON.stringify({
-          originalIdea: idea,
-          companyData: selectedCompany,
-          verificationLevel
-        }),
-        signal: controller.signal
+      const result = await verifyBusinessIdea({
+        businessIdea: idea,
+        verificationLevel,
+        companyData: selectedCompany
       });
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `検証API error: ${response.status}`);
+      // キャッシュ使用状況をログ
+      if (result?.metadata?.cacheUsed) {
+        console.log(`⚡ Cache acceleration: ${result.metadata.cacheLevel} level`);
       }
-
-      const result = await response.json();
       
       if (result.success) {
         setVerificationResults(prev => ({
@@ -351,6 +343,19 @@ export const BusinessInnovationLab: React.FC = () => {
       setError('アイデアの削除に失敗しました');
     }
   };
+
+  // Excel Export handlers
+  const handleExportToExcel = () => {
+    setShowExportWizard(true);
+  };
+
+  const handleExportComplete = (fileName: string) => {
+    setError(null);
+    // 成功メッセージを表示（必要に応じて）
+    console.log(`Excel export completed: ${fileName}`);
+  };
+
+  // Note: Idea selection functionality can be added later for enhanced Excel export
 
   const handleToggleStar = async (ideaId: string) => {
     try {
@@ -1039,6 +1044,15 @@ export const BusinessInnovationLab: React.FC = () => {
               <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingIdeas ? 'animate-spin' : ''}`} />
               更新
             </button>
+            <button
+              onClick={handleExportToExcel}
+              disabled={savedIdeas.length === 0}
+              className="flex items-center px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              title="美しいリーンキャンバスレイアウトでExcel出力"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-1" />
+              Excel出力
+            </button>
             <select
               value={ideaFilter}
               onChange={(e) => setIdeaFilter(e.target.value as any)}
@@ -1504,12 +1518,6 @@ export const BusinessInnovationLab: React.FC = () => {
                   </h5>
                   <div className="text-orange-800 space-y-2">
                     <p className="leading-relaxed">{idea.industryInsight}</p>
-                    <div className="mt-3 p-3 bg-orange-100 rounded-lg border border-orange-200">
-                      <div className="text-sm font-semibold text-orange-900 mb-1">💰 支払者（Revenue Payer）</div>
-                      <div className="text-sm text-orange-800">
-                        {idea.leanCanvas.revenueStreams.join(' / ')}
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -1812,10 +1820,12 @@ export const BusinessInnovationLab: React.FC = () => {
         </p>
         <div className="mt-4 flex items-center justify-between">
           <div className="flex items-center space-x-4 text-sm">
-            <span className="bg-white bg-opacity-20 px-2 py-1 rounded">Phase β</span>
-            <span>AI検証システム</span>
-            <span>業界エキスパート分析</span>
-            <span>改善提案機能</span>
+            <span className="bg-blue-800 bg-opacity-80 px-3 py-1 rounded-full text-blue-100 font-semibold border border-blue-200 border-opacity-30">
+              Phase β
+            </span>
+            <span className="text-blue-100 opacity-90">AI検証システム</span>
+            <span className="text-blue-100 opacity-90">業界エキスパート分析</span>
+            <span className="text-blue-100 opacity-90">改善提案機能</span>
           </div>
           <button
             onClick={() => setShowIdeaManager(!showIdeaManager)}
@@ -1832,19 +1842,31 @@ export const BusinessInnovationLab: React.FC = () => {
         </div>
         
         {/* Beta v2: 検証レベル選択 */}
-        <div className="mt-4 bg-white bg-opacity-10 rounded-lg p-3">
-          <label className="block text-sm font-medium text-blue-100 mb-2">
+        <div className="mt-4 bg-blue-800 bg-opacity-20 rounded-lg p-4 border border-blue-300 border-opacity-30">
+          <label className="block text-sm font-medium text-blue-100 mb-3 flex items-center">
+            <Zap className="h-4 w-4 mr-2" />
             AI検証レベル選択
           </label>
           <select
             value={verificationLevel}
             onChange={(e) => setVerificationLevel(e.target.value as 'basic' | 'comprehensive' | 'expert')}
-            className="bg-white bg-opacity-95 text-gray-900 border border-blue-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 shadow-sm"
+            className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm font-medium"
           >
-            <option value="basic" className="text-gray-900">Basic - 基本的な検証（推奨・高速）</option>
-            <option value="comprehensive" className="text-gray-900">Comprehensive - 包括的な分析</option>
-            <option value="expert" className="text-gray-900">Expert - 専門家レベル分析</option>
+            <option value="basic" className="text-gray-900 py-2">
+              🚀 Basic - 基本的な検証（推奨・高速）
+            </option>
+            <option value="comprehensive" className="text-gray-900 py-2">
+              🎯 Comprehensive (β版) - 詳細分析 + 競合調査
+            </option>
+            <option value="expert" className="text-gray-900 py-2">
+              🔬 Expert (開発中) - 専門家レベル分析
+            </option>
           </select>
+          <div className="mt-2 text-xs text-blue-200 opacity-80 space-y-1">
+            <p>• Basic: 高速検証（15-30秒、業界分析簡略化）</p>
+            <p>• Comprehensive (β版): 詳細分析 + 競合調査（45-90秒）</p>
+            <p>• Expert (開発中): 現在はComprehensiveと同等の処理</p>
+          </div>
         </div>
       </div>
 
@@ -1873,6 +1895,14 @@ export const BusinessInnovationLab: React.FC = () => {
 
       {/* アイデア詳細モーダル */}
       {renderIdeaDetailModal()}
+
+      {/* Excel出力ウィザード */}
+      <IdeaExportWizard
+        ideas={savedIdeas}
+        isOpen={showExportWizard}
+        onClose={() => setShowExportWizard(false)}
+        onExportComplete={handleExportComplete}
+      />
     </div>
   );
 };

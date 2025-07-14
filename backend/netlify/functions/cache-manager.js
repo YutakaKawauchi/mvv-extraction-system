@@ -2,13 +2,17 @@ const crypto = require('crypto');
 const { logger } = require('../../utils/logger');
 
 /**
- * 3層キャッシュシステム - コスト最適化の中核
+ * ⚠️ DEPRECATED: サーバーサイドキャッシュシステム
  * 
- * Level 1: 企業固有キャッシュ（24時間）- 60%ヒット率想定
- * Level 2: 類似パラメータキャッシュ（7日間）- 25%ヒット率想定
- * Level 3: 業界テンプレートキャッシュ（30日間）- 15%ヒット率想定
+ * このキャッシュシステムはNetlify Functionsのstateless性により無効です。
+ * Map()ベースのキャッシュは関数呼び出し間で失われます。
  * 
- * 総合効果: 90%以上のAPI呼び出し削減
+ * 新しいキャッシュ戦略:
+ * - クライアントサイドIndexedDBキャッシュ (決定論的API用)
+ * - 選択的業界分析キャッシュ (部分決定論的API用)
+ * - 創造的コンテンツはキャッシュなし (temperature 0.7)
+ * 
+ * このファイルは後方互換性のために保持されています。
  */
 class CacheManager {
   constructor() {

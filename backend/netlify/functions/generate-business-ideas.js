@@ -2,7 +2,6 @@ const { OpenAI } = require('openai');
 const { handleCors, corsHeaders } = require('../../utils/cors');
 const { validateApiAccess } = require('../../utils/auth');
 const { logger } = require('../../utils/logger');
-const { CacheManager } = require('./cache-manager');
 const { UsageTracker } = require('./usage-tracker');
 const { optimizePrompt, parseStructuredResponse } = require('./shared/openai-optimized');
 
@@ -11,8 +10,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// キャッシュとトラッカー初期化
-const cacheManager = new CacheManager();
+// トラッカー初期化
 const usageTracker = new UsageTracker();
 
 /**
@@ -87,52 +85,19 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // キャッシュチェック（コスト最適化）
-    const cacheKey = cacheManager.generateCacheKey(companyData.id, analysisParams);
-    const cachedResult = await cacheManager.getCached(cacheKey);
-    
-    if (cachedResult) {
-      logger.info('Returning cached result', { cacheKey, companyId: companyData.id });
-      
-      // 利用量記録（キャッシュヒット）
-      await usageTracker.recordUsage(authResult.user?.username, {
-        type: 'cache_hit',
-        companyId: companyData.id,
-        cost: 0
-      });
-
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({
-          success: true,
-          data: cachedResult.data,
-          metadata: {
-            ...cachedResult.metadata,
-            cached: true,
-            cacheAge: Date.now() - cachedResult.timestamp,
-            cacheLevel: cachedResult.cacheLevel || cachedResult.metadata?.cacheLevel || 1
-          }
-        })
-      };
-    }
+    // ビジネスアイデア生成は創造的プロセス（temperature 0.7）のため
+    // クライアントサイドキャッシュを使用し、サーバーサイドキャッシュは無効
+    logger.info('Generating fresh business ideas (no server-side cache)', { 
+      companyId: companyData.id, 
+      companyName: companyData.name 
+    });
 
     // AI分析実行
     const startTime = Date.now();
     const analysisResult = await generateBusinessIdeas(companyData, analysisParams, options);
     const processingTime = Date.now() - startTime;
 
-    // キャッシュに保存
-    await cacheManager.setCached(cacheKey, {
-      data: analysisResult,
-      metadata: {
-        companyId: companyData.id,
-        analysisParams,
-        processingTime,
-        generatedAt: Date.now(),
-        tokensUsed: analysisResult.metadata.tokensUsed
-      }
-    });
+    // サーバーサイドキャッシュは使用しない（Netlify Functions stateless + creative content）
 
     // 利用量記録
     await usageTracker.recordUsage(authResult.user?.username, {
@@ -159,10 +124,7 @@ exports.handler = async (event, context) => {
           processingTime,
           generatedAt: Date.now(),
           cached: false,
-          costOptimization: {
-            cacheHitRate: await cacheManager.getHitRate(),
-            estimatedSavings: await cacheManager.getEstimatedSavings()
-          }
+          note: "Server-side caching disabled (stateless functions + creative content)"
         }
       })
     };
@@ -255,11 +217,11 @@ async function generateBusinessIdeas(companyData, analysisParams, options) {
         "revenueStreams": ["具体的な収益モデル1（誰が支払うかを明記）", "具体的な収益モデル2（誰が支払うかを明記）"]
       },
       "feasibility": {
-        "mvvAlignment": 0.8,
+        "mvvAlignment": 0.85,
         "mvvAlignmentReason": "MVV適合度の具体的な理由",
-        "implementationScore": 0.7,
+        "implementationScore": 0.75,
         "implementationReason": "実装容易性の具体的な理由",
-        "marketPotential": 0.6,
+        "marketPotential": 0.65,
         "marketPotentialReason": "市場ポテンシャルの具体的な理由"
       }
     }
