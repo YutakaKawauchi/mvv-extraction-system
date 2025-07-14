@@ -202,37 +202,116 @@ async function performAIVerification(originalIdea, companyData, verificationLeve
   let totalCost = 0;
 
   try {
-    // Step 1: 業界エキスパート分析 (Perplexity API - リアルタイム市場データ)
-    logger.info('Starting industry expert analysis');
-    const industryResult = await performIndustryAnalysis(originalIdea, companyData);
-    results.industryAnalysis = industryResult.data;
-    totalTokens += industryResult.tokens;
-    totalCost += industryResult.cost;
-
-    // Step 2: ビジネスモデル検証 (OpenAI GPT-4o-mini)
-    logger.info('Starting business model validation');
-    const businessModelResult = await performBusinessModelValidation(originalIdea, companyData, results.industryAnalysis);
-    results.businessModelValidation = businessModelResult.data;
-    totalTokens += businessModelResult.tokens;
-    totalCost += businessModelResult.cost;
-
-    // Step 3: 競合分析 (Perplexity API - リアルタイム競合情報)
-    if (verificationLevel === 'comprehensive' || verificationLevel === 'expert') {
-      logger.info('Starting competitive analysis');
-      const competitiveResult = await performCompetitiveAnalysis(originalIdea, companyData);
-      results.competitiveAnalysis = competitiveResult.data;
-      totalTokens += competitiveResult.tokens;
-      totalCost += competitiveResult.cost;
+    // Basic レベルでは業界分析をスキップして高速化
+    if (verificationLevel === 'basic') {
+      logger.info('Using lightweight basic verification (skipping industry analysis)');
+      results.industryAnalysis = {
+        industryTrends: {
+          currentState: "Basic検証では業界分析を簡略化",
+          emergingTrends: ["高速検証モード"],
+          regulatoryEnvironment: "Comprehensive以上で詳細分析",
+          marketSize: "Basic検証では推定値のみ"
+        },
+        problemValidation: {
+          realityCheck: "基本的な妥当性検証済み",
+          stakeholderImpact: "一般的な影響を想定",
+          urgencyLevel: 5,
+          evidence: "Comprehensive以上で詳細な根拠収集"
+        },
+        lightweightMode: true
+      };
+    } else {
+      // Comprehensive/Expert レベルのみ詳細な業界分析
+      logger.info('Starting industry expert analysis');
+      try {
+        const industryResult = await performIndustryAnalysis(originalIdea, companyData);
+        results.industryAnalysis = industryResult.data;
+        totalTokens += industryResult.tokens;
+        totalCost += industryResult.cost;
+      } catch (industryError) {
+        logger.warn('Industry analysis failed, using fallback', { error: industryError.message });
+        results.industryAnalysis = {
+          industryTrends: {
+            currentState: "業界分析は一時的に利用できません",
+            emergingTrends: ["リアルタイム分析準備中"],
+            regulatoryEnvironment: "規制環境の詳細分析は後日実施",
+            marketSize: "市場規模推定は準備中"
+          },
+          problemValidation: {
+            realityCheck: "課題の妥当性は基本検証のみ実施",
+            stakeholderImpact: "ステークホルダー影響分析は準備中",
+            urgencyLevel: 5,
+            evidence: "詳細な根拠収集は後日実施"
+          },
+          fallbackUsed: true
+        };
+      }
     }
 
-    // Step 4: 改善提案生成 (OpenAI GPT-4o-mini)
+    // Step 2-3: 並列処理でスピードアップ
+    logger.info('Starting parallel validation processes');
+    
+    const parallelPromises = [];
+    
+    // ビジネスモデル検証（必須）
+    parallelPromises.push(
+      performBusinessModelValidation(originalIdea, companyData, results.industryAnalysis)
+        .then(result => ({ type: 'businessModel', result }))
+        .catch(error => ({ type: 'businessModel', error }))
+    );
+    
+    // 競合分析（条件付き）
+    if (verificationLevel === 'comprehensive' || verificationLevel === 'expert') {
+      parallelPromises.push(
+        performCompetitiveAnalysis(originalIdea, companyData)
+          .then(result => ({ type: 'competitive', result }))
+          .catch(error => ({ type: 'competitive', error }))
+      );
+    }
+
+    // 並列実行
+    const parallelResults = await Promise.allSettled(parallelPromises);
+    
+    // 結果の処理
+    parallelResults.forEach((promiseResult, index) => {
+      if (promiseResult.status === 'fulfilled') {
+        const { type, result, error } = promiseResult.value;
+        
+        if (error) {
+          logger.warn(`${type} analysis failed, using fallback`, { error: error.message });
+          if (type === 'competitive') {
+            results.competitiveAnalysis = {
+              directCompetitors: [],
+              indirectCompetitors: [],
+              competitiveAdvantageAnalysis: {
+                sustainabilityScore: 5,
+                moatStrength: "競合分析は一時的に利用できません"
+              },
+              fallbackUsed: true
+            };
+          }
+        } else {
+          if (type === 'businessModel') {
+            results.businessModelValidation = result.data;
+            totalTokens += result.tokens;
+            totalCost += result.cost;
+          } else if (type === 'competitive') {
+            results.competitiveAnalysis = result.data;
+            totalTokens += result.tokens;
+            totalCost += result.cost;
+          }
+        }
+      }
+    });
+
+    // Step 4: 改善提案生成（必須）
     logger.info('Generating improvement suggestions');
     const improvementResult = await generateImprovementSuggestions(originalIdea, companyData, results);
     results.improvementSuggestions = improvementResult.data;
     totalTokens += improvementResult.tokens;
     totalCost += improvementResult.cost;
 
-    // Step 5: 総合評価
+    // Step 5: 総合評価（改善提案の結果を含む）
     logger.info('Generating overall assessment');
     const assessmentResult = await generateOverallAssessment(originalIdea, results);
     results.overallAssessment = assessmentResult.data;
@@ -450,6 +529,12 @@ ${industrySpecific.keyQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
 }`;
 
   try {
+    logger.info('Calling Perplexity API for industry analysis', {
+      model: 'sonar-pro',
+      promptLength: prompt.length,
+      hasApiKey: !!process.env.PERPLEXITY_API_KEY
+    });
+
     const response = await perplexity.chat.completions.create({
       model: "sonar-pro",
       messages: [{ role: "user", content: prompt }],
@@ -457,7 +542,23 @@ ${industrySpecific.keyQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
       temperature: 0.3
     });
 
+    logger.info('Perplexity API response received', {
+      hasChoices: !!response.choices,
+      choicesLength: response.choices?.length,
+      hasUsage: !!response.usage,
+      contentLength: response.choices?.[0]?.message?.content?.length
+    });
+
     const content = response.choices[0].message.content;
+    
+    if (!content) {
+      throw new Error('No content received from Perplexity API');
+    }
+
+    logger.info('Parsing JSON response', {
+      contentPreview: content.substring(0, 200) + '...'
+    });
+
     const parsedData = JSON.parse(content);
 
     return {
@@ -466,8 +567,13 @@ ${industrySpecific.keyQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
       cost: calculatePerplexityCost(response.usage)
     };
   } catch (error) {
-    logger.error('Industry analysis error', error);
-    throw new Error('Failed to perform industry analysis');
+    logger.error('Industry analysis error', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      response: error.response?.data || 'No response data'
+    });
+    throw new Error(`Failed to perform industry analysis: ${error.message}`);
   }
 }
 

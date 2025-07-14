@@ -4,6 +4,7 @@
 [functions]
   "extract-mvv-perplexity" = { timeout = 30 }
   "extract-mvv" = { timeout = 30 }
+  "verify-business-idea" = { timeout = 60 }
 
 [dev]
   port = 8888
