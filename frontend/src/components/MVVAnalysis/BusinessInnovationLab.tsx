@@ -467,7 +467,7 @@ export const BusinessInnovationLab: React.FC = () => {
     const idea = selectedIdeaForDetail;
 
     return (
-      <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-xl shadow-2xl max-w-6xl max-h-[90vh] overflow-y-auto w-full relative">
           {/* ヘッダー */}
           <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -1876,7 +1876,7 @@ export const BusinessInnovationLab: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowSavedIdeasPanel(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white border-opacity-20"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200 shadow-sm border border-blue-200"
               title="保存済みアイデアを表示・復元"
             >
               <Database className="w-4 h-4" />
@@ -1886,7 +1886,7 @@ export const BusinessInnovationLab: React.FC = () => {
             {savedIdeas.length > 0 && (
               <button
                 onClick={() => setShowExportWizard(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white border-opacity-20"
+                className="flex items-center gap-2 px-4 py-2 bg-white text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 shadow-sm border border-green-200"
                 title="Excel形式で出力"
               >
                 <FileSpreadsheet className="w-4 h-4" />

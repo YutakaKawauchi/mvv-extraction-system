@@ -176,7 +176,7 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-y-0 right-0 w-96 bg-white shadow-xl border-l border-gray-200 z-50 transform transition-transform duration-300 ease-in-out ${className}`}>
+    <div className={`fixed inset-y-0 right-0 w-96 bg-white shadow-xl border-l border-gray-200 z-40 transform transition-transform duration-300 ease-in-out ${className}`}>
       {/* ヘッダー */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
@@ -337,29 +337,15 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
                     <Calendar className="w-3 h-3" />
                     {new Date(idea.updatedAt).toLocaleDateString('ja-JP')}
                   </span>
-                  <span>{getStatusText(idea.status)}</span>
                 </div>
 
-                {/* スコア表示 */}
-                <div className="grid grid-cols-3 gap-1 mb-2">
-                  <div className="text-center">
-                    <div className="text-xs font-medium text-blue-600">
-                      {(idea.feasibility.mvvAlignment * 100).toFixed(0)}%
-                    </div>
-                    <div className="text-xs text-gray-500">MVV</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs font-medium text-green-600">
-                      {(idea.feasibility.implementationScore * 100).toFixed(0)}%
-                    </div>
-                    <div className="text-xs text-gray-500">実装</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs font-medium text-purple-600">
-                      {(idea.feasibility.marketPotential * 100).toFixed(0)}%
-                    </div>
-                    <div className="text-xs text-gray-500">市場</div>
-                  </div>
+                {/* アイデア概要 */}
+                <div className="mb-2">
+                  <p className="text-xs text-gray-600 line-clamp-2 leading-4">
+                    {idea.description.length > 100 
+                      ? `${idea.description.substring(0, 100)}...` 
+                      : idea.description}
+                  </p>
                 </div>
 
                 {/* アクションボタン */}
