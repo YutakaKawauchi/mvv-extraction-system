@@ -114,6 +114,7 @@ export const BusinessInnovationLab: React.FC = () => {
   const [isLoadingIdeas, setIsLoadingIdeas] = useState(false);
   const [selectedIdeaForDetail, setSelectedIdeaForDetail] = useState<StoredBusinessIdea | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [savedIdeasRefreshKey, setSavedIdeasRefreshKey] = useState(0);
   const [progress, setProgress] = useState(0);
   const [maxIdeas, setMaxIdeas] = useState(1); // デフォルト1案
   
@@ -417,6 +418,9 @@ export const BusinessInnovationLab: React.FC = () => {
       await ideaStorageService.toggleStar(ideaId);
       await loadSavedIdeas();
       
+      // SavedIdeasPanelの更新をトリガー
+      setSavedIdeasRefreshKey(prev => prev + 1);
+      
       // モーダル表示中のアイデアも更新
       if (selectedIdeaForDetail && selectedIdeaForDetail.id === ideaId) {
         const updatedIdea = await ideaStorageService.getIdea(ideaId);
@@ -521,7 +525,18 @@ export const BusinessInnovationLab: React.FC = () => {
           <div className="p-4 space-y-4">
             {/* 基本情報 */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-              <h1 className="text-xl font-bold text-gray-900 mb-3">{idea.title}</h1>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <h1 className="text-xl font-bold text-gray-900">{idea.title}</h1>
+                </div>
+                <button
+                  onClick={() => handleToggleStar(idea.id)}
+                  className="p-2 hover:bg-white hover:bg-opacity-50 rounded-lg transition-colors"
+                  title={idea.starred ? 'スターを外す' : 'スターを付ける'}
+                >
+                  <Star className={`h-6 w-6 ${idea.starred ? 'text-yellow-500 fill-current' : 'text-gray-400'}`} />
+                </button>
+              </div>
               <p className="text-gray-700 leading-relaxed mb-3">{idea.description}</p>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
@@ -545,9 +560,8 @@ export const BusinessInnovationLab: React.FC = () => {
 
             {/* リーンキャンバス - 最重要情報なので上部に配置 */}
             <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <span className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-2 py-1 rounded text-sm mr-2">CORE</span>
-                リーンキャンバス（9ブロック）
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                リーンキャンバス
               </h3>
               <div className="grid grid-cols-10 grid-rows-3 gap-1 border border-gray-300 rounded-lg overflow-hidden text-xs min-h-[320px]">
                 
@@ -652,167 +666,40 @@ export const BusinessInnovationLab: React.FC = () => {
               </div>
             </div>
 
-            {/* MVV世界観 */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">MVV世界観</h3>
-              <p className="text-blue-800 leading-relaxed text-sm">{idea.worldview}</p>
-            </div>
+            {/* コンパクトな3列レイアウト */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* MVV世界観 */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <h4 className="text-sm font-semibold text-blue-900 mb-2">MVV世界観</h4>
+                <p className="text-blue-800 leading-relaxed text-xs">{idea.worldview}</p>
+              </div>
 
-            {/* 業界洞察 */}
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-orange-900 mb-2">業界課題の深い洞察</h3>
-              <p className="text-orange-800 leading-relaxed text-sm">{idea.industryInsight}</p>
-            </div>
+              {/* 業界洞察 */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <h4 className="text-sm font-semibold text-orange-900 mb-2">業界課題の深い洞察</h4>
+                <p className="text-orange-800 leading-relaxed text-xs">{idea.industryInsight}</p>
+              </div>
 
-            {/* 実現可能性評価 */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">実現可能性評価</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-2">
-                    {(idea.feasibility.mvvAlignment * 100).toFixed(0)}%
+              {/* 実現可能性評価 */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">実現可能性評価</h4>
+                <div className="space-y-2">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-blue-600">{(idea.feasibility.mvvAlignment * 100).toFixed(0)}%</div>
+                    <div className="text-xs text-blue-900">MVV適合度</div>
                   </div>
-                  <div className="text-sm font-medium text-blue-900 mb-2">MVV適合度</div>
-                  <div className="w-full bg-blue-200 rounded-full h-3 mb-3">
-                    <div 
-                      className="bg-blue-600 h-3 rounded-full" 
-                      style={{ width: `${idea.feasibility.mvvAlignment * 100}%` }}
-                    ></div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-green-600">{(idea.feasibility.implementationScore * 100).toFixed(0)}%</div>
+                    <div className="text-xs text-green-900">実装容易性</div>
                   </div>
-                  <p className="text-xs text-blue-800 leading-tight">{idea.feasibility.mvvAlignmentReason}</p>
-                </div>
-                
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 mb-2">
-                    {(idea.feasibility.implementationScore * 100).toFixed(0)}%
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-purple-600">{(idea.feasibility.marketPotential * 100).toFixed(0)}%</div>
+                    <div className="text-xs text-purple-900">市場ポテンシャル</div>
                   </div>
-                  <div className="text-sm font-medium text-green-900 mb-2">実装容易性</div>
-                  <div className="w-full bg-green-200 rounded-full h-3 mb-3">
-                    <div 
-                      className="bg-green-600 h-3 rounded-full" 
-                      style={{ width: `${idea.feasibility.implementationScore * 100}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-green-800 leading-tight">{idea.feasibility.implementationReason}</p>
-                </div>
-                
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600 mb-2">
-                    {(idea.feasibility.marketPotential * 100).toFixed(0)}%
-                  </div>
-                  <div className="text-sm font-medium text-purple-900 mb-2">市場ポテンシャル</div>
-                  <div className="w-full bg-purple-200 rounded-full h-3 mb-3">
-                    <div 
-                      className="bg-purple-600 h-3 rounded-full" 
-                      style={{ width: `${idea.feasibility.marketPotential * 100}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-purple-800 leading-tight">{idea.feasibility.marketPotentialReason}</p>
                 </div>
               </div>
             </div>
 
-            {/* リーンキャンバス */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">リーンキャンバス（9ブロック）</h3>
-              <div className="grid grid-cols-10 grid-rows-3 gap-1 border border-gray-300 rounded-lg overflow-hidden text-xs min-h-[400px]">
-                
-                {/* ②課題 */}
-                <div className="col-span-2 row-span-2 bg-slate-50 border-r border-b border-gray-300 p-3">
-                  <div className="font-semibold text-slate-800 mb-2">②課題</div>
-                  <div className="text-slate-700 space-y-2">
-                    {idea.leanCanvas.problem.map((p, i) => (
-                      <div key={i} className="border-l-2 border-slate-300 pl-2">{p}</div>
-                    ))}
-                    <div className="mt-3 pt-2 border-t border-slate-200">
-                      <div className="font-semibold text-slate-900 mb-1">既存の代替品</div>
-                      <div className="text-slate-700">
-                        {idea.leanCanvas.existingAlternatives || "現在顧客がこの課題をどう解決しているか"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* ④ソリューション */}
-                <div className="col-span-2 bg-blue-50 border-r border-b border-gray-300 p-3">
-                  <div className="font-semibold text-blue-800 mb-2">④ソリューション</div>
-                  <div className="text-blue-700">{idea.leanCanvas.solution}</div>
-                </div>
-                
-                {/* ③独自の価値提案 */}
-                <div className="col-span-2 row-span-2 bg-amber-50 border-r border-b border-gray-300 p-3">
-                  <div className="font-semibold text-amber-800 mb-2">③独自の価値提案</div>
-                  <div className="text-amber-700 font-medium">{idea.leanCanvas.valueProposition}</div>
-                </div>
-                
-                {/* ⑨圧倒的な優位性 */}
-                <div className="col-span-2 bg-indigo-50 border-r border-b border-gray-300 p-3">
-                  <div className="font-semibold text-indigo-800 mb-2">⑨圧倒的な優位性</div>
-                  <div className="text-indigo-700">{idea.leanCanvas.unfairAdvantage}</div>
-                </div>
-                
-                {/* ①顧客セグメント */}
-                <div className="col-span-2 row-span-2 bg-emerald-50 border-b border-gray-300 p-3">
-                  <div className="font-semibold text-emerald-800 mb-2">①顧客セグメント</div>
-                  <div className="text-emerald-700 space-y-1">
-                    {idea.leanCanvas.targetCustomers.map((customer, i) => (
-                      <div key={i} className="bg-emerald-100 px-2 py-1 rounded">{customer}</div>
-                    ))}
-                    <div className="mt-3 pt-2 border-t border-emerald-200">
-                      <div className="font-semibold text-emerald-900 mb-1">アーリーアダプター</div>
-                      <div className="text-emerald-700">
-                        {idea.leanCanvas.earlyAdopters || "誰が一番初めに顧客となってくれるか"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* ⑦主要指標 */}
-                <div className="col-span-2 bg-teal-50 border-r border-b border-gray-300 p-3">
-                  <div className="font-semibold text-teal-800 mb-2">⑦主要指標</div>
-                  <div className="text-teal-700 space-y-1">
-                    {idea.leanCanvas.keyMetrics?.map((metric, i) => (
-                      <div key={i} className="bg-teal-100 px-1 py-1 rounded">{metric}</div>
-                    )) || <div className="text-gray-500">設定が必要</div>}
-                  </div>
-                </div>
-                
-                {/* ⑤チャネル */}
-                <div className="col-span-2 bg-violet-50 border-r border-b border-gray-300 p-3">
-                  <div className="font-semibold text-violet-800 mb-2">⑤チャネル</div>
-                  <div className="text-violet-700 space-y-1">
-                    {idea.leanCanvas.channels?.map((channel, i) => (
-                      <div key={i} className="bg-violet-100 px-1 py-1 rounded">{channel}</div>
-                    )) || <div className="text-gray-500">検討が必要</div>}
-                  </div>
-                </div>
-                
-                {/* ⑧コスト構造 */}
-                <div className="col-span-5 bg-rose-50 border-r border-gray-300 p-3">
-                  <div className="font-semibold text-rose-800 mb-2">⑧コスト構造</div>
-                  <div className="text-rose-700 space-y-1">
-                    {idea.leanCanvas.costStructure?.map((cost, i) => (
-                      <div key={i} className="border-l-2 border-rose-300 pl-2">{cost}</div>
-                    )) || <div className="text-gray-500">分析が必要</div>}
-                  </div>
-                </div>
-                
-                {/* ⑥収益の流れ */}
-                <div className="col-span-5 bg-green-50 p-3">
-                  <div className="font-semibold text-green-800 mb-2 flex items-center">
-                    <span className="mr-1">💰</span>
-                    ⑥収益の流れ（支払者明記）
-                  </div>
-                  <div className="text-green-700 space-y-1">
-                    {idea.leanCanvas.revenueStreams.map((revenue, i) => (
-                      <div key={i} className="bg-green-100 px-2 py-1 rounded font-medium border border-green-200">
-                        {revenue}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* AI検証結果 */}
             {idea.verification && (
@@ -2123,6 +2010,7 @@ export const BusinessInnovationLab: React.FC = () => {
           setSelectedIdeaForDetail(idea);
           setShowDetailModal(true);
         }}
+        refreshKey={savedIdeasRefreshKey}
       />
     </div>
   );

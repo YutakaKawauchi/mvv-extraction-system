@@ -27,6 +27,7 @@ interface SavedIdeasPanelProps {
   onRestoreIdea: (idea: StoredBusinessIdea) => void;
   onViewDetails: (idea: StoredBusinessIdea) => void;
   className?: string;
+  refreshKey?: number;
 }
 
 export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
@@ -34,7 +35,8 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
   onClose,
   onRestoreIdea,
   onViewDetails,
-  className = ''
+  className = '',
+  refreshKey = 0
 }) => {
   const [ideas, setIdeas] = useState<StoredBusinessIdea[]>([]);
   const [filteredIdeas, setFilteredIdeas] = useState<StoredBusinessIdea[]>([]);
@@ -67,6 +69,13 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
       loadIdeas();
     }
   }, [isOpen]);
+
+  // refreshKeyが変更されたときの再読み込み
+  useEffect(() => {
+    if (isOpen && refreshKey > 0) {
+      loadIdeas();
+    }
+  }, [refreshKey, isOpen]);
 
   // フィルタリング・検索・ソート
   useEffect(() => {
