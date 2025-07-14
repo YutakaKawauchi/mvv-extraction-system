@@ -164,14 +164,6 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'verified': return '検証済み';
-      case 'draft': return '下書き';
-      case 'archived': return 'アーカイブ';
-      default: return status;
-    }
-  };
 
   if (!isOpen) return null;
 
