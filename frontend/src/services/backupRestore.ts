@@ -3,6 +3,7 @@
  */
 
 import { companyStorage, mvvStorage, db } from './storage';
+import { ideaStorageService, type StoredBusinessIdea } from './ideaStorage';
 import type { Company, MVVData, CompanyInfo } from '../types';
 
 export interface BackupData {
@@ -11,11 +12,14 @@ export interface BackupData {
   companies: Company[];
   mvvData: MVVData[];
   companyInfo: CompanyInfo[]; // 企業情報を追加
+  businessIdeas: StoredBusinessIdea[]; // ビジネスアイデアを追加
   stats: {
     totalCompanies: number;
     companiesWithMVV: number;
     companiesWithEmbeddings: number;
     companiesWithInfo: number; // 企業情報数を追加
+    totalIdeas: number; // ビジネスアイデア総数を追加
+    companiesWithIdeas: number; // アイデアを持つ企業数を追加
     fullyCompleted: number;
     statusBreakdown: {
       pending: number;
@@ -43,6 +47,7 @@ export interface RestoreResult {
     companies: { total: number; updated: number; created: number; };
     mvvData: { total: number; updated: number; created: number; };
     companyInfo: { total: number; updated: number; created: number; }; // 企業情報統計
+    businessIdeas: { total: number; updated: number; created: number; }; // ビジネスアイデア統計
   };
   errors: Array<{
     companyName: string;
@@ -57,33 +62,36 @@ export async function createBackup(): Promise<BackupData> {
   try {
     console.log('Creating backup...');
     
-    const [companies, mvvData, companyInfoData] = await Promise.all([
+    const [companies, mvvData, companyInfoData, businessIdeas] = await Promise.all([
       companyStorage.getAll(),
       mvvStorage.getAll(),
-      db.companyInfo.toArray() // 企業情報を追加
+      db.companyInfo.toArray(), // 企業情報を追加
+      ideaStorageService.getIdeas() // ビジネスアイデアを追加
     ]);
     
     // CompanyInfoを正しい形式に変換
-    const companyInfo: CompanyInfo[] = companyInfoData.map(info => ({
+    const companyInfo: CompanyInfo[] = companyInfoData.map((info: any) => ({
       ...info,
       lastUpdated: new Date(info.lastUpdated)
     }));
     
     // Calculate statistics
-    const companiesWithMVV = companies.filter(c => c.mission || c.vision || c.values).length;
-    const companiesWithEmbeddings = companies.filter(c => c.embeddings && c.embeddings.length > 0).length;
+    const companiesWithMVV = companies.filter((c: any) => c.mission || c.vision || c.values).length;
+    const companiesWithEmbeddings = companies.filter((c: any) => c.embeddings && c.embeddings.length > 0).length;
     const companiesWithInfo = companyInfo.length; // 企業情報統計を追加
-    const fullyCompleted = companies.filter(c => c.status === 'fully_completed').length;
+    const totalIdeas = businessIdeas.length; // ビジネスアイデア総数
+    const companiesWithIdeas = new Set(businessIdeas.map((idea: any) => idea.companyId)).size; // アイデアを持つ企業数
+    const fullyCompleted = companies.filter((c: any) => c.status === 'fully_completed').length;
     
     // Calculate detailed status breakdown
     const statusBreakdown = {
-      pending: companies.filter(c => c.status === 'pending').length,
-      processing: companies.filter(c => c.status === 'processing').length,
-      mvv_extracted: companies.filter(c => c.status === 'mvv_extracted').length,
-      fully_completed: companies.filter(c => c.status === 'fully_completed').length,
-      mvv_extraction_error: companies.filter(c => c.status === 'mvv_extraction_error').length,
-      embeddings_generation_error: companies.filter(c => c.status === 'embeddings_generation_error').length,
-      error: companies.filter(c => c.status === 'error').length
+      pending: companies.filter((c: any) => c.status === 'pending').length,
+      processing: companies.filter((c: any) => c.status === 'processing').length,
+      mvv_extracted: companies.filter((c: any) => c.status === 'mvv_extracted').length,
+      fully_completed: companies.filter((c: any) => c.status === 'fully_completed').length,
+      mvv_extraction_error: companies.filter((c: any) => c.status === 'mvv_extraction_error').length,
+      embeddings_generation_error: companies.filter((c: any) => c.status === 'embeddings_generation_error').length,
+      error: companies.filter((c: any) => c.status === 'error').length
     };
     
     console.log('Backup statistics:', {
@@ -91,21 +99,26 @@ export async function createBackup(): Promise<BackupData> {
       companiesWithMVV,
       companiesWithEmbeddings,
       companiesWithInfo,
+      totalIdeas,
+      companiesWithIdeas,
       fullyCompleted,
       statusBreakdown
     });
     
     const backup: BackupData = {
-      version: '2.0.0', // 企業情報対応のためバージョンアップ
+      version: '3.0.0', // ビジネスアイデア対応のためバージョンアップ
       timestamp: new Date().toISOString(),
       companies,
       mvvData,
       companyInfo, // 企業情報を追加
+      businessIdeas, // ビジネスアイデアを追加
       stats: {
         totalCompanies: companies.length,
         companiesWithMVV,
         companiesWithEmbeddings,
         companiesWithInfo, // 企業情報統計を追加
+        totalIdeas, // ビジネスアイデア統計を追加
+        companiesWithIdeas, // アイデアを持つ企業数を追加
         fullyCompleted,
         statusBreakdown
       }
@@ -159,7 +172,7 @@ export async function restoreFromBackup(backupData: BackupData): Promise<Restore
     const result: RestoreResult = {
       success: true,
       stats: {
-        total: backupData.companies.length + (backupData.companyInfo?.length || 0),
+        total: backupData.companies.length + (backupData.companyInfo?.length || 0) + (backupData.businessIdeas?.length || 0),
         updated: 0,
         created: 0,
         skipped: 0,
@@ -168,7 +181,8 @@ export async function restoreFromBackup(backupData: BackupData): Promise<Restore
       details: {
         companies: { total: backupData.companies.length, updated: 0, created: 0 },
         mvvData: { total: backupData.mvvData.length, updated: 0, created: 0 },
-        companyInfo: { total: backupData.companyInfo?.length || 0, updated: 0, created: 0 }
+        companyInfo: { total: backupData.companyInfo?.length || 0, updated: 0, created: 0 },
+        businessIdeas: { total: backupData.businessIdeas?.length || 0, updated: 0, created: 0 }
       },
       errors: []
     };
@@ -298,6 +312,61 @@ export async function restoreFromBackup(backupData: BackupData): Promise<Restore
       }
     }
     
+    // Restore Business Ideas data (if available)
+    if (backupData.businessIdeas && backupData.businessIdeas.length > 0) {
+      console.log('Restoring business ideas data...');
+      const existingIdeas = await ideaStorageService.getIdeas();
+      const existingIdeasMap = new Map(existingIdeas.map((idea: any) => 
+        [idea.id, idea]
+      ));
+      
+      for (const backupIdea of backupData.businessIdeas) {
+        try {
+          const existingIdea = existingIdeasMap.get(backupIdea.id);
+          
+          if (existingIdea) {
+            // Update existing business idea
+            await ideaStorageService.updateIdeaWithVerification(backupIdea.id, backupIdea.verification);
+            result.details.businessIdeas.updated++;
+          } else {
+            // Create new business idea
+            const ideaWithoutId = {
+              companyId: backupIdea.companyId,
+              companyName: backupIdea.companyName,
+              title: backupIdea.title,
+              description: backupIdea.description,
+              worldview: backupIdea.worldview,
+              industryInsight: backupIdea.industryInsight,
+              leanCanvas: backupIdea.leanCanvas,
+              feasibility: backupIdea.feasibility,
+              verification: backupIdea.verification,
+              analysisParams: backupIdea.analysisParams || {
+                focusAreas: [],
+                businessModel: '',
+                targetMarket: '',
+                constraints: {}
+              },
+              generationMetadata: backupIdea.generationMetadata || {
+                model: 'unknown',
+                tokensUsed: 0,
+                estimatedCost: 0,
+                confidence: 0,
+                version: '1.0'
+              },
+              status: backupIdea.status || 'draft',
+              starred: backupIdea.starred || false,
+              tags: backupIdea.tags || []
+            };
+            await ideaStorageService.saveIdea(ideaWithoutId);
+            result.details.businessIdeas.created++;
+          }
+        } catch (error) {
+          console.error(`Failed to restore business idea ${backupIdea.title}:`, error);
+          result.stats.errors++;
+        }
+      }
+    }
+    
     console.log('Restore completed:', result.stats);
     console.log('Details:', result.details);
     return result;
@@ -316,7 +385,8 @@ export async function restoreFromBackup(backupData: BackupData): Promise<Restore
       details: {
         companies: { total: 0, updated: 0, created: 0 },
         mvvData: { total: 0, updated: 0, created: 0 },
-        companyInfo: { total: 0, updated: 0, created: 0 }
+        companyInfo: { total: 0, updated: 0, created: 0 },
+        businessIdeas: { total: 0, updated: 0, created: 0 }
       },
       errors: [{
         companyName: 'System',
@@ -346,6 +416,12 @@ export function validateBackupData(data: any): data is BackupData {
     if (isValid && !data.companyInfo) {
       console.warn('Legacy backup format detected. CompanyInfo will be empty.');
       data.companyInfo = []; // 空の配列で初期化
+    }
+    
+    // 後方互換性: businessIdeasがない古いフォーマットも受け入れる
+    if (isValid && !data.businessIdeas) {
+      console.warn('Legacy backup format detected. BusinessIdeas will be empty.');
+      data.businessIdeas = []; // 空の配列で初期化
     }
     
     return isValid;

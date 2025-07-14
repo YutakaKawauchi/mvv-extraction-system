@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAnalysisStore } from '../../stores/analysisStore';
 import { useCompanyStore } from '../../stores/companyStore';
 import { LoadingSpinner, ErrorBoundary } from '../common';
-import { Search, AlertCircle, RefreshCw, Star, Hash, Target, Award, Cloud, Camera, Lightbulb } from 'lucide-react';
+import { Search, AlertCircle, RefreshCw, Star, Hash, Target, Award, Cloud, Camera } from 'lucide-react';
 import SimilarCompanyFinder from './SimilarCompanyFinder';
 import { UniquenessScoreDashboard } from './UniquenessScoreDashboard';
 import { MVVTrendAnalysis } from './MVVTrendAnalysis';
@@ -10,9 +10,8 @@ import { CompetitivePositioningMap } from './CompetitivePositioningMap';
 import { MVVQualityAssessment } from './MVVQualityAssessment';
 import { WordCloudDashboard } from './WordCloudDashboard';
 import { VisualAnalyticsGallery } from './VisualAnalyticsGallery';
-import { BusinessInnovationLab } from './BusinessInnovationLab';
 
-type TabType = 'finder' | 'trends' | 'wordcloud' | 'positioning' | 'uniqueness' | 'quality' | 'gallery' | 'innovation';
+type TabType = 'finder' | 'trends' | 'wordcloud' | 'positioning' | 'uniqueness' | 'quality' | 'gallery';
 
 export const MVVAnalysisDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('finder');
@@ -86,7 +85,6 @@ export const MVVAnalysisDashboard: React.FC = () => {
     { id: 'positioning', name: 'ポジショニング', icon: Target, description: '競合ポジショニングマップ' },
     { id: 'uniqueness', name: '独自性分析', icon: Star, description: 'リアルタイム企業独自性スコア分析', beta: true },
     { id: 'quality', name: '品質評価', icon: Award, description: 'MVV品質評価システム', beta: true },
-    { id: 'innovation', name: 'ビジネス革新', icon: Lightbulb, description: 'AI powered 新規事業アイデア生成', alpha: true },
     { id: 'gallery', name: 'ギャラリー', icon: Camera, description: 'AI分析画面キャプチャ・Excel統合', new: true }
   ] as const;
 
@@ -104,8 +102,6 @@ export const MVVAnalysisDashboard: React.FC = () => {
         return <div data-analysis-screen="uniqueness"><UniquenessScoreDashboard /></div>;
       case 'quality':
         return <div data-analysis-screen="quality"><MVVQualityAssessment /></div>;
-      case 'innovation':
-        return <div data-analysis-screen="innovation"><BusinessInnovationLab /></div>;
       case 'gallery':
         return <VisualAnalyticsGallery />;
       default:
