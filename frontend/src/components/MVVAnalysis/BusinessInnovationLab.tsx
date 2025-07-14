@@ -12,10 +12,7 @@ import {
   CheckCircle,
   Star,
   Database,
-  Trash2,
   Eye,
-  Calendar,
-  RefreshCw,
   X,
   Clock,
   Tag,
@@ -108,8 +105,8 @@ export const BusinessInnovationLab: React.FC = () => {
   const [results, setResults] = useState<GenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedIdeas, setSavedIdeas] = useState<StoredBusinessIdea[]>([]);
-  const [showSavedIdeasPanel, setShowSavedIdeasPanel] = useState(false);
   const [isLoadingIdeas, setIsLoadingIdeas] = useState(false);
+  const [showSavedIdeasPanel, setShowSavedIdeasPanel] = useState(false);
   const [selectedIdeaForDetail, setSelectedIdeaForDetail] = useState<StoredBusinessIdea | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [savedIdeasRefreshKey, setSavedIdeasRefreshKey] = useState(0);
@@ -128,7 +125,7 @@ export const BusinessInnovationLab: React.FC = () => {
   useEffect(() => {
     loadCompanies();
     loadSavedIdeas();
-  }, [loadCompanies]);
+  }, []); // 初回マウント時のみ実行
 
   // 保存済みアイデアの読み込み
   const loadSavedIdeas = async () => {
@@ -386,22 +383,6 @@ export const BusinessInnovationLab: React.FC = () => {
   };
 
   // アイデア管理機能
-  const handleDeleteIdea = async (ideaId: string) => {
-    if (!confirm('このアイデアを削除しますか？')) return;
-    
-    try {
-      await ideaStorageService.deleteIdea(ideaId);
-      await loadSavedIdeas();
-    } catch (error) {
-      console.error('Failed to delete idea:', error);
-      setError('アイデアの削除に失敗しました');
-    }
-  };
-
-  // Excel Export handlers
-  const handleExportToExcel = () => {
-    setShowExportWizard(true);
-  };
 
   const handleExportComplete = (fileName: string) => {
     setError(null);
@@ -432,10 +413,6 @@ export const BusinessInnovationLab: React.FC = () => {
     }
   };
 
-  const handleViewIdeaDetail = (idea: StoredBusinessIdea) => {
-    setSelectedIdeaForDetail(idea);
-    setShowDetailModal(true);
-  };
 
   const handleCloseDetailModal = () => {
     setShowDetailModal(false);
@@ -1078,161 +1055,6 @@ export const BusinessInnovationLab: React.FC = () => {
     );
   };
 
-    
-    return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center">
-            <Database className="h-5 w-5 text-blue-600 mr-2" />
-            <h3 className="text-lg font-semibold text-gray-900">保存済みアイデア</h3>
-            <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm">
-              {savedIdeas.length}件
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={loadSavedIdeas}
-              disabled={isLoadingIdeas}
-              className="flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingIdeas ? 'animate-spin' : ''}`} />
-              更新
-            </button>
-            <button
-              onClick={handleExportToExcel}
-              disabled={savedIdeas.length === 0}
-              className="flex items-center px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-              title="美しいリーンキャンバスレイアウトでExcel出力"
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-1" />
-              Excel出力
-            </button>
-            <select
-              value={ideaFilter}
-              onChange={(e) => setIdeaFilter(e.target.value as any)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">すべて</option>
-              <option value="verified">検証済み</option>
-              <option value="draft">下書き</option>
-              <option value="starred">スター付き</option>
-            </select>
-          </div>
-        </div>
-
-        {isLoadingIdeas ? (
-          <div className="text-center py-8">
-            <LoadingSpinner size="md" className="mx-auto mb-4" />
-            <p className="text-gray-600">アイデアを読み込み中...</p>
-          </div>
-        ) : filteredIdeas.length === 0 ? (
-          <div className="text-center text-gray-600 py-8">
-            <Database className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-lg font-medium mb-2">
-              {ideaFilter === 'all' ? '保存済みアイデアはありません' : 
-               ideaFilter === 'verified' ? '検証済みアイデアはありません' :
-               ideaFilter === 'draft' ? '下書きアイデアはありません' :
-               'スター付きアイデアはありません'}
-            </p>
-            <p className="text-sm">新しいアイデアを生成して保存してください</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredIdeas.map((idea) => (
-              <div key={idea.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center mb-2">
-                      <h4 className="text-lg font-semibold text-gray-900 mr-3">{idea.title}</h4>
-                      <div className="flex items-center space-x-2">
-                        {idea.starred && (
-                          <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                        )}
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          idea.status === 'verified' ? 'bg-green-100 text-green-700' :
-                          idea.status === 'draft' ? 'bg-gray-100 text-gray-700' :
-                          'bg-blue-100 text-blue-700'
-                        }`}>
-                          {idea.status === 'verified' ? '検証済み' :
-                           idea.status === 'draft' ? '下書き' : 'アーカイブ'}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-gray-700 text-sm mb-2 line-clamp-2">{idea.description}</p>
-                    <div className="flex items-center text-xs text-gray-500 space-x-4">
-                      <span className="flex items-center">
-                        <Building2 className="h-3 w-3 mr-1" />
-                        {idea.companyName}
-                      </span>
-                      <span className="flex items-center">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {new Date(idea.createdAt).toLocaleDateString('ja-JP')}
-                      </span>
-                      {idea.verification && (
-                        <span className="flex items-center text-green-600">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          信頼度 {(idea.verification.metadata.confidence * 100).toFixed(0)}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2 ml-4">
-                    <button
-                      onClick={() => handleToggleStar(idea.id)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        idea.starred 
-                          ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200' 
-                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                      }`}
-                      title={idea.starred ? 'スターを外す' : 'スターを付ける'}
-                    >
-                      <Star className={`h-4 w-4 ${idea.starred ? 'fill-current' : ''}`} />
-                    </button>
-                    <button
-                      onClick={() => handleViewIdeaDetail(idea)}
-                      className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
-                      title="詳細を表示"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteIdea(idea.id)}
-                      className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                      title="削除"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                
-                {/* 実現可能性スコア表示 */}
-                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100">
-                  <div className="text-center">
-                    <div className="text-xs text-gray-600">MVV適合</div>
-                    <div className="text-sm font-medium text-blue-600">
-                      {(idea.feasibility.mvvAlignment * 100).toFixed(0)}%
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs text-gray-600">実装容易</div>
-                    <div className="text-sm font-medium text-green-600">
-                      {(idea.feasibility.implementationScore * 100).toFixed(0)}%
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs text-gray-600">市場性</div>
-                    <div className="text-sm font-medium text-purple-600">
-                      {(idea.feasibility.marketPotential * 100).toFixed(0)}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   const renderCompanySelection = () => (
     <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -1879,19 +1701,27 @@ export const BusinessInnovationLab: React.FC = () => {
               title="保存済みアイデアを表示・復元"
             >
               <Database className="w-4 h-4" />
-              <span className="text-sm font-medium">保存済み ({savedIdeas.length})</span>
+              <span className="text-sm font-medium">保存済み</span>
+              {savedIdeas.length > 0 && (
+                <span className="ml-1 bg-blue-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                  {savedIdeas.length}
+                </span>
+              )}
             </button>
             
-            {savedIdeas.length > 0 && (
-              <button
-                onClick={() => setShowExportWizard(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 shadow-sm border border-green-200"
-                title="Excel形式で出力"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                <span className="text-sm font-medium">Excel出力</span>
-              </button>
-            )}
+            <button
+              onClick={() => setShowExportWizard(true)}
+              disabled={savedIdeas.length === 0 || isLoadingIdeas}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 shadow-sm ${
+                savedIdeas.length > 0 && !isLoadingIdeas
+                  ? 'bg-white text-green-700 hover:bg-green-50 border border-green-200'
+                  : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+              }`}
+              title={savedIdeas.length > 0 ? "Excel形式で出力" : "保存済みアイデアがありません"}
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span className="text-sm font-medium">Excel出力</span>
+            </button>
           </div>
         </div>
         <p className="text-blue-100">
