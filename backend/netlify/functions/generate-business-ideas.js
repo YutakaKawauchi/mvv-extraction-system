@@ -24,8 +24,9 @@ const usageTracker = new UsageTracker();
  */
 exports.handler = async (event, context) => {
   // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: corsHeaders, body: '' };
+  const corsResponse = handleCors(event);
+  if (corsResponse) {
+    return corsResponse;
   }
 
   if (event.httpMethod !== 'POST') {
