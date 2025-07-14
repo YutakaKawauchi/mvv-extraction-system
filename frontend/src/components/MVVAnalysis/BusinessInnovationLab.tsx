@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { ideaStorageService, type StoredBusinessIdea } from '../../services/ideaStorage';
 import { IdeaExportWizard } from './IdeaExportWizard';
+import { SavedIdeasPanel } from './SavedIdeasPanel';
 
 interface AnalysisParams {
   focusAreas: string[];
@@ -108,6 +109,7 @@ export const BusinessInnovationLab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [savedIdeas, setSavedIdeas] = useState<StoredBusinessIdea[]>([]);
   const [showIdeaManager, setShowIdeaManager] = useState(false);
+  const [showSavedIdeasPanel, setShowSavedIdeasPanel] = useState(false);
   const [ideaFilter, setIdeaFilter] = useState<'all' | 'verified' | 'draft' | 'starred'>('all');
   const [isLoadingIdeas, setIsLoadingIdeas] = useState(false);
   const [selectedIdeaForDetail, setSelectedIdeaForDetail] = useState<StoredBusinessIdea | null>(null);
@@ -140,6 +142,58 @@ export const BusinessInnovationLab: React.FC = () => {
       setError('保存済みアイデアの読み込みに失敗しました');
     } finally {
       setIsLoadingIdeas(false);
+    }
+  };
+
+  // アイデア復元機能
+  const handleRestoreIdea = async (idea: StoredBusinessIdea) => {
+    try {
+      // 1. 元のパラメータを復元
+      setSelectedCompanyId(idea.companyId);
+      setAnalysisParams(idea.analysisParams);
+
+      // 2. 生成結果を復元（元のアイデアを results に設定）
+      const restoredResults: GenerationResult = {
+        ideas: [{
+          title: idea.title,
+          description: idea.description,
+          worldview: idea.worldview,
+          industryInsight: idea.industryInsight,
+          leanCanvas: idea.leanCanvas,
+          feasibility: idea.feasibility,
+          verification: idea.verification
+        }],
+        metadata: idea.generationMetadata
+      };
+      setResults(restoredResults);
+
+      // 3. 検証結果がある場合は検証状態も復元
+      if (idea.verification) {
+        setVerificationResults({ 0: idea.verification });
+      } else {
+        setVerificationResults({});
+      }
+
+      // 4. UI状態をリセット
+      setError(null);
+      setProgress(0);
+      setSelectedIdeaForVerification(null);
+      
+      // 5. パネルを閉じる
+      setShowSavedIdeasPanel(false);
+
+      console.log('Idea restored successfully:', idea.title);
+      
+      // 成功メッセージを一時表示
+      const originalError = error;
+      setError(`✅ アイデア「${idea.title}」を復元しました`);
+      setTimeout(() => {
+        setError(originalError);
+      }, 3000);
+
+    } catch (err) {
+      console.error('Failed to restore idea:', err);
+      setError('アイデアの復元に失敗しました');
     }
   };
 
@@ -250,6 +304,7 @@ export const BusinessInnovationLab: React.FC = () => {
         feasibility: idea.feasibility,
         verification: verification ? {
           industryAnalysis: verification.industryAnalysis,
+          marketValidation: verification.marketValidation,
           businessModelValidation: verification.businessModelValidation,
           competitiveAnalysis: verification.competitiveAnalysis,
           improvementSuggestions: verification.improvementSuggestions,
@@ -1808,12 +1863,37 @@ export const BusinessInnovationLab: React.FC = () => {
     <div className="space-y-6" data-analysis-screen="innovation">
       {/* ヘッダー */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-6">
-        <div className="flex items-center mb-2">
-          <Lightbulb className="h-6 w-6 mr-2" />
-          <h2 className="text-2xl font-bold">ビジネス革新ラボ (β版)</h2>
-          <span className="bg-purple-500 bg-opacity-90 text-white px-2 py-1 rounded-full text-xs font-medium ml-2">
-            v2 NEW
-          </span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center">
+            <Lightbulb className="h-6 w-6 mr-2" />
+            <h2 className="text-2xl font-bold">ビジネス革新ラボ (β版)</h2>
+            <span className="bg-purple-500 bg-opacity-90 text-white px-2 py-1 rounded-full text-xs font-medium ml-2">
+              v2 NEW
+            </span>
+          </div>
+          
+          {/* ヘッダーアクションボタン */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowSavedIdeasPanel(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white border-opacity-20"
+              title="保存済みアイデアを表示・復元"
+            >
+              <Database className="w-4 h-4" />
+              <span className="text-sm font-medium">保存済み ({savedIdeas.length})</span>
+            </button>
+            
+            {savedIdeas.length > 0 && (
+              <button
+                onClick={() => setShowExportWizard(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white border-opacity-20"
+                title="Excel形式で出力"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span className="text-sm font-medium">Excel出力</span>
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-blue-100">
           企業のMVVと事業プロファイルから、AI powered 新規事業アイデアを生成・検証します
@@ -1902,6 +1982,17 @@ export const BusinessInnovationLab: React.FC = () => {
         isOpen={showExportWizard}
         onClose={() => setShowExportWizard(false)}
         onExportComplete={handleExportComplete}
+      />
+
+      {/* 保存済みアイデアパネル */}
+      <SavedIdeasPanel
+        isOpen={showSavedIdeasPanel}
+        onClose={() => setShowSavedIdeasPanel(false)}
+        onRestoreIdea={handleRestoreIdea}
+        onViewDetails={(idea) => {
+          setSelectedIdeaForDetail(idea);
+          setShowDetailModal(true);
+        }}
       />
     </div>
   );

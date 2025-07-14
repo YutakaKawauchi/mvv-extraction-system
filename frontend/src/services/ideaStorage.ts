@@ -36,6 +36,7 @@ export interface StoredBusinessIdea {
   };
   verification?: {
     industryAnalysis: any;
+    marketValidation: any;
     businessModelValidation: any;
     competitiveAnalysis: any;
     improvementSuggestions: any;
