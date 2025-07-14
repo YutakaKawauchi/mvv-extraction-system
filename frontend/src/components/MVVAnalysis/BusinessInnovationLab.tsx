@@ -4,23 +4,19 @@ import { LoadingSpinner } from '../common';
 import { useApiClient } from '../../services/apiClient';
 import { 
   Lightbulb, 
-  Building2, 
-  Settings, 
   Zap, 
   Save, 
   AlertCircle,
   CheckCircle,
-  Star,
   Database,
-  Eye,
-  X,
-  Clock,
-  Tag,
   FileSpreadsheet
 } from 'lucide-react';
 import { ideaStorageService, type StoredBusinessIdea } from '../../services/ideaStorage';
 import { IdeaExportWizard } from './IdeaExportWizard';
 import { SavedIdeasPanel } from './SavedIdeasPanel';
+import { IdeaDetailModal } from './IdeaDetailModal';
+import { LeanCanvas } from './LeanCanvas';
+import { IdeaGenerationDialog } from './IdeaGenerationDialog';
 
 interface AnalysisParams {
   focusAreas: string[];
@@ -31,6 +27,12 @@ interface AnalysisParams {
     timeframe?: string;
     resources?: string;
   };
+  techPreferences: {
+    preferred: string[];
+    avoided: string[];
+  };
+  riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+  revenueExpectation: 'short-term' | 'medium-term' | 'long-term';
 }
 
 interface BusinessIdea {
@@ -99,9 +101,16 @@ export const BusinessInnovationLab: React.FC = () => {
     focusAreas: [],
     businessModel: '',
     targetMarket: '',
-    constraints: {}
+    constraints: {},
+    techPreferences: {
+      preferred: [],
+      avoided: []
+    },
+    riskTolerance: 'moderate',
+    revenueExpectation: 'medium-term'
   });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showGenerationDialog, setShowGenerationDialog] = useState(false);
   const [results, setResults] = useState<GenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedIdeas, setSavedIdeas] = useState<StoredBusinessIdea[]>([]);
@@ -111,7 +120,7 @@ export const BusinessInnovationLab: React.FC = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [savedIdeasRefreshKey, setSavedIdeasRefreshKey] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [maxIdeas, setMaxIdeas] = useState(1); // デフォルト1案
+  const [maxIdeas] = useState(1); // デフォルト1案
   
   // Beta v2: AI検証機能のstate
   const [isVerifying, setIsVerifying] = useState(false);
@@ -141,12 +150,110 @@ export const BusinessInnovationLab: React.FC = () => {
     }
   };
 
+  // 統合ダイアログからの生成処理
+  const handleGenerateFromDialog = async (companyId: string, params: AnalysisParams) => {
+    // 状態を更新
+    setSelectedCompanyId(companyId);
+    setAnalysisParams(params);
+    setShowGenerationDialog(false);
+    
+    // 企業情報を直接取得して生成実行
+    const company = companies.find(c => c.id === companyId);
+    if (!company) {
+      setError('選択された企業が見つかりません');
+      return;
+    }
+    
+    // 直接生成処理を実行（状態更新を待たずに）
+    await executeIdeaGeneration(company, params);
+  };
+
+  // アイデア生成の実際の処理（会社とパラメータを直接受け取る）
+  const executeIdeaGeneration = async (company: any, params: AnalysisParams) => {
+    setIsGenerating(true);
+    setError(null);
+    setProgress(0);
+
+    // プログレス更新
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 90) return 90; // 90%で止める
+        return prev + Math.random() * 15;
+      });
+    }, 1000);
+
+    try {
+      // API エンドポイントの準備（Phase α用）
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      
+      const response = await fetch(`${API_BASE_URL}/generate-business-ideas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': import.meta.env.VITE_API_SECRET,
+        },
+        body: JSON.stringify({
+          companyData: {
+            id: company.id,
+            name: company.name,
+            industry: company.category,
+            mvv: {
+              mission: company.mission,
+              vision: company.vision,
+              values: company.values
+            },
+            profile: {
+              foundedYear: 2020, // Default values since we don't have this in basic company data
+              employeeCount: 100,
+              capital: 100000000,
+              location: "Japan"
+            }
+          },
+          analysisParams: params,
+          options: {
+            maxIdeas: maxIdeas // ユーザー選択
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setProgress(100);
+        setResults(result.data);
+      } else {
+        throw new Error(result.error || 'アイデア生成に失敗しました');
+      }
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'アイデア生成中にエラーが発生しました');
+    } finally {
+      clearInterval(progressInterval);
+      setIsGenerating(false);
+      setTimeout(() => setProgress(0), 2000); // 2秒後にプログレスをリセット
+    }
+  };
+
   // アイデア復元機能
   const handleRestoreIdea = async (idea: StoredBusinessIdea) => {
     try {
-      // 1. 元のパラメータを復元
+      // 1. 元のパラメータを復元（新しいパラメータのデフォルト値を含む）
       setSelectedCompanyId(idea.companyId);
-      setAnalysisParams(idea.analysisParams);
+      setAnalysisParams({
+        ...idea.analysisParams,
+        // 新しいパラメータのデフォルト値（既存のアイデアとの互換性）
+        techPreferences: idea.analysisParams.techPreferences || {
+          preferred: [],
+          avoided: []
+        },
+        riskTolerance: idea.analysisParams.riskTolerance || 'moderate',
+        revenueExpectation: idea.analysisParams.revenueExpectation || 'medium-term'
+      });
 
       // 2. 生成結果を復元（元のアイデアを results に設定）
       const restoredResults: GenerationResult = {
@@ -195,90 +302,7 @@ export const BusinessInnovationLab: React.FC = () => {
 
   const selectedCompany = companies.find(c => c.id === selectedCompanyId);
   
-  const focusAreaOptions = [
-    'デジタル変革', 'サステナビリティ', '新市場開拓', 'プロダクト革新',
-    'サービス拡張', 'グローバル展開', 'パートナーシップ', 'テクノロジー活用'
-  ];
 
-  const businessModelOptions = [
-    'SaaS・サブスクリプション', 'プラットフォーム', 'マーケットプレイス',
-    'フリーミアム', 'ライセンシング', 'コンサルティング', 'ハードウェア＋サービス'
-  ];
-
-  const handleGenerateIdeas = async () => {
-    if (!selectedCompany) {
-      setError('企業を選択してください');
-      return;
-    }
-
-    setIsGenerating(true);
-    setError(null);
-    setProgress(0);
-
-    // プログレス更新
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 90) return 90; // 90%で止める
-        return prev + Math.random() * 15;
-      });
-    }, 1000);
-
-    try {
-      // API エンドポイントの準備（Phase α用）
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      
-      const response = await fetch(`${API_BASE_URL}/generate-business-ideas`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': import.meta.env.VITE_API_SECRET,
-        },
-        body: JSON.stringify({
-          companyData: {
-            id: selectedCompany.id,
-            name: selectedCompany.name,
-            industry: selectedCompany.category,
-            mvv: {
-              mission: selectedCompany.mission,
-              vision: selectedCompany.vision,
-              values: selectedCompany.values
-            },
-            profile: {
-              foundedYear: 2020, // Default values since we don't have this in basic company data
-              employeeCount: 100,
-              capital: 100000000,
-              location: "Japan"
-            }
-          },
-          analysisParams,
-          options: {
-            maxIdeas: maxIdeas // ユーザー選択
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `API error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setProgress(100);
-        setResults(result.data);
-      } else {
-        throw new Error(result.error || 'アイデア生成に失敗しました');
-      }
-
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'アイデア生成中にエラーが発生しました');
-    } finally {
-      clearInterval(progressInterval);
-      setIsGenerating(false);
-      setTimeout(() => setProgress(0), 2000); // 2秒後にプログレスをリセット
-    }
-  };
 
   const handleSaveIdea = async (idea: BusinessIdea, index: number) => {
     if (!selectedCompany) {
@@ -434,770 +458,6 @@ export const BusinessInnovationLab: React.FC = () => {
   }, [showDetailModal]);
 
 
-  const renderIdeaDetailModal = () => {
-    if (!showDetailModal || !selectedIdeaForDetail) return null;
-
-    const idea = selectedIdeaForDetail;
-
-    // 背景クリックでモーダルを閉じる
-    const handleBackgroundClick = (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) {
-        handleCloseDetailModal();
-      }
-    };
-
-    return (
-      <div 
-        className="fixed inset-0 bg-gray-500 bg-opacity-60 flex items-center justify-center z-50 p-4"
-        onClick={handleBackgroundClick}
-      >
-        <div 
-          className="bg-white rounded-xl shadow-2xl max-w-6xl max-h-[90vh] overflow-y-auto w-full relative"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* ヘッダー */}
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center">
-              <Eye className="h-6 w-6 text-blue-600 mr-3" />
-              <h2 className="text-xl font-bold text-gray-900">アイデア詳細</h2>
-              <div className="flex items-center ml-4 space-x-2">
-                {idea.starred && (
-                  <Star className="h-5 w-5 text-yellow-500 fill-current" />
-                )}
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  idea.status === 'verified' ? 'bg-green-100 text-green-700' :
-                  idea.status === 'draft' ? 'bg-gray-100 text-gray-700' :
-                  'bg-blue-100 text-blue-700'
-                }`}>
-                  {idea.status === 'verified' ? '検証済み' :
-                   idea.status === 'draft' ? '下書き' : 'アーカイブ'}
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={handleCloseDetailModal}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-
-          {/* コンテンツ */}
-          <div className="p-4 space-y-4">
-            {/* 基本情報 */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h1 className="text-xl font-bold text-gray-900">{idea.title}</h1>
-                </div>
-                <button
-                  onClick={() => handleToggleStar(idea.id)}
-                  className="p-2 hover:bg-white hover:bg-opacity-50 rounded-lg transition-colors"
-                  title={idea.starred ? 'スターを外す' : 'スターを付ける'}
-                >
-                  <Star className={`h-6 w-6 ${idea.starred ? 'text-yellow-500 fill-current' : 'text-gray-400'}`} />
-                </button>
-              </div>
-              <p className="text-gray-700 leading-relaxed mb-3">{idea.description}</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                <div className="flex items-center text-gray-600">
-                  <Building2 className="h-4 w-4 mr-2" />
-                  <span className="font-medium">企業:</span>
-                  <span className="ml-1">{idea.companyName}</span>
-                </div>
-                <div className="flex items-center text-gray-600">
-                  <Clock className="h-4 w-4 mr-2" />
-                  <span className="font-medium">作成:</span>
-                  <span className="ml-1">{new Date(idea.createdAt).toLocaleDateString('ja-JP')}</span>
-                </div>
-                <div className="flex items-center text-gray-600">
-                  <Tag className="h-4 w-4 mr-2" />
-                  <span className="font-medium">タグ:</span>
-                  <span className="ml-1">{idea.tags.length > 0 ? idea.tags.join(', ') : 'なし'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* リーンキャンバス - 最重要情報なので上部に配置 */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                リーンキャンバス
-              </h3>
-              <div className="grid grid-cols-10 grid-rows-3 gap-1 border border-gray-300 rounded-lg overflow-hidden text-xs min-h-[320px]">
-                
-                {/* ②課題 */}
-                <div className="col-span-2 row-span-2 bg-slate-50 border-r border-b border-gray-300 p-2">
-                  <div className="font-semibold text-slate-800 mb-1 text-xs">②課題</div>
-                  <div className="text-slate-700 space-y-1">
-                    {idea.leanCanvas.problem.map((p, i) => (
-                      <div key={i} className="border-l-2 border-slate-300 pl-1 text-xs leading-tight">{p}</div>
-                    ))}
-                    {idea.leanCanvas.existingAlternatives && (
-                      <div className="mt-2 pt-1 border-t border-slate-200">
-                        <div className="font-semibold text-slate-900 mb-1 text-xs">既存の代替品</div>
-                        <div className="text-slate-700 text-xs leading-tight">
-                          {idea.leanCanvas.existingAlternatives}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                {/* ④ソリューション */}
-                <div className="col-span-2 bg-blue-50 border-r border-b border-gray-300 p-2">
-                  <div className="font-semibold text-blue-800 mb-1 text-xs">④ソリューション</div>
-                  <div className="text-blue-700 text-xs leading-tight">{idea.leanCanvas.solution}</div>
-                </div>
-                
-                {/* ③独自の価値提案 */}
-                <div className="col-span-2 row-span-2 bg-amber-50 border-r border-b border-gray-300 p-2">
-                  <div className="font-semibold text-amber-800 mb-1 text-xs">③独自の価値提案</div>
-                  <div className="text-amber-700 font-medium text-xs leading-tight">{idea.leanCanvas.valueProposition}</div>
-                </div>
-                
-                {/* ⑨圧倒的な優位性 */}
-                <div className="col-span-2 bg-indigo-50 border-r border-b border-gray-300 p-2">
-                  <div className="font-semibold text-indigo-800 mb-1 text-xs">⑨圧倒的な優位性</div>
-                  <div className="text-indigo-700 text-xs leading-tight">{idea.leanCanvas.unfairAdvantage}</div>
-                </div>
-                
-                {/* ①顧客セグメント */}
-                <div className="col-span-2 row-span-2 bg-emerald-50 border-b border-gray-300 p-2">
-                  <div className="font-semibold text-emerald-800 mb-1 text-xs">①顧客セグメント</div>
-                  <div className="text-emerald-700 space-y-1">
-                    {idea.leanCanvas.targetCustomers.map((customer, i) => (
-                      <div key={i} className="bg-emerald-100 px-1 py-0.5 rounded text-xs">{customer}</div>
-                    ))}
-                    {idea.leanCanvas.earlyAdopters && (
-                      <div className="mt-2 pt-1 border-t border-emerald-200">
-                        <div className="font-semibold text-emerald-900 mb-1 text-xs">アーリーアダプター</div>
-                        <div className="text-emerald-700 text-xs leading-tight">
-                          {idea.leanCanvas.earlyAdopters}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                {/* ⑦主要指標 */}
-                <div className="col-span-2 bg-teal-50 border-r border-b border-gray-300 p-2">
-                  <div className="font-semibold text-teal-800 mb-1 text-xs">⑦主要指標</div>
-                  <div className="text-teal-700 space-y-1">
-                    {idea.leanCanvas.keyMetrics?.map((metric, i) => (
-                      <div key={i} className="bg-teal-100 px-1 py-0.5 rounded text-xs">{metric}</div>
-                    )) || <div className="text-gray-500 text-xs">設定が必要</div>}
-                  </div>
-                </div>
-                
-                {/* ⑤チャネル */}
-                <div className="col-span-2 bg-violet-50 border-r border-b border-gray-300 p-2">
-                  <div className="font-semibold text-violet-800 mb-1 text-xs">⑤チャネル</div>
-                  <div className="text-violet-700 space-y-1">
-                    {idea.leanCanvas.channels?.map((channel, i) => (
-                      <div key={i} className="bg-violet-100 px-1 py-0.5 rounded text-xs">{channel}</div>
-                    )) || <div className="text-gray-500 text-xs">検討が必要</div>}
-                  </div>
-                </div>
-                
-                {/* ⑧コスト構造 */}
-                <div className="col-span-5 bg-rose-50 border-r border-gray-300 p-2">
-                  <div className="font-semibold text-rose-800 mb-1 text-xs">⑧コスト構造</div>
-                  <div className="text-rose-700 space-y-1">
-                    {idea.leanCanvas.costStructure?.map((cost, i) => (
-                      <div key={i} className="border-l-2 border-rose-300 pl-1 text-xs leading-tight">{cost}</div>
-                    )) || <div className="text-gray-500 text-xs">分析が必要</div>}
-                  </div>
-                </div>
-                
-                {/* ⑥収益の流れ */}
-                <div className="col-span-5 bg-green-50 p-2">
-                  <div className="font-semibold text-green-800 mb-1 flex items-center text-xs">
-                    <span className="mr-1">💰</span>
-                    ⑥収益の流れ（支払者明記）
-                  </div>
-                  <div className="text-green-700 space-y-1">
-                    {idea.leanCanvas.revenueStreams.map((revenue, i) => (
-                      <div key={i} className="bg-green-100 px-1 py-0.5 rounded text-xs font-medium border border-green-200">
-                        {revenue}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* コンパクトな3列レイアウト */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* MVV世界観 */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <h4 className="text-sm font-semibold text-blue-900 mb-2">MVV世界観</h4>
-                <p className="text-blue-800 leading-relaxed text-xs">{idea.worldview}</p>
-              </div>
-
-              {/* 業界洞察 */}
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                <h4 className="text-sm font-semibold text-orange-900 mb-2">業界課題の深い洞察</h4>
-                <p className="text-orange-800 leading-relaxed text-xs">{idea.industryInsight}</p>
-              </div>
-
-              {/* 実現可能性評価 */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                <h4 className="text-sm font-semibold text-gray-900 mb-2">実現可能性評価</h4>
-                <div className="space-y-2">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">{(idea.feasibility.mvvAlignment * 100).toFixed(0)}%</div>
-                    <div className="text-xs text-blue-900">MVV適合度</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-green-600">{(idea.feasibility.implementationScore * 100).toFixed(0)}%</div>
-                    <div className="text-xs text-green-900">実装容易性</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-purple-600">{(idea.feasibility.marketPotential * 100).toFixed(0)}%</div>
-                    <div className="text-xs text-purple-900">市場ポテンシャル</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-
-            {/* AI検証結果 */}
-            {idea.verification && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-purple-900 mb-4">AI検証結果</h3>
-                
-                {/* 検証メタデータ */}
-                <div className="mb-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-purple-600">
-                        {idea.verification.metadata.verificationLevel}
-                      </div>
-                      <div className="text-xs text-purple-700">検証レベル</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-purple-600">
-                        {(idea.verification.metadata.confidence * 100).toFixed(0)}%
-                      </div>
-                      <div className="text-xs text-purple-700">信頼度</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-purple-600">
-                        {idea.verification.metadata.totalTokens.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-purple-700">トークン数</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-purple-600">
-                        ${idea.verification.metadata.totalCost.toFixed(4)}
-                      </div>
-                      <div className="text-xs text-purple-700">検証コスト</div>
-                    </div>
-                  </div>
-                  
-                  <div className="text-sm text-purple-800">
-                    <p><strong>使用モデル:</strong> {idea.verification.metadata.model}</p>
-                    <p><strong>バージョン:</strong> {idea.verification.metadata.version}</p>
-                  </div>
-                </div>
-
-                {/* 総合評価 */}
-                {idea.verification.overallAssessment && (
-                  <div className="mb-6 p-4 bg-gradient-to-r from-purple-100 to-indigo-100 border border-purple-300 rounded-lg">
-                    <h4 className="font-semibold text-purple-900 mb-4">総合評価</h4>
-                    
-                    {idea.verification.overallAssessment.overallScore && (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                        <div className="text-center p-3 bg-white rounded-lg">
-                          <div className="text-xl font-bold text-blue-600">
-                            {idea.verification.overallAssessment.overallScore.viabilityScore || 'N/A'}
-                          </div>
-                          <div className="text-xs text-blue-700">実行可能性</div>
-                        </div>
-                        <div className="text-center p-3 bg-white rounded-lg">
-                          <div className="text-xl font-bold text-green-600">
-                            {idea.verification.overallAssessment.overallScore.innovationScore || 'N/A'}
-                          </div>
-                          <div className="text-xs text-green-700">革新性</div>
-                        </div>
-                        <div className="text-center p-3 bg-white rounded-lg">
-                          <div className="text-xl font-bold text-purple-600">
-                            {idea.verification.overallAssessment.overallScore.marketPotentialScore || 'N/A'}
-                          </div>
-                          <div className="text-xs text-purple-700">市場ポテンシャル</div>
-                        </div>
-                        <div className="text-center p-3 bg-white rounded-lg">
-                          <div className="text-xl font-bold text-red-600">
-                            {idea.verification.overallAssessment.overallScore.riskScore || 'N/A'}
-                          </div>
-                          <div className="text-xs text-red-700">リスクスコア</div>
-                        </div>
-                      </div>
-                    )}
-
-                    {idea.verification.overallAssessment.recommendation && (
-                      <div className="mb-4 p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">推奨判定</h5>
-                        <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium mb-2 ${
-                          idea.verification.overallAssessment.recommendation.decision === 'GO' 
-                            ? 'bg-green-100 text-green-800'
-                            : idea.verification.overallAssessment.recommendation.decision === 'NO-GO'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {idea.verification.overallAssessment.recommendation.decision}
-                        </div>
-                        <p className="text-sm text-gray-700 mb-2">
-                          <strong>判断理由:</strong> {idea.verification.overallAssessment.recommendation.reasoning}
-                        </p>
-                        {idea.verification.overallAssessment.recommendation.conditions && idea.verification.overallAssessment.recommendation.conditions.length > 0 && (
-                          <div className="text-sm text-gray-700">
-                            <strong>条件:</strong>
-                            <ul className="list-disc list-inside ml-2">
-                              {idea.verification.overallAssessment.recommendation.conditions.map((condition: string, i: number) => (
-                                <li key={i}>{condition}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {idea.verification.overallAssessment.strengthsAndWeaknesses && (
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                          <h5 className="font-semibold text-green-900 mb-2">主要な強み</h5>
-                          <ul className="text-sm text-green-800 space-y-1">
-                            {idea.verification.overallAssessment.strengthsAndWeaknesses.keyStrengths?.map((strength: string, i: number) => (
-                              <li key={i} className="flex items-start">
-                                <span className="text-green-600 mr-2">✓</span>
-                                {strength}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <h5 className="font-semibold text-red-900 mb-2">重要な弱み</h5>
-                          <ul className="text-sm text-red-800 space-y-1">
-                            {idea.verification.overallAssessment.strengthsAndWeaknesses.criticalWeaknesses?.map((weakness: string, i: number) => (
-                              <li key={i} className="flex items-start">
-                                <span className="text-red-600 mr-2">⚠</span>
-                                {weakness}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 業界専門分析 */}
-                {idea.verification.industryAnalysis && (
-                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="font-semibold text-blue-900 mb-4">業界専門分析</h4>
-                    
-                    {idea.verification.industryAnalysis.problemValidation && (
-                      <div className="mb-4 p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">課題検証</h5>
-                        <div className="grid md:grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p><strong>現実性チェック:</strong> {idea.verification.industryAnalysis.problemValidation.realityCheck}</p>
-                            <p><strong>ステークホルダー影響:</strong> {idea.verification.industryAnalysis.problemValidation.stakeholderImpact}</p>
-                          </div>
-                          <div>
-                            <p><strong>緊急度:</strong> {idea.verification.industryAnalysis.problemValidation.urgencyLevel}/10</p>
-                            <p><strong>根拠:</strong> {idea.verification.industryAnalysis.problemValidation.evidence}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {idea.verification.industryAnalysis.solutionAssessment && (
-                      <div className="mb-4 p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">ソリューション評価</h5>
-                        <div className="grid md:grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p><strong>革新性レベル:</strong> {idea.verification.industryAnalysis.solutionAssessment.innovationLevel}/10</p>
-                            <p><strong>実現可能性:</strong> {idea.verification.industryAnalysis.solutionAssessment.feasibilityCheck}</p>
-                          </div>
-                          <div>
-                            {idea.verification.industryAnalysis.solutionAssessment.adoptionBarriers && (
-                              <div>
-                                <p><strong>導入障壁:</strong></p>
-                                <ul className="list-disc list-inside ml-2">
-                                  {idea.verification.industryAnalysis.solutionAssessment.adoptionBarriers.map((barrier: string, i: number) => (
-                                    <li key={i}>{barrier}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {idea.verification.industryAnalysis.industryTrends && (
-                      <div className="p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">業界トレンド</h5>
-                        <div className="text-sm text-gray-700 space-y-2">
-                          <p><strong>現状:</strong> {idea.verification.industryAnalysis.industryTrends.currentState}</p>
-                          <p><strong>規制環境:</strong> {idea.verification.industryAnalysis.industryTrends.regulatoryEnvironment}</p>
-                          <p><strong>市場規模:</strong> {idea.verification.industryAnalysis.industryTrends.marketSize}</p>
-                          {idea.verification.industryAnalysis.industryTrends.emergingTrends && (
-                            <div>
-                              <p><strong>新興トレンド:</strong></p>
-                              <ul className="list-disc list-inside ml-2">
-                                {idea.verification.industryAnalysis.industryTrends.emergingTrends.map((trend: string, i: number) => (
-                                  <li key={i}>{trend}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ビジネスモデル検証 */}
-                {idea.verification.businessModelValidation && (
-                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <h4 className="font-semibold text-green-900 mb-4">ビジネスモデル検証</h4>
-                    
-                    {idea.verification.businessModelValidation.revenueModelValidation && (
-                      <div className="mb-4 p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">収益モデル検証</h5>
-                        <div className="text-sm text-gray-700 space-y-2">
-                          <p><strong>実行可能性:</strong> {idea.verification.businessModelValidation.revenueModelValidation.viability}/10</p>
-                          <p><strong>支払者分析:</strong> {idea.verification.businessModelValidation.revenueModelValidation.payerAnalysis}</p>
-                          <p><strong>価格持続性:</strong> {idea.verification.businessModelValidation.revenueModelValidation.pricingSustainability}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {idea.verification.businessModelValidation.valuePropositionTest && (
-                      <div className="mb-4 p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">価値提案テスト</h5>
-                        <div className="text-sm text-gray-700 space-y-2">
-                          <p><strong>独自性スコア:</strong> {idea.verification.businessModelValidation.valuePropositionTest.uniquenessScore}/10</p>
-                          <p><strong>顧客ジョブ適合:</strong> {idea.verification.businessModelValidation.valuePropositionTest.customerJobsFit}</p>
-                          <p><strong>ペインリリーバー効果:</strong> {idea.verification.businessModelValidation.valuePropositionTest.painRelieverEffectiveness}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 競合分析 */}
-                {idea.verification.competitiveAnalysis && (
-                  <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                    <h4 className="font-semibold text-orange-900 mb-4">競合分析</h4>
-                    
-                    {idea.verification.competitiveAnalysis.directCompetitors && idea.verification.competitiveAnalysis.directCompetitors.length > 0 && (
-                      <div className="mb-4 p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">直接競合</h5>
-                        <div className="space-y-3">
-                          {idea.verification.competitiveAnalysis.directCompetitors.map((competitor: any, i: number) => (
-                            <div key={i} className="border border-gray-200 rounded p-3">
-                              <h6 className="font-medium text-gray-900">{competitor.name}</h6>
-                              <p className="text-sm text-gray-600 mb-2">{competitor.description}</p>
-                              <div className="grid md:grid-cols-2 gap-2 text-xs">
-                                <div>
-                                  <strong>強み:</strong> {competitor.strengths?.join(', ')}
-                                </div>
-                                <div>
-                                  <strong>弱み:</strong> {competitor.weaknesses?.join(', ')}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {idea.verification.competitiveAnalysis.competitiveAdvantageAnalysis && (
-                      <div className="p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">競合優位性分析</h5>
-                        <div className="text-sm text-gray-700 space-y-2">
-                          <p><strong>持続可能性スコア:</strong> {idea.verification.competitiveAnalysis.competitiveAdvantageAnalysis.sustainabilityScore}/10</p>
-                          <p><strong>参入障壁:</strong> {idea.verification.competitiveAnalysis.competitiveAdvantageAnalysis.moatStrength}</p>
-                          <p><strong>現実性評価:</strong> {idea.verification.competitiveAnalysis.competitiveAdvantageAnalysis.realityCheck}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 改善提案 */}
-                {idea.verification.improvementSuggestions && (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <h4 className="font-semibold text-yellow-900 mb-4">改善提案</h4>
-                    
-                    {idea.verification.improvementSuggestions.criticalIssues && idea.verification.improvementSuggestions.criticalIssues.length > 0 && (
-                      <div className="mb-4 p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">重要な課題</h5>
-                        <div className="space-y-2">
-                          {idea.verification.improvementSuggestions.criticalIssues.map((issue: any, i: number) => (
-                            <div key={i} className="border-l-4 border-red-400 pl-3 py-2 bg-red-50">
-                              <p className="font-medium text-red-900">{issue.issue}</p>
-                              <div className="text-sm text-red-700">
-                                <span>影響度: {issue.impact}/10 | </span>
-                                <span>緊急度: {issue.urgency}/10</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {idea.verification.improvementSuggestions.improvementRecommendations && idea.verification.improvementSuggestions.improvementRecommendations.length > 0 && (
-                      <div className="mb-4 p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">改善推奨事項</h5>
-                        <div className="space-y-3">
-                          {idea.verification.improvementSuggestions.improvementRecommendations.map((rec: any, i: number) => (
-                            <div key={i} className="border border-gray-200 rounded p-3">
-                              <h6 className="font-medium text-gray-900 mb-1">{rec.area}</h6>
-                              <p className="text-sm text-gray-600 mb-2"><strong>現状:</strong> {rec.currentState}</p>
-                              <p className="text-sm text-gray-600 mb-2"><strong>推奨変更:</strong> {rec.recommendedChange}</p>
-                              <p className="text-sm text-gray-600 mb-2"><strong>期待効果:</strong> {rec.expectedImpact}</p>
-                              <div className="text-xs text-gray-500">
-                                <span>実装難易度: {rec.implementationDifficulty}/10 | </span>
-                                <span>タイムライン: {rec.timeline}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {idea.verification.improvementSuggestions.actionPlan && (
-                      <div className="p-3 bg-white rounded-lg">
-                        <h5 className="font-semibold text-gray-900 mb-2">アクションプラン</h5>
-                        <div className="text-sm text-gray-700 space-y-3">
-                          {idea.verification.improvementSuggestions.actionPlan.immediateActions && (
-                            <div>
-                              <p className="font-medium">即座に実行すべき行動:</p>
-                              <ul className="list-disc list-inside ml-2">
-                                {idea.verification.improvementSuggestions.actionPlan.immediateActions.map((action: string, i: number) => (
-                                  <li key={i}>{action}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          {idea.verification.improvementSuggestions.actionPlan.shortTermGoals && (
-                            <div>
-                              <p className="font-medium">短期目標:</p>
-                              <ul className="list-disc list-inside ml-2">
-                                {idea.verification.improvementSuggestions.actionPlan.shortTermGoals.map((goal: string, i: number) => (
-                                  <li key={i}>{goal}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          {idea.verification.improvementSuggestions.actionPlan.longTermVision && (
-                            <div>
-                              <p className="font-medium">長期ビジョン:</p>
-                              <p className="ml-2">{idea.verification.improvementSuggestions.actionPlan.longTermVision}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 生成メタデータ */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">生成情報</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-600">
-                <div>
-                  <span className="font-medium">モデル:</span> {idea.generationMetadata.model}
-                </div>
-                <div>
-                  <span className="font-medium">トークン:</span> {idea.generationMetadata.tokensUsed.toLocaleString()}
-                </div>
-                <div>
-                  <span className="font-medium">コスト:</span> ${idea.generationMetadata.estimatedCost.toFixed(4)}
-                </div>
-                <div>
-                  <span className="font-medium">信頼度:</span> {(idea.generationMetadata.confidence * 100).toFixed(0)}%
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* フッター */}
-          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3">
-            <button
-              onClick={() => handleToggleStar(idea.id)}
-              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                idea.starred 
-                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <Star className={`h-4 w-4 mr-2 ${idea.starred ? 'fill-current' : ''}`} />
-              {idea.starred ? 'スター解除' : 'スター追加'}
-            </button>
-            <button
-              onClick={handleCloseDetailModal}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              閉じる
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-
-  const renderCompanySelection = () => (
-    <div className="bg-white rounded-lg shadow p-6 mb-6">
-      <div className="flex items-center mb-4">
-        <Building2 className="h-5 w-5 text-blue-600 mr-2" />
-        <h3 className="text-lg font-semibold text-gray-900">企業選択</h3>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            分析対象企業
-          </label>
-          <select
-            value={selectedCompanyId}
-            onChange={(e) => setSelectedCompanyId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">企業を選択してください</option>
-            {companies
-              .filter(c => c.status === 'mvv_extracted' || c.status === 'fully_completed')
-              .map(company => (
-              <option key={company.id} value={company.id}>
-                {company.name} ({company.category})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {selectedCompany && (
-          <div className="bg-gray-50 p-4 rounded-md">
-            <h4 className="font-medium text-gray-900 mb-2">{selectedCompany.name}</h4>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p><strong>業界:</strong> {selectedCompany.category}</p>
-              {selectedCompany.mission && (
-                <p><strong>ミッション:</strong> {selectedCompany.mission.substring(0, 100)}...</p>
-              )}
-              {selectedCompany.vision && (
-                <p><strong>ビジョン:</strong> {selectedCompany.vision.substring(0, 100)}...</p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderAnalysisParams = () => (
-    <div className="bg-white rounded-lg shadow p-6 mb-6">
-      <div className="flex items-center mb-4">
-        <Settings className="h-5 w-5 text-green-600 mr-2" />
-        <h3 className="text-lg font-semibold text-gray-900">分析パラメータ</h3>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            重点領域 (複数選択可)
-          </label>
-          <div className="space-y-2">
-            {focusAreaOptions.map(area => (
-              <label key={area} className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={analysisParams.focusAreas.includes(area)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setAnalysisParams(prev => ({
-                        ...prev,
-                        focusAreas: [...prev.focusAreas, area]
-                      }));
-                    } else {
-                      setAnalysisParams(prev => ({
-                        ...prev,
-                        focusAreas: prev.focusAreas.filter(a => a !== area)
-                      }));
-                    }
-                  }}
-                  className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">{area}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              想定ビジネスモデル
-            </label>
-            <select
-              value={analysisParams.businessModel}
-              onChange={(e) => setAnalysisParams(prev => ({
-                ...prev,
-                businessModel: e.target.value
-              }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">選択してください</option>
-              {businessModelOptions.map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              ターゲット市場
-            </label>
-            <input
-              type="text"
-              value={analysisParams.targetMarket}
-              onChange={(e) => setAnalysisParams(prev => ({
-                ...prev,
-                targetMarket: e.target.value
-              }))}
-              placeholder="例: 中小企業、個人消費者、医療機関"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              生成するアイデア数
-            </label>
-            <select
-              value={maxIdeas}
-              onChange={(e) => setMaxIdeas(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={1}>1案（深い分析・推奨）</option>
-              <option value={2}>2案（比較検討用）</option>
-              <option value={3}>3案（幅広いオプション）</option>
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              ※ 1案では最も深い業界分析を行います
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 
   const getAnalysisSteps = () => [
     { name: '企業MVV分析', status: progress >= 20 ? 'completed' : progress >= 10 ? 'current' : 'upcoming' },
@@ -1244,37 +504,47 @@ export const BusinessInnovationLab: React.FC = () => {
     </div>
   );
 
-  const renderGenerateButton = () => (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">AI powered ビジネス革新</h3>
-          <p className="text-sm text-gray-600">
-            企業のMVVと業界分析に基づく{maxIdeas === 1 ? '深い洞察' : '複数のアイデア'}を生成
-          </p>
+  // メインアイデア生成ボタン
+  const renderMainGenerateButton = () => (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 mb-6">
+      <div className="text-center">
+        <div className="bg-gradient-to-br from-blue-100 to-purple-100 p-4 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+          <Lightbulb className="h-10 w-10 text-blue-600" />
         </div>
         
+        <h3 className="text-2xl font-bold text-gray-900 mb-3">AI ビジネスアイデア生成</h3>
+        <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
+          企業のMVV（ミッション・ビジョン・バリュー）と高度な業界分析に基づく革新的なビジネスアイデアを生成します。
+          プリセット機能、詳細なパラメータ設定、条件付きガイダンスで最適なアイデアを創出。
+        </p>
+        
         <button
-          onClick={handleGenerateIdeas}
-          disabled={!selectedCompany || isGenerating}
-          className="inline-flex items-center px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          onClick={() => setShowGenerationDialog(true)}
+          disabled={isGenerating}
+          className="inline-flex items-center px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
         >
-          {isGenerating ? (
-            <>
-              <LoadingSpinner size="sm" className="mr-2" />
-              AI分析実行中...
-            </>
-          ) : (
-            <>
-              <Zap className="h-5 w-5 mr-2" />
-              革新的アイデア生成
-            </>
-          )}
+          <Zap className="h-6 w-6 mr-3" />
+          アイデア生成を開始
         </button>
+        
+        <div className="mt-6 flex items-center justify-center space-x-6 text-sm text-gray-500">
+          <span className="flex items-center">
+            <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
+            プリセット機能
+          </span>
+          <span className="flex items-center">
+            <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
+            条件付きガイダンス
+          </span>
+          <span className="flex items-center">
+            <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
+            詳細パラメータ設定
+          </span>
+        </div>
       </div>
       
       {isGenerating && (
-        <div className="space-y-4">
+        <div className="mt-8 space-y-4">
           {renderStepProgress()}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
             <div className="flex items-center justify-between mb-3">
@@ -1398,105 +668,8 @@ export const BusinessInnovationLab: React.FC = () => {
                 </div>
 
                 <div className="mt-4">
-                  <h5 className="font-medium text-gray-900 mb-4">リーンキャンバス（9ブロック）</h5>
-                  <div className="grid grid-cols-10 grid-rows-3 gap-1 border border-gray-300 rounded-lg overflow-hidden text-xs min-h-[400px]">
-                    
-                    {/* ②課題 - 1-2列目・1-2行目 */}
-                    <div className="col-span-2 row-span-2 bg-slate-50 border-r border-b border-gray-300 p-3">
-                      <div className="font-semibold text-slate-800 mb-2">②課題</div>
-                      <div className="text-slate-700 space-y-2">
-                        {idea.leanCanvas.problem.map((p, i) => (
-                          <div key={i} className="border-l-2 border-slate-300 pl-2 text-xs">{p}</div>
-                        ))}
-                        <div className="mt-3 pt-2 border-t border-slate-200">
-                          <div className="font-semibold text-slate-900 mb-1 text-xs">既存の代替品</div>
-                          <div className="text-slate-700 text-xs">
-                            {idea.leanCanvas.existingAlternatives || "現在顧客がこの課題をどう解決しているか"}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* ④ソリューション - 3-4列目・1行目 */}
-                    <div className="col-span-2 bg-blue-50 border-r border-b border-gray-300 p-3">
-                      <div className="font-semibold text-blue-800 mb-2">④ソリューション</div>
-                      <div className="text-blue-700 text-xs">{idea.leanCanvas.solution}</div>
-                    </div>
-                    
-                    {/* ③独自の価値提案 - 5-6列目・1-2行目 */}
-                    <div className="col-span-2 row-span-2 bg-amber-50 border-r border-b border-gray-300 p-3">
-                      <div className="font-semibold text-amber-800 mb-2">③独自の価値提案</div>
-                      <div className="text-amber-700 font-medium text-xs">{idea.leanCanvas.valueProposition}</div>
-                    </div>
-                    
-                    {/* ⑨圧倒的な優位性 - 7-8列目・1行目 */}
-                    <div className="col-span-2 bg-indigo-50 border-r border-b border-gray-300 p-3">
-                      <div className="font-semibold text-indigo-800 mb-2">⑨圧倒的な優位性</div>
-                      <div className="text-indigo-700 text-xs">{idea.leanCanvas.unfairAdvantage}</div>
-                    </div>
-                    
-                    {/* ①顧客セグメント - 9-10列目・1-2行目 */}
-                    <div className="col-span-2 row-span-2 bg-emerald-50 border-b border-gray-300 p-3">
-                      <div className="font-semibold text-emerald-800 mb-2">①顧客セグメント</div>
-                      <div className="text-emerald-700 space-y-1">
-                        {idea.leanCanvas.targetCustomers.map((customer, i) => (
-                          <div key={i} className="bg-emerald-100 px-2 py-1 rounded text-xs">{customer}</div>
-                        ))}
-                        <div className="mt-3 pt-2 border-t border-emerald-200">
-                          <div className="font-semibold text-emerald-900 mb-1 text-xs">アーリーアダプター</div>
-                          <div className="text-emerald-700 text-xs">
-                            {idea.leanCanvas.earlyAdopters || "誰が一番初めに顧客となってくれるか"}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* ⑦主要指標 - 3-4列目・2行目 */}
-                    <div className="col-span-2 bg-teal-50 border-r border-b border-gray-300 p-3">
-                      <div className="font-semibold text-teal-800 mb-2">⑦主要指標</div>
-                      <div className="text-teal-700 space-y-1">
-                        {idea.leanCanvas.keyMetrics?.map((metric, i) => (
-                          <div key={i} className="bg-teal-100 px-1 py-1 rounded text-xs">{metric}</div>
-                        )) || <div className="text-gray-500 text-xs">設定が必要</div>}
-                      </div>
-                    </div>
-                    
-                    {/* ⑤チャネル - 7-8列目・2行目 */}
-                    <div className="col-span-2 bg-violet-50 border-r border-b border-gray-300 p-3">
-                      <div className="font-semibold text-violet-800 mb-2">⑤チャネル</div>
-                      <div className="text-violet-700 space-y-1">
-                        {idea.leanCanvas.channels?.map((channel, i) => (
-                          <div key={i} className="bg-violet-100 px-1 py-1 rounded text-xs">{channel}</div>
-                        )) || <div className="text-gray-500 text-xs">検討が必要</div>}
-                      </div>
-                    </div>
-                    
-                    {/* ⑧コスト構造 - 1-5列目・3行目（完全に半分） */}
-                    <div className="col-span-5 bg-rose-50 border-r border-gray-300 p-3">
-                      <div className="font-semibold text-rose-800 mb-2">⑧コスト構造</div>
-                      <div className="text-rose-700 space-y-1">
-                        {idea.leanCanvas.costStructure?.map((cost, i) => (
-                          <div key={i} className="border-l-2 border-rose-300 pl-2 text-xs">{cost}</div>
-                        )) || <div className="text-gray-500 text-xs">分析が必要</div>}
-                      </div>
-                    </div>
-                    
-                    {/* ⑥収益の流れ - 6-10列目・3行目（完全に半分） */}
-                    <div className="col-span-5 bg-green-50 p-3">
-                      <div className="font-semibold text-green-800 mb-2 flex items-center">
-                        <span className="mr-1">💰</span>
-                        ⑥収益の流れ（支払者明記）
-                      </div>
-                      <div className="text-green-700 space-y-1">
-                        {idea.leanCanvas.revenueStreams.map((revenue, i) => (
-                          <div key={i} className="bg-green-100 px-2 py-1 rounded text-xs font-medium border border-green-200">
-                            {revenue}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                  </div>
+                  <h5 className="font-medium text-gray-900 mb-4">リーンキャンバス</h5>
+                  <LeanCanvas data={idea.leanCanvas} />
                 </div>
 
                 <div className="mt-6">
@@ -1695,6 +868,7 @@ export const BusinessInnovationLab: React.FC = () => {
           
           {/* ヘッダーアクションボタン */}
           <div className="flex items-center gap-3">
+            
             <button
               onClick={() => setShowSavedIdeasPanel(true)}
               className="flex items-center gap-2 px-4 py-2 bg-white text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200 shadow-sm border border-blue-200"
@@ -1780,9 +954,7 @@ export const BusinessInnovationLab: React.FC = () => {
       {/* メインコンテンツ */}
       {true && (
         <>
-          {renderCompanySelection()}
-          {renderAnalysisParams()}
-          {renderGenerateButton()}
+          {renderMainGenerateButton()}
           {renderResults()}
         </>
       )}
@@ -1790,7 +962,12 @@ export const BusinessInnovationLab: React.FC = () => {
       {/* アイデア管理画面 */}
 
       {/* アイデア詳細モーダル */}
-      {renderIdeaDetailModal()}
+      <IdeaDetailModal
+        isOpen={showDetailModal}
+        idea={selectedIdeaForDetail}
+        onClose={handleCloseDetailModal}
+        onToggleStar={handleToggleStar}
+      />
 
       {/* Excel出力ウィザード */}
       <IdeaExportWizard
@@ -1810,6 +987,14 @@ export const BusinessInnovationLab: React.FC = () => {
           setShowDetailModal(true);
         }}
         refreshKey={savedIdeasRefreshKey}
+      />
+
+      {/* 統合アイデア生成ダイアログ */}
+      <IdeaGenerationDialog
+        isOpen={showGenerationDialog}
+        onClose={() => setShowGenerationDialog(false)}
+        onGenerate={handleGenerateFromDialog}
+        isGenerating={isGenerating}
       />
     </div>
   );

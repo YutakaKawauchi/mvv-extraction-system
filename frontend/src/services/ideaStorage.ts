@@ -54,7 +54,17 @@ export interface StoredBusinessIdea {
     focusAreas: string[];
     businessModel: string;
     targetMarket: string;
-    constraints: any;
+    constraints: {
+      budget?: string;
+      timeframe?: string;
+      resources?: string;
+    };
+    techPreferences: {
+      preferred: string[];
+      avoided: string[];
+    };
+    riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+    revenueExpectation: 'short-term' | 'medium-term' | 'long-term';
   };
   generationMetadata: {
     model: string;
