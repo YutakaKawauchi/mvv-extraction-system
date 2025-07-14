@@ -249,6 +249,79 @@ netlify env:set JWT_EXPIRATION "24h"
 - **Testing**: Use `npm test` for mock tests, `TEST_MODE=integration npm test` for real API tests
 - 日本語での対話可
 
+### CORS Implementation Guide (CRITICAL)
+
+**⚠️ EVERY new API function MUST follow this exact CORS pattern to avoid errors:**
+
+#### Required CORS Pattern (Copy from extract-mvv.js)
+```javascript
+const { handleCors, corsHeaders } = require('../../utils/cors');
+
+exports.handler = async (event, context) => {
+  // 1. Handle CORS preflight - MUST BE FIRST
+  const corsResult = handleCors(event);
+  if (corsResult) return corsResult;
+
+  // 2. Get CORS headers for ALL responses
+  const corsHeadersObj = corsHeaders(event.headers.origin || event.headers.Origin);
+
+  // 3. Method validation with CORS headers
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers: {
+        ...corsHeadersObj,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
+
+  try {
+    // Your function logic here...
+    
+    // 4. Success response with CORS headers
+    return {
+      statusCode: 200,
+      headers: {
+        ...corsHeadersObj,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ success: true, data: result })
+    };
+
+  } catch (error) {
+    // 5. Error response with CORS headers
+    return {
+      statusCode: 500,
+      headers: {
+        ...corsHeadersObj,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ success: false, error: 'Internal server error' })
+    };
+  }
+};
+```
+
+#### CORS Checklist for New Functions
+- [ ] Import `handleCors` and `corsHeaders` from `../../utils/cors`
+- [ ] Call `handleCors(event)` as the FIRST line in the handler
+- [ ] Get `corsHeadersObj` using both origin headers: `event.headers.origin || event.headers.Origin`
+- [ ] Apply `...corsHeadersObj` to EVERY response (success, error, validation failures)
+- [ ] Include `'Content-Type': 'application/json'` in all headers
+
+#### Common CORS Mistakes (⚠️ AVOID THESE)
+```javascript
+// ❌ WRONG: Missing handleCors() call
+// ❌ WRONG: Missing CORS headers in some responses
+// ❌ WRONG: Not using spread operator ...corsHeadersObj
+// ❌ WRONG: Forgetting origin fallback
+// ❌ WRONG: Using static corsHeaders instead of corsHeaders(origin)
+```
+
+**📋 Template**: Use `/backend/templates/api-function-template.js` for new functions
+
 ### Professional Excel Export System
 
 #### Overview
