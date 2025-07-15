@@ -332,6 +332,11 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
                   
                   <div className="flex items-center gap-1 ml-2">
                     {getStatusIcon(idea.status)}
+                    {idea.autoSaved && (
+                      <div className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-medium" title="自動保存済み">
+                        Auto
+                      </div>
+                    )}
                     {idea.starred && <Star className="w-3 h-3 text-yellow-500 fill-current" />}
                   </div>
                 </div>

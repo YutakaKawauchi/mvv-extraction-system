@@ -12,6 +12,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { ideaStorageService, type StoredBusinessIdea } from '../../services/ideaStorage';
+import { apiLoggerService } from '../../services/apiLogger';
 import { IdeaExportWizard } from './IdeaExportWizard';
 import { SavedIdeasPanel } from './SavedIdeasPanel';
 import { IdeaDetailModal } from './IdeaDetailModal';
@@ -185,47 +186,144 @@ export const BusinessInnovationLab: React.FC = () => {
     try {
       // API エンドポイントの準備（Phase α用）
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      
-      const response = await fetch(`${API_BASE_URL}/generate-business-ideas`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': import.meta.env.VITE_API_SECRET,
-        },
-        body: JSON.stringify({
-          companyData: {
-            id: company.id,
-            name: company.name,
-            industry: company.category,
-            mvv: {
-              mission: company.mission,
-              vision: company.vision,
-              values: company.values
-            },
-            profile: {
-              foundedYear: 2020, // Default values since we don't have this in basic company data
-              employeeCount: 100,
-              capital: 100000000,
-              location: "Japan"
-            }
+      const endpoint = `${API_BASE_URL}/generate-business-ideas`;
+      const requestBody = {
+        companyData: {
+          id: company.id,
+          name: company.name,
+          industry: company.category,
+          mvv: {
+            mission: company.mission,
+            vision: company.vision,
+            values: company.values
           },
-          analysisParams: params,
-          options: {
-            maxIdeas: maxIdeas // ユーザー選択
+          profile: {
+            foundedYear: 2020, // Default values since we don't have this in basic company data
+            employeeCount: 100,
+            capital: 100000000,
+            location: "Japan"
           }
-        })
+        },
+        analysisParams: params,
+        options: {
+          maxIdeas: maxIdeas // ユーザー選択
+        }
+      };
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-API-Key': import.meta.env.VITE_API_SECRET,
+      };
+
+      // Phase δ.2: APIリクエストログ開始
+      const logId = await apiLoggerService.logRequest(
+        'generate-business-ideas',
+        'POST',
+        endpoint,
+        headers,
+        requestBody,
+        {
+          companyId: company.id,
+          operationType: 'generate-ideas'
+        }
+      );
+
+      const requestStart = Date.now();
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
       });
 
+      let result: any;
+      let responseError: Error | undefined;
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `API error: ${response.status}`);
+        try {
+          const errorData = await response.json();
+          responseError = new Error(errorData.error || `API error: ${response.status}`);
+          
+          // Phase δ.2: エラーレスポンスもログ
+          await apiLoggerService.logResponse(
+            logId,
+            response.status,
+            response.statusText,
+            Object.fromEntries(response.headers),
+            errorData,
+            requestStart,
+            responseError
+          );
+          
+          throw responseError;
+        } catch (parseError) {
+          responseError = new Error(`API error: ${response.status} - ${response.statusText}`);
+          
+          await apiLoggerService.logResponse(
+            logId,
+            response.status,
+            response.statusText,
+            Object.fromEntries(response.headers),
+            null,
+            requestStart,
+            responseError
+          );
+          
+          throw responseError;
+        }
       }
 
-      const result = await response.json();
+      result = await response.json();
+      
+      // Phase δ.2: 成功レスポンスをログ
+      await apiLoggerService.logResponse(
+        logId,
+        response.status,
+        response.statusText,
+        Object.fromEntries(response.headers),
+        result,
+        requestStart
+      );
       
       if (result.success) {
         setProgress(100);
         setResults(result.data);
+        
+        // Phase δ.1: 自動保存機能
+        // アイデア生成が成功したら自動的に保存
+        if (result.data.ideas && result.data.ideas.length > 0) {
+          for (const idea of result.data.ideas) {
+            try {
+              const storedIdea: StoredBusinessIdea = {
+                ...idea,
+                id: `auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                companyId: company.id,
+                companyName: company.name,
+                companyCategory: company.category,
+                analysisParams: params,
+                generationMetadata: result.data.metadata,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                isStarred: false,
+                autoSaved: true, // 自動保存フラグ
+                generationContext: {
+                  timestamp: Date.now(),
+                  apiVersion: result.data.metadata?.version || 'unknown',
+                  modelUsed: result.data.metadata?.model || 'unknown',
+                  cacheLevel: result.data.metadata?.cacheLevel
+                }
+              };
+              
+              await ideaStorageService.saveIdea(storedIdea);
+              console.log('Idea auto-saved:', storedIdea.id);
+            } catch (saveError) {
+              console.error('Failed to auto-save idea:', saveError);
+              // 自動保存の失敗はユーザーに通知しない（サイレント失敗）
+            }
+          }
+          
+          // 保存済みアイデアリストを更新
+          await loadSavedIdeas();
+        }
       } else {
         throw new Error(result.error || 'アイデア生成に失敗しました');
       }
