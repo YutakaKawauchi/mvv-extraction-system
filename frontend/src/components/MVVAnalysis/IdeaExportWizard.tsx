@@ -444,7 +444,7 @@ export const IdeaExportWizard: React.FC<IdeaExportWizardProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
         {/* ヘッダー */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">

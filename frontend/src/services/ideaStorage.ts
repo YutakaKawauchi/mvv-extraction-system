@@ -9,6 +9,7 @@ export interface StoredBusinessIdea {
   id: string;
   companyId: string;
   companyName: string;
+  companyCategory?: string; // 企業カテゴリ
   title: string;
   description: string;
   worldview: string;
@@ -36,6 +37,7 @@ export interface StoredBusinessIdea {
   };
   verification?: {
     industryAnalysis: any;
+    marketValidation: any;
     businessModelValidation: any;
     competitiveAnalysis: any;
     improvementSuggestions: any;
@@ -53,7 +55,17 @@ export interface StoredBusinessIdea {
     focusAreas: string[];
     businessModel: string;
     targetMarket: string;
-    constraints: any;
+    constraints: {
+      budget?: string;
+      timeframe?: string;
+      resources?: string;
+    };
+    techPreferences: {
+      preferred: string[];
+      avoided: string[];
+    };
+    riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+    revenueExpectation: 'short-term' | 'medium-term' | 'long-term';
   };
   generationMetadata: {
     model: string;
@@ -63,11 +75,22 @@ export interface StoredBusinessIdea {
     version: string;
     cacheLevel?: number;
   };
+  // Phase δ.1: 自動保存機能関連フィールド
+  autoSaved?: boolean; // 自動保存されたかどうか
+  generationContext?: { // 生成時のコンテキスト情報
+    timestamp: number;
+    apiVersion: string;
+    modelUsed: string;
+    cacheLevel?: number;
+    apiLogId?: string; // APIログとの紐づけ
+  };
   createdAt: Date;
   updatedAt: Date;
   tags: string[];
   status: 'draft' | 'verified' | 'archived';
   starred: boolean;
+  // 互換性のためisStarredも維持
+  isStarred?: boolean;
 }
 
 export interface IdeaSearchFilters {

@@ -127,6 +127,42 @@ function formatAnalysisParams(analysisParams) {
     parts.push(`**対象市場**: ${analysisParams.targetMarket}`);
   }
   
+  // 技術選好
+  if (analysisParams.techPreferences) {
+    const techParts = [];
+    if (analysisParams.techPreferences.preferred && analysisParams.techPreferences.preferred.length > 0) {
+      techParts.push(`活用したい技術: ${analysisParams.techPreferences.preferred.join('、')}`);
+    }
+    if (analysisParams.techPreferences.avoided && analysisParams.techPreferences.avoided.length > 0) {
+      techParts.push(`避けたい技術: ${analysisParams.techPreferences.avoided.join('、')}`);
+    }
+    if (techParts.length > 0) {
+      parts.push(`**技術選好**: ${techParts.join('　/ ')}`);
+    }
+  }
+  
+  // リスク許容度
+  if (analysisParams.riskTolerance) {
+    const riskLabels = {
+      'conservative': '保守的（確実性を重視、リスクを最小限に）',
+      'moderate': '中程度（バランスの取れたリスク・リターン）',
+      'aggressive': '積極的（高リスク・高リターンを志向）'
+    };
+    const riskLabel = riskLabels[analysisParams.riskTolerance] || analysisParams.riskTolerance;
+    parts.push(`**リスク許容度**: ${riskLabel}`);
+  }
+  
+  // 収益期待
+  if (analysisParams.revenueExpectation) {
+    const revenueLabels = {
+      'short-term': '短期収益重視（1-2年での収益化を目指す）',
+      'medium-term': '中期収益重視（3-5年での本格収益化を目指す）',
+      'long-term': '長期投資重視（5年以上の長期的なリターンを重視）'
+    };
+    const revenueLabel = revenueLabels[analysisParams.revenueExpectation] || analysisParams.revenueExpectation;
+    parts.push(`**収益期待**: ${revenueLabel}`);
+  }
+  
   return parts.length > 0 ? parts.join('\n') : '**分析条件**: 一般的なビジネス機会を探索';
 }
 

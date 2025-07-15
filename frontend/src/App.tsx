@@ -3,9 +3,11 @@ import { Dashboard } from './components/Dashboard';
 import { ErrorBoundary, NotificationToast, ScrollToTopButton } from './components/common';
 import { AuthGuard } from './components/auth';
 import { AdminPanel } from './components/admin';
+import { ProductionTester } from './components/debug/ProductionTester';
 import { useIndexedDB } from './hooks/useIndexedDB';
 import { useNotification } from './hooks/useNotification';
 import { useAdminMode } from './hooks/useAdminMode';
+import { useDebugMode } from './hooks/useDebugMode';
 import { useCompanyStore } from './stores/companyStore';
 import './services/manualMigration'; // Load debug tools
 
@@ -13,6 +15,7 @@ function App() {
   const { isInitialized, error: dbError } = useIndexedDB();
   const { notifications, removeNotification } = useNotification();
   const { isAdminMode, closeAdminMode } = useAdminMode();
+  const { isDebugVisible, closeDebug } = useDebugMode();
   const { loadCompanies } = useCompanyStore();
 
   useEffect(() => {
@@ -76,6 +79,12 @@ function App() {
           <AdminPanel
             isOpen={isAdminMode}
             onClose={closeAdminMode}
+          />
+          
+          {/* Production Tester (Debug Mode) */}
+          <ProductionTester
+            isVisible={isDebugVisible}
+            onClose={closeDebug}
           />
           
           {/* Global Notifications */}

@@ -61,6 +61,22 @@ AI-powered system for extracting Mission, Vision, and Values (MVV) from Japanese
   - Advanced Excel features: window freezing, auto-filters, text wrapping, conditional formatting
   - JSIC industry classification integration and professional styling
   - Mobile-responsive export interface with detailed configuration options
+- ✅ **Unified Idea Generation Dialog System (Phase γ) (2025-07-14)**
+  - 3-step wizard: Company Selection → Parameter Settings → Idea Generation
+  - Preset functionality with 3 strategic business presets (DX-conservative, Innovation-aggressive, CX-balanced)
+  - Conditional UI with business model-specific guidance and technology recommendations
+  - Enhanced constraint parameters: Tech preferences, Risk tolerance, Revenue expectations
+  - Clean unified interface replacing duplicate UI elements
+  - State synchronization fix for seamless dialog-based generation
+- ✅ **Comprehensive Async Task System (Phase ε) (2025-07-15)**
+  - Complete async task lifecycle management (queued → processing → completed → consumed)
+  - Background Functions with CORS-compliant development endpoints
+  - Smart polling with exponential backoff and automatic cleanup
+  - IndexedDB integration with persistent task storage
+  - API logging integration for complete request/response tracking
+  - Real-time UI updates with React hooks integration
+  - Support for 15-minute long-running tasks with proper error handling
+  - Comprehensive test suite with mock services and development tools
 
 ## Common Commands
 
@@ -175,6 +191,7 @@ netlify env:set JWT_EXPIRATION "24h"
 - **Authentication**: JWT-based with environment variable credentials
 - **Security**: CORS protection, dual authentication (API key + JWT), rate limiting, sensitive data masking
 - **Logging**: Environment-aware logging (console + file output)
+- **Async Tasks**: Background Functions with IndexedDB persistence, smart polling, lifecycle management
 - **Accessibility**: WCAG 2.1 AA compliance, ARIA labels, screen reader support, keyboard navigation
 - **Mobile**: Responsive design, touch-friendly (44px+ targets), mobile-first layouts
 - **Data Export**: ExcelJS-based professional Excel export with advanced formatting and multiple specialized sheets
@@ -187,6 +204,17 @@ netlify env:set JWT_EXPIRATION "24h"
 - **Token Security**: 24-hour JWT expiration with secure generation
 - **Route Protection**: AuthGuard component protects entire application
 - **Dual Auth**: Backward compatibility with existing API key authentication
+
+### Async Task System Architecture (Phase ε)
+- **Task Lifecycle**: queued → processing → completed → consumed (with automatic cleanup)
+- **Background Functions**: 15-minute execution time with proper timeout handling
+- **Smart Polling**: Exponential backoff (2-30 seconds) with automatic suspension
+- **IndexedDB Storage**: Persistent task storage with automatic cleanup policies
+- **API Integration**: Complete request/response logging for audit trails
+- **React Hooks**: useAsyncTask for seamless UI integration with real-time updates
+- **CORS Handling**: Development-specific endpoints to resolve cross-origin issues
+- **Error Recovery**: Comprehensive error handling with retry mechanisms
+- **Debug Tools**: Global helpers for development and troubleshooting
 
 ### Core Features
 1. **Company Management**: CSV import/export with duplicate checking, CRUD operations, status tracking
@@ -208,6 +236,12 @@ netlify env:set JWT_EXPIRATION "24h"
 - `POST /.netlify/functions/generate-business-ideas`: Business idea generation (auth protected, temperature 0.7)
 - `POST /.netlify/functions/verify-business-idea`: AI verification system with 3-tier analysis (auth protected)
 - `GET /.netlify/functions/health`: Health check (public)
+- **Async Task endpoints**:
+  - `POST /.netlify/functions/start-async-task`: Start async task (auth protected)
+  - `GET /.netlify/functions/task-status`: Get task status (auth protected)
+  - `POST /.netlify/functions/verify-business-idea-async`: Async verification proxy (development)
+  - `POST /.netlify/functions/verify-business-idea-background`: Background verification (production)
+  - `POST /.netlify/functions/long-running-mock`: Mock service for testing (development)
 - **Authentication endpoints**:
   - `POST /.netlify/functions/auth-login-v2`: JWT token generation (production)
   - `POST /.netlify/functions/auth-validate-v2`: JWT token validation (production)
@@ -659,7 +693,13 @@ curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
 ### Current System Status (Updated 2025-07-14)
 1. **✅ Production Deploy**: System fully operational with zero errors
 2. **✅ Authentication System**: JWT-based authentication deployed to production
-3. **✅ Real-time Analysis Dashboard**: Dynamic MVV analysis using IndexedDB
+3. **✅ Unified Idea Generation Dialog System (Phase γ)**: Complete UI overhaul for business idea generation
+   - ✅ 3-Step Wizard: Company Selection → Parameter Settings → Idea Generation
+   - ✅ Strategic Presets: DX-conservative, Innovation-aggressive, CX-balanced
+   - ✅ Conditional UI: Business model-specific guidance and technology recommendations
+   - ✅ Enhanced Constraints: Tech preferences, risk tolerance, revenue expectations
+   - ✅ Clean Interface: Eliminated duplicate UI elements for streamlined UX
+4. **✅ Real-time Analysis Dashboard**: Dynamic MVV analysis using IndexedDB
    - ✅ Similar Company Search: Real-time embedding similarity calculation
    - ✅ Trend Analysis: Morphological analysis with JSIC categories
    - ✅ Interactive Word Cloud: Independent tab with zoom/pan/drag functionality
@@ -911,8 +951,99 @@ generateBusinessIdeas()  // Always fresh, creative variety
 - **Tiered Usage**: Freemium model with professional tiers
 - **Target Cost**: <$0.02/user/month operational cost (achieved via caching)
 
+## Upcoming Enhancement Roadmap (2025-07-14)
+
+### Phase δ: Advanced Idea Management & User Experience (Week 1-2)
+
+#### Phase δ.1: Auto-Save System
+**Priority**: High | **Complexity**: Low | **Timeline**: 1-2 days
+- **Automatic Idea Preservation**: Generated ideas automatically saved without user action
+- **User Settings**: Toggle for auto-save preferences with opt-out option
+- **Background Processing**: Silent saves with user notifications for important actions
+- **Recovery System**: Unsaved changes recovery on browser crashes or navigation
+
+#### Phase δ.2: API Request/Response Logging System  
+**Priority**: High | **Complexity**: Medium | **Timeline**: 3-4 days
+- **Complete API Audit Trail**: Full request/response logging for all AI interactions
+- **Persistent Storage**: IndexedDB-based log storage with search and filtering
+- **Debug Interface**: JSON viewer with formatted display and export capabilities
+- **Performance Metrics**: Processing times, token counts, costs, and model information
+- **Data Schema**:
+  ```typescript
+  interface ApiRequestLog {
+    id: string;
+    endpoint: string;
+    timestamp: Date;
+    request: object;
+    response: object;
+    processingTime: number;
+    model: string;
+    tokens: number;
+    cost: number;
+    success: boolean;
+  }
+  ```
+
+### Phase ε: Async Verification & Canvas Editing (Week 3-4)
+
+#### Phase ε.1: Background Verification API
+**Priority**: Medium | **Complexity**: High | **Timeline**: 5-7 days
+- **Async Processing**: `verify-business-idea-background.js` with job queue system
+- **Status Polling**: Real-time progress updates with WebSocket-like polling
+- **Timeout Resolution**: Eliminate current 30s timeout limitations
+- **Error Recovery**: Robust retry mechanisms and partial result handling
+- **Architecture**:
+  ```
+  Client → Background API → Job Queue → Status Check → Result Delivery
+  ```
+
+#### Phase ε.2: Lean Canvas Editor System
+**Priority**: Medium | **Complexity**: Medium | **Timeline**: 4-5 days
+- **Inline Editing**: Direct canvas modification with real-time validation
+- **Version Control**: Change tracking with diff visualization
+- **Auto-Save Integration**: Seamless integration with Phase δ.1
+- **AI Suggestion Integration**: Direct application of verification recommendations
+- **Export Options**: Multiple format exports (PDF, PNG, Excel integration)
+
+### Phase ζ: Advanced Management & Analytics (Week 5-6)
+
+#### Phase ζ.1: Version Management System
+**Priority**: Low | **Complexity**: High | **Timeline**: 7-10 days
+- **Idea Evolution Tracking**: Complete version history with branching support
+- **Change Visualization**: Timeline view with diff comparisons
+- **Rollback Capabilities**: Easy reversion to previous versions
+- **Collaboration Features**: Notes, comments, and change explanations
+- **Merge Functionality**: Combining insights from multiple verification rounds
+
+#### Phase ζ.2: Advanced Analytics Dashboard
+**Priority**: Low | **Complexity**: Medium | **Timeline**: 3-4 days
+- **Cross-Company Analysis**: Idea similarity and trend identification
+- **Performance Metrics**: Success rate tracking and improvement suggestions
+- **Cost Analytics**: Detailed API usage and optimization recommendations
+- **Export Capabilities**: Comprehensive reporting with data visualization
+
+### Implementation Strategy
+
+**Technical Approach**:
+- **Incremental Development**: Each phase builds upon previous implementations
+- **Backward Compatibility**: All new features maintain existing functionality
+- **Performance First**: Optimization for large datasets and concurrent users
+- **Mobile Responsive**: Ensuring all new features work across all devices
+
+**Quality Assurance**:
+- **Comprehensive Testing**: Unit, integration, and user acceptance testing
+- **Documentation Updates**: Real-time documentation maintenance
+- **User Feedback Integration**: Regular user testing and feedback incorporation
+- **Performance Monitoring**: Continuous monitoring of system performance metrics
+
+**Deployment Strategy**:
+- **Feature Flags**: Gradual rollout with ability to disable problematic features
+- **A/B Testing**: User experience optimization through controlled testing
+- **Monitoring**: Real-time error tracking and performance monitoring
+- **Rollback Plans**: Quick reversion capabilities for all new features
+
 ---
 
 *Last Updated: 2025-07-14*  
-*Current Status: Business Innovation Lab Beta v2 + Comprehensive AI Cache System (Production)*  
-*Next Phase: Expert verification differentiation & Advanced AI insights*
+*Current Status: Business Innovation Lab Beta v2 + Unified Dialog System (Phase γ) (Production)*  
+*Next Phase: Auto-Save & API Logging Systems (Phase δ)*

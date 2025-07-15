@@ -9,7 +9,7 @@ const corsHeaders = (origin) => {
   
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : allowedOrigins[0],
-    'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, X-Task-ID, X-Request-ID, X-Background-Function, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin'
