@@ -84,13 +84,13 @@ export class AsyncTaskService {
   }
 
   /**
-   * Background Function呼び出し
+   * Background Function呼び出し（start-async-task経由）
    */
   private async callBackgroundFunction(
     task: AsyncTask, 
     context: TaskExecutionContext
   ): Promise<BackgroundTaskResponse> {
-    const endpoint = this.getBackgroundFunctionEndpoint(task.type);
+    const endpoint = `${this.API_BASE_URL}/start-async-task`;
     const requestStart = Date.now();
 
     try {
@@ -103,11 +103,13 @@ export class AsyncTaskService {
           'X-Request-ID': context.requestId || ''
         },
         body: JSON.stringify({
-          taskId: task.id,
           taskType: task.type,
-          inputData: task.inputData,
-          context,
-          config: task.config
+          taskData: task.inputData,
+          priority: 'medium',
+          metadata: {
+            ...task.metadata,
+            clientContext: context
+          }
         })
       });
 
@@ -148,24 +150,6 @@ export class AsyncTaskService {
     }
   }
 
-  /**
-   * Background Function エンドポイントを取得
-   */
-  private getBackgroundFunctionEndpoint(taskType: AsyncTaskType): string {
-    // 開発環境では通常のFunctionを使用（CORSの問題を回避）
-    const isDevelopment = import.meta.env.VITE_ENVIRONMENT === 'development';
-    
-    const endpoints = {
-      'verify-business-idea': isDevelopment ? '/verify-business-idea-async' : '/verify-business-idea-background',
-      'generate-business-ideas': isDevelopment ? '/generate-business-ideas-async' : '/generate-business-ideas-background',
-      'extract-mvv': isDevelopment ? '/extract-mvv-async' : '/extract-mvv-background',
-      'extract-company-info': isDevelopment ? '/extract-company-info-async' : '/extract-company-info-background',
-      'analyze-competition': isDevelopment ? '/analyze-competition-async' : '/analyze-competition-background',
-      'other': isDevelopment ? '/generic-task-async' : '/generic-task-background'
-    };
-
-    return `${this.API_BASE_URL}${endpoints[taskType]}`;
-  }
 
   /**
    * ポーリング開始
@@ -422,17 +406,20 @@ export class AsyncTaskService {
     return await apiLoggerService.logRequest(
       task.type,
       'POST',
-      this.getBackgroundFunctionEndpoint(task.type),
+      `${this.API_BASE_URL}/start-async-task`,
       {
         'Content-Type': 'application/json',
         'X-API-Key': '[REDACTED]',
         'X-Task-ID': task.id
       },
       {
-        taskId: task.id,
         taskType: task.type,
-        inputData: task.inputData,
-        context
+        taskData: task.inputData,
+        priority: 'medium',
+        metadata: {
+          ...task.metadata,
+          clientContext: context
+        }
       },
       {
         companyId: task.metadata.companyId,
