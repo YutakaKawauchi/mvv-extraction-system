@@ -137,18 +137,37 @@ export const BusinessInnovationLab: React.FC = () => {
       console.log('📊 Current verificationResults:', verificationResults);
       
       if (selectedIdeaForVerification !== null) {
+        console.log('🔧 About to update verificationResults for index:', selectedIdeaForVerification);
+        console.log('🔧 Result data structure:', Object.keys(result));
+        console.log('🔧 Result metadata:', result.metadata);
+        
         setVerificationResults(prev => {
           const newResults = {
             ...prev,
             [selectedIdeaForVerification]: result
           };
           console.log('📈 Updated verificationResults:', newResults);
+          console.log('📈 Result stored for index:', selectedIdeaForVerification);
+          console.log('📈 Available indexes:', Object.keys(newResults));
+          
+          // 強制的にUIを再レンダリング
+          setTimeout(() => {
+            console.log('🔄 Force re-render check - verificationResults keys:', Object.keys(newResults));
+            console.log('🔄 Index 0 result exists:', !!newResults[0]);
+          }, 50);
+          
           return newResults;
         });
+        
+        // UIの更新後にselectedIdeaForVerificationをリセット
+        setTimeout(() => {
+          console.log('🧹 Resetting selectedIdeaForVerification after UI update');
+          setSelectedIdeaForVerification(null);
+        }, 500); // 少し長めに変更
       } else {
         console.warn('⚠️ selectedIdeaForVerification is null, cannot store result');
+        setSelectedIdeaForVerification(null);
       }
-      setSelectedIdeaForVerification(null);
     },
     onError: (error: Error) => {
       console.error('❌ Async verification failed:', error);
@@ -157,6 +176,19 @@ export const BusinessInnovationLab: React.FC = () => {
     },
     enablePersistence: true
   });
+
+  // タスクの状態を監視（デバッグ用）
+  useEffect(() => {
+    console.log('🔍 VerificationTask state changed:', {
+      hasTask: !!verificationTask.task,
+      taskId: verificationTask.task?.id,
+      taskStatus: verificationTask.task?.status,
+      isRunning: verificationTask.isRunning,
+      isCompleted: verificationTask.isCompleted,
+      hasResult: !!verificationTask.result,
+      selectedIdea: selectedIdeaForVerification
+    });
+  }, [verificationTask.task, verificationTask.isRunning, verificationTask.isCompleted, verificationTask.result, selectedIdeaForVerification]);
   
   // Excel Export機能のstate
   const [showExportWizard, setShowExportWizard] = useState(false);
@@ -921,7 +953,14 @@ export const BusinessInnovationLab: React.FC = () => {
                 )}
 
                 {/* Beta v2: AI検証結果表示 */}
-                {verificationResults[index] && (
+                {(() => {
+                  console.log(`🖥️ Rendering check for index ${index}:`, {
+                    hasResult: !!verificationResults[index],
+                    allResults: Object.keys(verificationResults),
+                    selectedForVerification: selectedIdeaForVerification
+                  });
+                  return verificationResults[index];
+                })() && (
                   <div className="mt-6 border-t border-gray-200 pt-6">
                     <div className="flex items-center mb-4">
                       <div className="bg-purple-100 p-2 rounded-lg mr-3">

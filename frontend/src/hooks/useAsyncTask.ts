@@ -74,7 +74,21 @@ export const useAsyncTask = (
 
   // タスク状態の監視
   useEffect(() => {
-    if (!task) return;
+    if (!task) {
+      console.log('🔍 Task state check: No task available');
+      return;
+    }
+
+    // デバッグ: タスク状態を詳細にログ
+    console.log(`🔍 Task state check for ${task.id}:`, {
+      status: task.status,
+      hasResult: !!task.result,
+      resultType: typeof task.result,
+      resultKeys: task.result ? Object.keys(task.result) : [],
+      hasOnComplete: !!onComplete,
+      alreadyCompleted: completedTasksRef.current.has(task.id),
+      lastUpdated: task.timestamps?.lastUpdatedAt ? new Date(task.timestamps.lastUpdatedAt).toLocaleTimeString() : 'N/A'
+    });
 
     // 完了/失敗時のコールバック（重複実行防止）
     if (task.status === 'completed' && onComplete && !completedTasksRef.current.has(task.id)) {
@@ -96,26 +110,44 @@ export const useAsyncTask = (
     if (onProgress && task.progress) {
       onProgress(task.progress.percentage, task.progress.currentStep);
     }
-  }, [task, onComplete, onError, onProgress]);
+  }, [task, onComplete, onError, onProgress, task?.status, task?.result, task?.timestamps?.lastUpdatedAt]);
 
   // アクティブなタスクの定期チェック
   useEffect(() => {
-    if (!task || !['queued', 'processing'].includes(task.status)) return;
+    if (!task || !['queued', 'processing'].includes(task.status)) {
+      console.log(`🔄 Polling disabled for task ${task?.id}: status=${task?.status}`);
+      return;
+    }
+
+    console.log(`🔄 Starting polling for task ${task.id} with status: ${task.status}`);
 
     const pollInterval = setInterval(async () => {
       try {
         const updatedTask = await asyncTaskStorageService.getTask(task.id);
-        if (updatedTask && mountedRef.current && updatedTask.timestamps.lastUpdatedAt > task.timestamps.lastUpdatedAt) {
-          console.log(`🔄 Task ${task.id} status update: ${updatedTask.status} (${updatedTask.progress?.percentage}%)`);
-          setTask(updatedTask);
+        if (updatedTask && mountedRef.current) {
+          console.log(`🔄 Polling check for task ${task.id}:`, {
+            currentStatus: task.status,
+            updatedStatus: updatedTask.status,
+            currentTime: task.timestamps.lastUpdatedAt,
+            updatedTime: updatedTask.timestamps.lastUpdatedAt,
+            hasNewData: updatedTask.timestamps.lastUpdatedAt > task.timestamps.lastUpdatedAt
+          });
+          
+          if (updatedTask.timestamps.lastUpdatedAt > task.timestamps.lastUpdatedAt) {
+            console.log(`🔄 Task ${task.id} status update: ${updatedTask.status} (${updatedTask.progress?.percentage}%)`);
+            setTask(updatedTask);
+          }
         }
       } catch (err) {
         console.error('Failed to poll task status:', err);
       }
     }, 2000); // 2秒間隔でチェック
 
-    return () => clearInterval(pollInterval);
-  }, [task?.id, task?.status]);
+    return () => {
+      console.log(`🔄 Stopping polling for task ${task.id}`);
+      clearInterval(pollInterval);
+    };
+  }, [task?.id, task?.status, task?.timestamps?.lastUpdatedAt]);
 
   /**
    * 既存タスクの読み込み
@@ -144,6 +176,7 @@ export const useAsyncTask = (
 
       const newTask = await asyncTaskService.startTask(request);
       if (mountedRef.current) {
+        console.log(`🚀 Task started and set in hook: ${newTask.id} (status: ${newTask.status})`);
         setTask(newTask);
       }
       return newTask;
