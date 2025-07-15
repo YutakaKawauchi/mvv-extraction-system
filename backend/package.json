@@ -24,6 +24,7 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "@netlify/blobs": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "openai": "^5.8.2"
   },

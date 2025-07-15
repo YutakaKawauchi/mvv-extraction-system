@@ -112,6 +112,29 @@ function mockResponse(endpoint, options) {
   return new Promise((resolve) => {
     setTimeout(() => {
       if (endpoint === '/start-async-task') {
+        // リクエストボディを解析して入力検証
+        const requestData = options.body ? JSON.parse(options.body) : {};
+        
+        // 無効なタスクタイプの場合
+        if (requestData.taskType === 'invalid-task-type') {
+          resolve({
+            ok: false,
+            status: 400,
+            statusText: 'Bad Request',
+            data: {
+              error: 'Unsupported task type',
+              taskType: requestData.taskType,
+              supportedTypes: ['verify-business-idea', 'generate-business-ideas', 'extract-mvv', 'extract-company-info', 'analyze-competition']
+            },
+            headers: {
+              'access-control-allow-origin': '*',
+              'content-type': 'application/json'
+            }
+          });
+          return;
+        }
+        
+        // 正常なリクエストの場合
         resolve({
           ok: true,
           status: 202,
@@ -140,8 +163,32 @@ function mockResponse(endpoint, options) {
           }
         });
       } else if (endpoint.startsWith('/task-status')) {
-        const taskId = endpoint.includes('taskId=') ? 
-          endpoint.split('taskId=')[1].split('&')[0] : 'async_123';
+        // エンドポイントからtaskIdを抽出
+        let taskId = '';
+        if (endpoint.includes('taskId=')) {
+          taskId = endpoint.split('taskId=')[1].split('&')[0];
+        } else if (endpoint === '/task-status') {
+          // パラメータなしの場合は空文字列
+          taskId = '';
+        }
+        
+        // taskIdが空の場合は400エラー
+        if (!taskId) {
+          resolve({
+            ok: false,
+            status: 400,
+            statusText: 'Bad Request',
+            data: {
+              error: 'taskId query parameter is required',
+              example: '/.netlify/functions/task-status?taskId=async_12345'
+            },
+            headers: {
+              'access-control-allow-origin': '*',
+              'content-type': 'application/json'
+            }
+          });
+          return;
+        }
         
         resolve({
           ok: true,
@@ -205,40 +252,42 @@ function mockResponse(endpoint, options) {
           }
         });
       } else if (endpoint === '/verify-business-idea-background') {
+        // リクエストボディを解析して入力検証
+        const requestData = options.body ? JSON.parse(options.body) : {};
+        
+        // 必須パラメータのチェック
+        if (!requestData.originalIdea || !requestData.companyData) {
+          resolve({
+            ok: false,
+            status: 400,
+            statusText: 'Bad Request',
+            data: {
+              error: 'taskId, originalIdea and companyData are required',
+              taskId: requestData.taskId || 'missing'
+            },
+            headers: {
+              'access-control-allow-origin': '*',
+              'content-type': 'application/json'
+            }
+          });
+          return;
+        }
+        
+        // 正常なリクエストの場合（Background Function は202を返す）
         resolve({
           ok: true,
-          status: 200,
-          statusText: 'OK',
+          status: 202,
+          statusText: 'Accepted',
           data: {
             success: true,
-            taskId: options.body ? JSON.parse(options.body).taskId : 'async_123',
-            data: {
-              overallAssessment: {
-                overallScore: {
-                  viabilityScore: 75,
-                  innovationScore: 85,
-                  marketPotentialScore: 70,
-                  totalScore: 77
-                },
-                recommendation: {
-                  decision: 'CONDITIONAL-GO',
-                  reasoning: 'Strong innovation potential with moderate market risks'
-                }
-              },
-              metadata: {
-                verificationLevel: 'comprehensive',
-                totalTokens: 15000,
-                totalCost: 0.08,
-                confidence: 0.9,
-                backgroundFunction: true,
-                mock: true
-              }
-            },
+            taskId: requestData.taskId || 'async_123',
+            status: 'completed',
+            message: 'Background verification completed and result sent to webhook',
             metadata: {
               processingTime: 120000,
               verifiedAt: Date.now(),
               backgroundFunction: true,
-              timeoutUsed: '15 minutes available'
+              webhookNotified: true
             }
           },
           headers: {
@@ -546,11 +595,11 @@ describe('Async Task API Test Suite', () => {
         });
 
         expect(response.ok).toBe(true);
-        expect(response.status).toBe(200);
+        expect(response.status).toBe(202); // Background Function は202を返す
         expect(response.data.success).toBe(true);
         expect(response.data.taskId).toBe(taskId);
-        expect(response.data.data.overallAssessment).toBeDefined();
-        expect(response.data.data.metadata.verificationLevel).toBeDefined();
+        expect(response.data.status).toBe('completed'); // Webhook通知完了
+        expect(response.data.metadata.backgroundFunction).toBe(true);
 
         if (TEST_MODE === 'integration') {
           testResults.estimatedCost += 0.08; // フル検証コスト

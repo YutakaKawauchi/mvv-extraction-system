@@ -185,8 +185,12 @@ exports.handler = async (event, context) => {
       backgroundFunction: true
     });
 
+    // ★ 新規追加: Webhook に完了通知を送信
+    await notifyWebhook(taskId, 'completed', verificationResult, null);
+
+    // Background Function は202で終了（結果はWebhookで処理）
     return {
-      statusCode: 200,
+      statusCode: 202,
       headers: {
         ...corsHeadersObj,
         'Content-Type': 'application/json'
@@ -194,12 +198,13 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         taskId,
-        data: verificationResult,
+        status: 'completed',
+        message: 'Background verification completed and result sent to webhook',
         metadata: {
           processingTime,
           verifiedAt: Date.now(),
           backgroundFunction: true,
-          timeoutUsed: '15 minutes available'
+          webhookNotified: true
         }
       })
     };
@@ -213,17 +218,38 @@ exports.handler = async (event, context) => {
       backgroundFunction: true
     });
     
+    // ★ 新規追加: エラー時もWebhookに通知
+    const taskId = requestBody?.taskId;
+    if (taskId) {
+      try {
+        await notifyWebhook(taskId, 'failed', null, error.message);
+      } catch (webhookError) {
+        logger.error('Failed to notify webhook of error', {
+          taskId,
+          originalError: error.message,
+          webhookError: webhookError.message
+        });
+      }
+    }
+    
+    // Background Function は202で終了（エラーもWebhookで処理）
     return {
-      statusCode: 500,
+      statusCode: 202,
       headers: {
         ...corsHeadersObj,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
-        error: 'Background verification failed',
-        message: error.message,
-        taskId: requestBody?.taskId,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        success: false,
+        taskId,
+        status: 'failed',
+        message: 'Background verification failed and error sent to webhook',
+        error: error.message,
+        metadata: {
+          backgroundFunction: true,
+          webhookNotified: true,
+          failedAt: Date.now()
+        }
       })
     };
   }
@@ -918,4 +944,69 @@ function calculatePerplexityCost(usage) {
   const costPer1M = 1.0; // $1.0/1M tokens (概算)
   
   return (usage.total_tokens / 1000000) * costPer1M;
+}
+
+/**
+ * ★ 新規追加: Webhook通知関数
+ * Background Function完了時にwebhook-task-completeに通知
+ */
+async function notifyWebhook(taskId, status, result, error) {
+  try {
+    const webhookUrl = `${process.env.URL || 'http://localhost:8888'}/.netlify/functions/webhook-task-complete`;
+    
+    const payload = {
+      taskId,
+      status,
+      result,
+      error,
+      metadata: {
+        completedAt: Date.now(),
+        source: 'verify-business-idea-background',
+        version: '1.0.0'
+      }
+    };
+
+    logger.info('Sending webhook notification', {
+      taskId,
+      status,
+      webhookUrl,
+      hasResult: !!result,
+      hasError: !!error
+    });
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': process.env.MVP_API_SECRET,
+        'X-Background-Function': 'true'
+      },
+      body: JSON.stringify(payload),
+      // 短いタイムアウト（Background Function完了を遅らせない）
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Webhook responded with status ${response.status}`);
+    }
+
+    const responseData = await response.json();
+    
+    logger.info('Webhook notification sent successfully', {
+      taskId,
+      status,
+      webhookResponse: responseData
+    });
+
+  } catch (error) {
+    logger.error('Failed to send webhook notification', {
+      taskId,
+      status,
+      error: error.message,
+      stack: error.stack
+    });
+    
+    // Webhook失敗は致命的エラーではないため、エラーを再スローしない
+    // Background Function本体の処理は継続される
+  }
 }

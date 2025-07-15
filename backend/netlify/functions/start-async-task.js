@@ -104,8 +104,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // タスクIDの生成
-    const taskId = generateTaskId(taskType);
+    // タスクIDの取得（フロントエンドから提供されたものを使用）
+    const taskId = event.headers['x-task-id'] || event.headers['X-Task-ID'] || generateTaskId(taskType);
     
     logger.info('Starting async task', { 
       taskId,
