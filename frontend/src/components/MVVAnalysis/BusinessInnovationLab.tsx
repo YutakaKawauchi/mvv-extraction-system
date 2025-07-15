@@ -291,11 +291,14 @@ export const BusinessInnovationLab: React.FC = () => {
         // Phase δ.1: 自動保存機能
         // アイデア生成が成功したら自動的に保存
         if (result.data.ideas && result.data.ideas.length > 0) {
+          const savedIdeaIds: string[] = [];
+          
           for (const idea of result.data.ideas) {
             try {
+              const ideaId = `auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
               const storedIdea: StoredBusinessIdea = {
                 ...idea,
-                id: `auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                id: ideaId,
                 companyId: company.id,
                 companyName: company.name,
                 companyCategory: company.category,
@@ -309,15 +312,26 @@ export const BusinessInnovationLab: React.FC = () => {
                   timestamp: Date.now(),
                   apiVersion: result.data.metadata?.version || 'unknown',
                   modelUsed: result.data.metadata?.model || 'unknown',
-                  cacheLevel: result.data.metadata?.cacheLevel
+                  cacheLevel: result.data.metadata?.cacheLevel,
+                  apiLogId: logId // APIログとの紐づけ
                 }
               };
               
               await ideaStorageService.saveIdea(storedIdea);
-              console.log('Idea auto-saved:', storedIdea.id);
+              savedIdeaIds.push(ideaId);
+              console.log('Idea auto-saved:', ideaId);
             } catch (saveError) {
               console.error('Failed to auto-save idea:', saveError);
               // 自動保存の失敗はユーザーに通知しない（サイレント失敗）
+            }
+          }
+          
+          // Phase δ.2: APIログにアイデアIDを追加で記録
+          if (savedIdeaIds.length > 0) {
+            try {
+              await apiLoggerService.updateLogWithIdeaIds(logId, savedIdeaIds);
+            } catch (logUpdateError) {
+              console.error('Failed to update API log with idea IDs:', logUpdateError);
             }
           }
           

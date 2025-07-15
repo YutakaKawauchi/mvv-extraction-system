@@ -31,7 +31,8 @@ export interface ApiLogEntry {
     userAgent: string;
     sessionId?: string;
     companyId?: string;
-    ideaId?: string;
+    ideaId?: string; // 単一アイデア用（後方互換性）
+    ideaIds?: string[]; // 複数アイデア用（アイデア生成API用）
     operationType: 'generate-ideas' | 'verify-ideas' | 'extract-mvv' | 'extract-company-info' | 'other';
     costTracking?: {
       estimatedCost: number;
@@ -108,7 +109,8 @@ export class ApiLoggerService {
 
   constructor() {
     this.db = new ApiLogDatabase();
-    this.setupCleanupJob();
+    // 自動クリーンアップは無効化 - 管理者パネルから手動削除予定
+    // this.setupCleanupJob();
   }
 
   /**
@@ -265,7 +267,7 @@ export class ApiLoggerService {
         }
         
         if (filters.hasError !== undefined) {
-          query = query.filter(log => !!log.error === filters.hasError);
+          query = query.filter(log => !!log.error === filters.hasError!);
         }
         
         if (filters.companyId) {
@@ -374,6 +376,69 @@ export class ApiLoggerService {
   }
 
   /**
+   * APIログにアイデアIDを追加で記録（ドキュメント紐づけ強化）
+   */
+  async updateLogWithIdeaIds(logId: string, ideaIds: string[]): Promise<void> {
+    try {
+      const existingLog = await this.db.logs.get(logId);
+      if (!existingLog) {
+        throw new Error('APIログが見つかりません');
+      }
+
+      await this.db.logs.update(logId, {
+        metadata: {
+          ...existingLog.metadata,
+          ideaIds: ideaIds,
+          // 後方互換性のため、最初のアイデアIDを単一ideaIdにも設定
+          ideaId: ideaIds.length > 0 ? ideaIds[0] : undefined
+        }
+      });
+
+      console.log('API log updated with idea IDs:', { logId, ideaIds });
+    } catch (error) {
+      console.error('Failed to update API log with idea IDs:', error);
+      throw new Error('APIログのアイデアID更新に失敗しました');
+    }
+  }
+
+  /**
+   * 特定のアイデアIDに関連するAPIログを取得
+   */
+  async getLogsByIdeaId(ideaId: string): Promise<ApiLogEntry[]> {
+    try {
+      const logs = await this.db.logs
+        .filter(log => {
+          return log.metadata.ideaId === ideaId || 
+                 (log.metadata.ideaIds ? log.metadata.ideaIds.includes(ideaId) : false);
+        })
+        .reverse()
+        .toArray();
+      
+      return logs;
+    } catch (error) {
+      console.error('Failed to get logs by idea ID:', error);
+      throw new Error('アイデア関連APIログの取得に失敗しました');
+    }
+  }
+
+  /**
+   * 特定の企業IDに関連するAPIログを取得
+   */
+  async getLogsByCompanyId(companyId: string): Promise<ApiLogEntry[]> {
+    try {
+      const logs = await this.db.logs
+        .filter(log => log.metadata.companyId === companyId)
+        .reverse()
+        .toArray();
+      
+      return logs;
+    } catch (error) {
+      console.error('Failed to get logs by company ID:', error);
+      throw new Error('企業関連APIログの取得に失敗しました');
+    }
+  }
+
+  /**
    * 古いログの自動クリーンアップ
    */
   async cleanupOldLogs(olderThanDays = 30): Promise<number> {
@@ -477,15 +542,16 @@ export class ApiLoggerService {
       .slice(-30); // 過去30日分
   }
 
-  private setupCleanupJob(): void {
-    // 起動時とその後定期的にクリーンアップを実行
-    this.cleanupOldLogs();
-    
-    // 1時間ごとにクリーンアップをチェック
-    setInterval(() => {
-      this.cleanupOldLogs();
-    }, 60 * 60 * 1000);
-  }
+  // 自動クリーンアップは無効化済み - 必要時のみ使用
+  // private setupCleanupJob(): void {
+  //   // 起動時とその後定期的にクリーンアップを実行
+  //   this.cleanupOldLogs();
+  //   
+  //   // 1時間ごとにクリーンアップをチェック
+  //   setInterval(() => {
+  //     this.cleanupOldLogs();
+  //   }, 60 * 60 * 1000);
+  // }
 }
 
 // シングルトンインスタンス

@@ -82,6 +82,7 @@ export interface StoredBusinessIdea {
     apiVersion: string;
     modelUsed: string;
     cacheLevel?: number;
+    apiLogId?: string; // APIログとの紐づけ
   };
   createdAt: Date;
   updatedAt: Date;
