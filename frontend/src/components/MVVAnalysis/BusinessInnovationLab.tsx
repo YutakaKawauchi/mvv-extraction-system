@@ -526,11 +526,14 @@ export const BusinessInnovationLab: React.FC = () => {
       console.log(`📊 Current verificationResults:`, verificationResults);
       
       // 非同期タスクリクエストを作成
+      // embeddingsデータを削除してリクエストサイズを軽量化
+      const { embeddings, ...companyDataWithoutEmbeddings } = selectedCompany;
+      
       const taskRequest: AsyncTaskCreateRequest = {
         type: 'verify-business-idea',
         inputData: {
           originalIdea: idea,
-          companyData: selectedCompany,
+          companyData: companyDataWithoutEmbeddings,
           verificationLevel
         },
         config: {
