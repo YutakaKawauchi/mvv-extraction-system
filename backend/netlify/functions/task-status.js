@@ -174,8 +174,8 @@ async function getTaskStatus(taskId, options = {}) {
       }
     }
     
-    // 0.5. 開発環境の非同期タスクシミュレーション
-    if (taskId.startsWith('async_')) {
+    // 0.5. 開発環境の非同期タスクシミュレーション（本番環境では実行しない）
+    if (taskId.startsWith('async_') && process.env.NODE_ENV !== 'production') {
       const devStatus = generateDevTaskStatus(taskId, options);
       if (devStatus) {
         return devStatus;
@@ -194,10 +194,12 @@ async function getTaskStatus(taskId, options = {}) {
       return backgroundStatus;
     }
     
-    // 3. フォールバック: 模擬状態データ生成（開発/テスト用）
-    const mockTaskStatus = generateMockTaskStatus(taskId, options);
-    if (mockTaskStatus) {
-      return mockTaskStatus;
+    // 3. フォールバック: 模擬状態データ生成（開発/テスト用、本番環境では無効）
+    if (process.env.NODE_ENV !== 'production') {
+      const mockTaskStatus = generateMockTaskStatus(taskId, options);
+      if (mockTaskStatus) {
+        return mockTaskStatus;
+      }
     }
     
     // 4. タスクが見つからない場合
