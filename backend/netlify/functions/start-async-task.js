@@ -264,17 +264,38 @@ async function callBackgroundFunction(functionName, payload) {
       signal: AbortSignal.timeout(10000) // 10秒
     });
     
-    const responseData = await response.json();
+    // Background Functionsは202ステータスで空のボディを返すことがある
+    let responseData = {};
+    const responseText = await response.text();
+    
+    if (responseText.trim()) {
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        logger.warn('Failed to parse background function response as JSON', {
+          functionName,
+          taskId: payload.taskId,
+          status: response.status,
+          responseText: responseText.substring(0, 500), // 最初の500文字のみログ
+          parseError: parseError.message
+        });
+        responseData = { message: 'Background function started', status: 'accepted' };
+      }
+    } else {
+      // 空のレスポンスの場合（Background Functionsでは正常）
+      responseData = { message: 'Background function started', status: 'accepted' };
+    }
     
     logger.info('Background function response received', {
       functionName,
       taskId: payload.taskId,
       status: response.status,
-      success: responseData.success,
-      hasData: !!responseData.data
+      success: responseData.success !== false,
+      hasData: !!responseData.data,
+      responseEmpty: !responseText.trim()
     });
     
-    if (!response.ok) {
+    if (!response.ok && response.status !== 202) {
       throw new Error(responseData.error || `HTTP ${response.status}: ${response.statusText}`);
     }
     
