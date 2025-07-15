@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useCompanyStore } from '../../stores/companyStore';
-import { LoadingSpinner } from '../common';
-import { useApiClient } from '../../services/apiClient';
 import { 
   Lightbulb, 
   Zap, 
@@ -9,7 +7,8 @@ import {
   AlertCircle,
   CheckCircle,
   Database,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RefreshCw
 } from 'lucide-react';
 import { ideaStorageService, type StoredBusinessIdea } from '../../services/ideaStorage';
 import { apiLoggerService } from '../../services/apiLogger';
@@ -18,6 +17,9 @@ import { SavedIdeasPanel } from './SavedIdeasPanel';
 import { IdeaDetailModal } from './IdeaDetailModal';
 import { LeanCanvas } from './LeanCanvas';
 import { IdeaGenerationDialog } from './IdeaGenerationDialog';
+import { useAsyncTask } from '../../hooks/useAsyncTask';
+import { AsyncTaskProgress } from '../common/AsyncTaskProgress';
+import type { AsyncTaskCreateRequest } from '../../types/asyncTask';
 
 interface AnalysisParams {
   focusAreas: string[];
@@ -96,7 +98,6 @@ interface GenerationResult {
 
 export const BusinessInnovationLab: React.FC = () => {
   const { companies, loadCompanies } = useCompanyStore();
-  const { verifyBusinessIdea } = useApiClient();
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [analysisParams, setAnalysisParams] = useState<AnalysisParams>({
     focusAreas: [],
@@ -123,14 +124,48 @@ export const BusinessInnovationLab: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [maxIdeas] = useState(1); // デフォルト1案
   
-  // Beta v2: AI検証機能のstate
-  const [isVerifying, setIsVerifying] = useState(false);
+  // Beta v2: AI検証機能のstate (Phase ε.1.5: 非同期対応)
   const [verificationResults, setVerificationResults] = useState<{[ideaIndex: number]: VerificationResult}>({});
   const [selectedIdeaForVerification, setSelectedIdeaForVerification] = useState<number | null>(null);
   const [verificationLevel, setVerificationLevel] = useState<'basic' | 'comprehensive' | 'expert'>('basic');
   
+  // 非同期タスク管理（検証用）
+  const verificationTask = useAsyncTask(undefined, {
+    onComplete: (result: VerificationResult) => {
+      console.log('🎉 Async verification completed:', result);
+      console.log('📋 selectedIdeaForVerification:', selectedIdeaForVerification);
+      console.log('📊 Current verificationResults:', verificationResults);
+      
+      if (selectedIdeaForVerification !== null) {
+        setVerificationResults(prev => {
+          const newResults = {
+            ...prev,
+            [selectedIdeaForVerification]: result
+          };
+          console.log('📈 Updated verificationResults:', newResults);
+          return newResults;
+        });
+      } else {
+        console.warn('⚠️ selectedIdeaForVerification is null, cannot store result');
+      }
+      setSelectedIdeaForVerification(null);
+    },
+    onError: (error: Error) => {
+      console.error('❌ Async verification failed:', error);
+      setError(`検証エラー: ${error.message}`);
+      setSelectedIdeaForVerification(null);
+    },
+    enablePersistence: true
+  });
+  
   // Excel Export機能のstate
   const [showExportWizard, setShowExportWizard] = useState(false);
+
+  // verificationResults変更の監視（デバッグ用）
+  useEffect(() => {
+    console.log('🔄 verificationResults changed:', verificationResults);
+    console.log('📊 Keys in verificationResults:', Object.keys(verificationResults));
+  }, [verificationResults]);
 
   useEffect(() => {
     loadCompanies();
@@ -475,45 +510,51 @@ export const BusinessInnovationLab: React.FC = () => {
     }
   };
 
-  // Beta v2: AI検証機能
+  // Beta v2: AI検証機能 (Phase ε.1.5: 非同期対応)
   const handleVerifyIdea = async (idea: BusinessIdea, index: number) => {
     if (!selectedCompany) {
       setError('企業情報が必要です');
       return;
     }
 
-    setIsVerifying(true);
     setSelectedIdeaForVerification(index);
     setError(null);
 
     try {
-      // API Clientを使用してキャッシュ機能付きで検証実行
-      console.log(`🔍 Starting ${verificationLevel} verification for "${idea.title}"`);
+      console.log(`🔍 Starting async ${verificationLevel} verification for "${idea.title}"`);
+      console.log(`📋 Set selectedIdeaForVerification to:`, index);
+      console.log(`📊 Current verificationResults:`, verificationResults);
       
-      const result = await verifyBusinessIdea({
-        businessIdea: idea,
-        verificationLevel,
-        companyData: selectedCompany
-      });
-
-      // キャッシュ使用状況をログ
-      if (result?.metadata?.cacheUsed) {
-        console.log(`⚡ Cache acceleration: ${result.metadata.cacheLevel} level`);
-      }
+      // 非同期タスクリクエストを作成
+      const taskRequest: AsyncTaskCreateRequest = {
+        type: 'verify-business-idea',
+        inputData: {
+          originalIdea: idea,
+          companyData: selectedCompany,
+          verificationLevel
+        },
+        config: {
+          timeoutMs: 900000, // 15分タイムアウト
+          pollIntervalMs: 5000, // 5秒間隔（サーバー負荷軽減）
+          persistResult: true,
+          autoCleanup: false
+        },
+        metadata: {
+          companyId: selectedCompany.id,
+          priority: 'normal',
+          maxRetries: 2,
+          currentRetry: 0,
+          userId: 'current-user' // TODO: 実際のユーザーIDに置き換え
+        }
+      };
       
-      if (result.success) {
-        setVerificationResults(prev => ({
-          ...prev,
-          [index]: result.data
-        }));
-      } else {
-        throw new Error(result.error || 'アイデア検証に失敗しました');
-      }
-
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'アイデア検証中にエラーが発生しました');
-    } finally {
-      setIsVerifying(false);
+      // 非同期タスクを開始
+      const startedTask = await verificationTask.startTask(taskRequest);
+      
+      console.log(`⏳ Async verification task started for "${idea.title}" (Task ID: ${startedTask?.id || 'unknown'})`);
+    } catch (error) {
+      console.error('Failed to start async verification:', error);
+      setError(error instanceof Error ? error.message : '検証の開始に失敗しました');
       setSelectedIdeaForVerification(null);
     }
   };
@@ -734,19 +775,23 @@ export const BusinessInnovationLab: React.FC = () => {
                     <p className="text-gray-700 text-lg leading-relaxed">{idea.description}</p>
                   </div>
                   <div className="flex items-center space-x-2 ml-4">
-                    {/* Beta v2: AI検証ボタン */}
+                    {/* Beta v2: AI検証ボタン (Phase ε.1.5: 非同期対応) */}
                     <button
                       onClick={() => handleVerifyIdea(idea, index)}
-                      disabled={isVerifying && selectedIdeaForVerification === index}
+                      disabled={verificationTask.isRunning && selectedIdeaForVerification === index}
                       className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-purple-100 to-purple-200 text-purple-700 rounded-lg hover:from-purple-200 hover:to-purple-300 hover:text-purple-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {isVerifying && selectedIdeaForVerification === index ? (
-                        <LoadingSpinner size="sm" className="mr-2" />
+                      {verificationTask.isRunning && selectedIdeaForVerification === index ? (
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : verificationTask.isCompleted && selectedIdeaForVerification === index ? (
+                        <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                      ) : verificationTask.isFailed && selectedIdeaForVerification === index ? (
+                        <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
                       ) : (
                         <CheckCircle className="h-4 w-4 mr-2" />
                       )}
                       <span className="text-xs">β</span>
-                      検証
+                      {verificationTask.isRunning && selectedIdeaForVerification === index ? '検証中' : '検証'}
                     </button>
                     
                     <button
@@ -842,6 +887,35 @@ export const BusinessInnovationLab: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Beta v2: 非同期検証進捗表示 (Phase ε.1.5) */}
+                {verificationTask.isRunning && selectedIdeaForVerification === index && (
+                  <div className="mt-6 border-t border-gray-200 pt-6">
+                    <div className="mb-4">
+                      <h6 className="font-semibold text-purple-900 mb-3 flex items-center">
+                        <RefreshCw className="h-5 w-5 mr-2 text-purple-600 animate-spin" />
+                        AI検証進行中 - {verificationLevel}レベル
+                      </h6>
+                      <AsyncTaskProgress 
+                        task={verificationTask.task}
+                        showDetailedSteps={true}
+                        showElapsedTime={true}
+                        showEstimatedTime={true}
+                        showControls={true}
+                        onCancel={() => {
+                          verificationTask.cancelTask();
+                          setSelectedIdeaForVerification(null);
+                        }}
+                        onRetry={() => {
+                          if (verificationTask.task) {
+                            verificationTask.retryTask();
+                          }
+                        }}
+                        className="bg-purple-50 border border-purple-200"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Beta v2: AI検証結果表示 */}
                 {verificationResults[index] && (

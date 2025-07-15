@@ -6,6 +6,7 @@ node_modules/
 .env.local
 .env.development
 .env.production
+.env.test
 
 # Netlify
 .netlify/
@@ -24,6 +25,11 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Test results and logs
+test/results/
+test/logs/
+*.test.log
 
 # Build output
 dist/
