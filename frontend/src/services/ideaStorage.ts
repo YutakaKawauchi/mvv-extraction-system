@@ -167,15 +167,68 @@ export class IdeaStorageService {
     ideaId: string, 
     verificationResult: StoredBusinessIdea['verification']
   ): Promise<void> {
+    const startTime = Date.now();
+    const maxRetries = 3; // Move to function scope for access in catch block
+    
     try {
-      await this.db.ideas.update(ideaId, {
-        verification: verificationResult,
-        status: 'verified',
-        updatedAt: new Date()
+      console.log('💾 Starting IndexedDB verification update:', {
+        ideaId,
+        verificationLevel: verificationResult?.metadata?.verificationLevel,
+        dataSize: JSON.stringify(verificationResult).length,
+        timestamp: new Date().toISOString()
       });
-      console.log('Idea updated with verification:', ideaId);
+
+      // リトライ機能付きの更新処理
+      let retryCount = 0;
+      const retryDelay = 1000; // 1秒
+
+      while (retryCount <= maxRetries) {
+        try {
+          await this.db.ideas.update(ideaId, {
+            verification: verificationResult,
+            status: 'verified',
+            updatedAt: new Date()
+          });
+          
+          const updateTime = Date.now() - startTime;
+          console.log('✅ Idea updated with verification successfully:', {
+            ideaId,
+            verificationLevel: verificationResult?.metadata?.verificationLevel,
+            updateTimeMs: updateTime,
+            retryCount,
+            dataSize: JSON.stringify(verificationResult).length
+          });
+          return; // 成功時は即座に返る
+          
+        } catch (retryError) {
+          retryCount++;
+          
+          if (retryCount > maxRetries) {
+            throw retryError; // 最大リトライ回数に達した場合は例外を投げる
+          }
+          
+          console.warn(`⚠️ IndexedDB update failed (attempt ${retryCount}/${maxRetries}):`, {
+            ideaId,
+            error: retryError instanceof Error ? retryError.message : String(retryError),
+            willRetry: true,
+            retryDelayMs: retryDelay
+          });
+          
+          // 次のリトライまで待機
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+      }
+      
     } catch (error) {
-      console.error('Failed to update idea with verification:', error);
+      const failureTime = Date.now() - startTime;
+      console.error('❌ Failed to update idea with verification after retries:', {
+        ideaId,
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        verificationLevel: verificationResult?.metadata?.verificationLevel,
+        totalTimeMs: failureTime,
+        maxRetries
+      });
       throw new Error('検証結果の保存に失敗しました');
     }
   }

@@ -69,8 +69,11 @@ export class AsyncTaskService {
       // 7. ポーリング開始
       this.startPolling(task.id);
 
+      // 8. 最新の更新されたタスクを取得して返す
+      const updatedTask = await asyncTaskStorageService.getTask(task.id);
       console.log(`Async task started: ${task.id} (${task.type})`);
-      return task;
+      
+      return updatedTask || task;
     } catch (error) {
       console.error('Failed to start async task:', error);
       throw new AsyncTaskError(
@@ -284,6 +287,8 @@ export class AsyncTaskService {
     if (backgroundResult.result) {
       update.result = backgroundResult.result;
       console.log('📊 Task result received:', backgroundResult.result);
+      console.log('📊 Task result keys:', Object.keys(backgroundResult.result));
+      console.log('📊 Task result metadata:', backgroundResult.result.metadata);
     }
 
     if (backgroundResult.error) {
@@ -295,6 +300,7 @@ export class AsyncTaskService {
     }
 
     await asyncTaskStorageService.updateTask(update);
+    console.log(`🔄 Task ${taskId} updated in storage with status: ${backgroundResult.status}`);
 
     // 完了時のAPIログ更新
     if (['completed', 'failed', 'cancelled'].includes(backgroundResult.status)) {

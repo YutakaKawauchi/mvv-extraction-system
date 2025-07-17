@@ -185,8 +185,12 @@ exports.handler = async (event, context) => {
       backgroundFunction: true
     });
 
+    // ★ 新規追加: Webhook に完了通知を送信
+    await notifyWebhook(taskId, 'completed', verificationResult, null);
+
+    // Background Function は202で終了（結果はWebhookで処理）
     return {
-      statusCode: 200,
+      statusCode: 202,
       headers: {
         ...corsHeadersObj,
         'Content-Type': 'application/json'
@@ -194,12 +198,13 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         taskId,
-        data: verificationResult,
+        status: 'completed',
+        message: 'Background verification completed and result sent to webhook',
         metadata: {
           processingTime,
           verifiedAt: Date.now(),
           backgroundFunction: true,
-          timeoutUsed: '15 minutes available'
+          webhookNotified: true
         }
       })
     };
@@ -213,17 +218,38 @@ exports.handler = async (event, context) => {
       backgroundFunction: true
     });
     
+    // ★ 新規追加: エラー時もWebhookに通知
+    const taskId = requestBody?.taskId;
+    if (taskId) {
+      try {
+        await notifyWebhook(taskId, 'failed', null, error.message);
+      } catch (webhookError) {
+        logger.error('Failed to notify webhook of error', {
+          taskId,
+          originalError: error.message,
+          webhookError: webhookError.message
+        });
+      }
+    }
+    
+    // Background Function は202で終了（エラーもWebhookで処理）
     return {
-      statusCode: 500,
+      statusCode: 202,
       headers: {
         ...corsHeadersObj,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
-        error: 'Background verification failed',
-        message: error.message,
-        taskId: requestBody?.taskId,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        success: false,
+        taskId,
+        status: 'failed',
+        message: 'Background verification failed and error sent to webhook',
+        error: error.message,
+        metadata: {
+          backgroundFunction: true,
+          webhookNotified: true,
+          failedAt: Date.now()
+        }
       })
     };
   }
@@ -311,6 +337,33 @@ async function performBackgroundAIVerification(originalIdea, companyData, verifi
         .catch(error => ({ type: 'businessModel', error }))
     );
     
+    // 市場検証（Comprehensive/Expert レベル）
+    if (verificationLevel === 'comprehensive' || verificationLevel === 'expert') {
+      logger.info('Adding market validation to parallel execution', { 
+        taskId, 
+        verificationLevel 
+      });
+      parallelPromises.push(
+        performMarketValidation(originalIdea, companyData, verificationLevel)
+          .then(result => {
+            logger.info('Market validation completed successfully', { 
+              taskId, 
+              hasResult: !!result,
+              resultKeys: result ? Object.keys(result) : null
+            });
+            return { type: 'market', result };
+          })
+          .catch(error => {
+            logger.error('Market validation failed in parallel execution', { 
+              taskId, 
+              error: error.message,
+              stack: error.stack
+            });
+            return { type: 'market', error };
+          })
+      );
+    }
+    
     // 競合分析（条件付き）
     if (verificationLevel === 'comprehensive' || verificationLevel === 'expert') {
       parallelPromises.push(
@@ -326,9 +379,23 @@ async function performBackgroundAIVerification(originalIdea, companyData, verifi
     const parallelResults = await Promise.allSettled(parallelPromises);
     
     // 結果の処理
+    logger.info('Processing parallel execution results', {
+      taskId,
+      totalPromises: parallelResults.length,
+      promiseStatuses: parallelResults.map(r => r.status)
+    });
+
     parallelResults.forEach((promiseResult, index) => {
       if (promiseResult.status === 'fulfilled') {
         const { type, result, error } = promiseResult.value;
+        
+        logger.info('Processing parallel result', {
+          taskId,
+          type,
+          hasResult: !!result,
+          hasError: !!error,
+          resultKeys: result ? Object.keys(result) : null
+        });
         
         if (error) {
           logger.warn(`${type} analysis failed, using fallback`, { 
@@ -345,18 +412,51 @@ async function performBackgroundAIVerification(originalIdea, companyData, verifi
               },
               fallbackUsed: true
             };
+          } else if (type === 'market') {
+            logger.warn('Market validation failed, setting fallback data', { taskId });
+            results.marketValidation = {
+              marketSize: { totalMarket: "推定不可", targetMarket: "分析中" },
+              customerSegmentation: { primarySegment: "調査中", secondarySegments: [] },
+              demandAnalysis: { currentDemand: "評価中", futureProjections: [] },
+              pricingStrategy: { recommendedStrategy: "市場価格調査中", priceRange: "未定" },
+              fallbackUsed: true
+            };
+          } else if (type === 'businessModel') {
+            results.businessModelValidation = {
+              revenueModelValidation: { viability: 5, pricingSustainability: "評価中" },
+              valuePropositionTest: { uniquenessScore: 5, customerJobsFit: "分析中" },
+              fallbackUsed: true
+            };
           }
         } else {
           if (type === 'businessModel') {
+            logger.info('Setting business model validation result', { taskId });
             results.businessModelValidation = result.data;
             totalTokens += result.tokens;
             totalCost += result.cost;
           } else if (type === 'competitive') {
+            logger.info('Setting competitive analysis result', { taskId });
             results.competitiveAnalysis = result.data;
+            totalTokens += result.tokens;
+            totalCost += result.cost;
+          } else if (type === 'market') {
+            logger.info('Setting market validation result', { 
+              taskId,
+              resultData: result.data ? Object.keys(result.data) : null,
+              tokens: result.tokens,
+              cost: result.cost
+            });
+            results.marketValidation = result.data;
             totalTokens += result.tokens;
             totalCost += result.cost;
           }
         }
+      } else {
+        logger.error('Parallel promise was rejected', {
+          taskId,
+          index,
+          reason: promiseResult.reason
+        });
       }
     });
 
@@ -377,6 +477,19 @@ async function performBackgroundAIVerification(originalIdea, companyData, verifi
     totalTokens += assessmentResult.tokens;
     totalCost += assessmentResult.cost;
     await updateProgress(90, '総合評価完了');
+
+    // 最終結果の確認ログ
+    logger.info('Final verification results before return', {
+      taskId,
+      resultKeys: Object.keys(results),
+      hasIndustryAnalysis: !!results.industryAnalysis,
+      hasMarketValidation: !!results.marketValidation,
+      hasBusinessModelValidation: !!results.businessModelValidation,
+      hasCompetitiveAnalysis: !!results.competitiveAnalysis,
+      hasImprovementSuggestions: !!results.improvementSuggestions,
+      hasOverallAssessment: !!results.overallAssessment,
+      marketValidationPreview: results.marketValidation ? (typeof results.marketValidation === 'object' ? Object.keys(results.marketValidation) : 'not an object') : 'null'
+    });
 
     return {
       ...results,
@@ -537,6 +650,112 @@ function getDefaultPrompts() {
 }
 
 /**
+ * 市場検証分析 (Perplexity API)
+ */
+async function performMarketValidation(originalIdea, companyData, verificationLevel = 'comprehensive') {
+  const industrySpecific = getIndustrySpecificPrompts(
+    companyData.industry || companyData.category,
+    companyData.jsicMajorCategory
+  );
+
+  const prompt = `あなたは市場調査のエキスパートです。以下のビジネスアイデアについて、市場検証を行ってください。
+
+## 企業情報
+- 企業名: ${companyData.name}
+- 業界: ${companyData.industry || companyData.category}
+- 規模: ${companyData.employees || '情報なし'}人
+
+## ビジネスアイデア
+- タイトル: ${originalIdea.title}
+- 概要: ${originalIdea.description}
+- 対象顧客: ${originalIdea.leanCanvas?.targetCustomers?.join(', ') || 'N/A'}
+- 価値提案: ${originalIdea.leanCanvas?.valueProposition || 'N/A'}
+
+## 市場検証要件
+最新の市場データを調査し、JSON形式で市場検証結果を提供してください：
+{
+  "marketSize": {
+    "totalMarket": "総市場規模（億円）",
+    "targetMarket": "対象市場規模（億円）",
+    "growthRate": "市場成長率（%）",
+    "marketTrends": ["トレンド1", "トレンド2"]
+  },
+  "customerSegmentation": {
+    "primarySegment": "主要顧客セグメント",
+    "secondarySegments": ["サブセグメント1", "サブセグメント2"],
+    "customerPainPoints": ["課題1", "課題2"],
+    "willingness_to_pay": "支払意欲（1-10）"
+  },
+  "demandAnalysis": {
+    "currentDemand": "現在の需要レベル",
+    "futureProjections": ["将来予測1", "将来予測2"],
+    "seasonality": "季節性要因",
+    "demandDrivers": ["需要要因1", "需要要因2"]
+  },
+  "pricingStrategy": {
+    "recommendedStrategy": "推奨価格戦略",
+    "priceRange": "価格帯（円）",
+    "competitorPricing": ["競合価格1", "競合価格2"],
+    "valueBasedPricing": "価値ベース価格設定の可能性"
+  },
+  "barriers": {
+    "entry": ["参入障壁1", "参入障壁2"],
+    "adoption": ["採用障壁1", "採用障壁2"],
+    "regulatory": ["規制要因1", "規制要因2"]
+  }
+}
+
+業界固有の観点: ${industrySpecific.additionalPoints.slice(0, 2).join(', ')}
+`;
+
+  let response; // Move response variable to function scope
+  
+  try {
+    response = await perplexity.chat.completions.create({
+      model: "sonar-pro",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 2000,
+      temperature: 0.1
+    });
+
+    const content = response.choices[0].message.content;
+    
+    // 念のためmarkdownコードブロック対応
+    let jsonContent = content;
+    if (content.includes('```json')) {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+    } else if (content.includes('```')) {
+      const jsonMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+    }
+    
+    const parsedData = JSON.parse(jsonContent);
+    
+    const tokens = response.usage.total_tokens;
+    const cost = calculatePerplexityCost(response.usage);
+    
+    return {
+      data: parsedData,
+      tokens,
+      cost,
+      model: 'sonar-pro'
+    };
+  } catch (error) {
+    logger.error('Market validation failed', { 
+      error: error.message, 
+      ideaTitle: originalIdea.title,
+      content: response?.choices?.[0]?.message?.content?.substring(0, 500) || 'No content'
+    });
+    throw error;
+  }
+}
+
+/**
  * 業界エキスパート分析 (Perplexity API)
  */
 async function performIndustryAnalysis(originalIdea, companyData, verificationLevel = 'comprehensive') {
@@ -604,7 +823,22 @@ ${industrySpecific.keyQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
     });
 
     const content = response.choices[0].message.content;
-    const parsedData = JSON.parse(content);
+    
+    // Perplexity APIは時々markdownコードブロックでJSONを返すため、JSON部分を抽出
+    let jsonContent = content;
+    if (content.includes('```json')) {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+    } else if (content.includes('```')) {
+      const jsonMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+    }
+    
+    const parsedData = JSON.parse(jsonContent);
 
     return {
       data: parsedData,
@@ -612,7 +846,11 @@ ${industrySpecific.keyQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
       cost: calculatePerplexityCost(response.usage)
     };
   } catch (error) {
-    logger.error('Industry analysis error', error);
+    logger.error('Industry analysis error', { 
+      error: error.message,
+      content: response?.choices?.[0]?.message?.content?.substring(0, 500) || 'No content',
+      taskId: 'industry-analysis'
+    });
     throw new Error(`Failed to perform industry analysis: ${error.message}`);
   }
 }
@@ -698,44 +936,67 @@ async function performCompetitiveAnalysis(originalIdea, companyData, verificatio
 - 企業: ${companyData.name}
 - 業界: ${companyData.industry || companyData.category || '不明'}
 - アイデア: ${originalIdea.title}
+- 解決する問題: ${originalIdea.leanCanvas?.problem?.join(', ') || 'N/A'}
 - ソリューション: ${originalIdea.leanCanvas?.solution || 'N/A'}
-- ターゲット: ${originalIdea.leanCanvas?.targetCustomers?.join(', ') || 'N/A'}
+- 価値提案: ${originalIdea.leanCanvas?.valueProposition || 'N/A'}
+- ターゲット顧客: ${originalIdea.leanCanvas?.targetCustomers?.join(', ') || 'N/A'}
+- 独自の優位性: ${originalIdea.leanCanvas?.unfairAdvantage || 'N/A'}
+- 収益モデル: ${originalIdea.leanCanvas?.revenueStreams?.join(', ') || 'N/A'}
+- 販売チャネル: ${originalIdea.leanCanvas?.channels?.join(', ') || 'N/A'}
 
 ## 業界特有の競合環境
 この業界では特に以下の点が重要です：
 ${industrySpecific.additionalPoints.slice(0, 2).map((point, i) => `- ${point}`).join('\n')}
 
 ## 分析要件
-最新の市場情報を調査し、JSON形式で競合分析結果を提供してください：
+最新の市場情報を調査し、具体的な企業名・サービス名・プロダクト名を含めてJSON形式で競合分析結果を提供してください：
 
 {
   "directCompetitors": [
     {
-      "name": "競合企業名",
-      "description": "サービス概要",
-      "marketPosition": "市場ポジション",
-      "strengths": ["強み1", "強み2"],
-      "weaknesses": ["弱み1", "弱み2"]
+      "name": "具体的な企業名またはサービス名",
+      "productName": "具体的なプロダクト名（あれば）",
+      "website": "公式サイトURL（判明する場合）",
+      "description": "サービス概要と提供価値",
+      "marketPosition": "市場ポジション（リーダー/チャレンジャー/ニッチ等）",
+      "targetCustomers": "主要ターゲット顧客",
+      "pricingModel": "価格モデル（判明する場合）",
+      "strengths": ["具体的な強み1", "具体的な強み2"],
+      "weaknesses": ["具体的な弱み1", "具体的な弱み2"],
+      "marketShare": "推定市場シェア（判明する場合）",
+      "recentNews": "最近の動向（あれば）"
     }
   ],
   "indirectCompetitors": [
     {
-      "name": "間接競合名",
-      "substituteSolution": "代替ソリューション",
-      "threatLevel": "脅威レベル（1-10）"
+      "name": "具体的な企業名またはサービス名",
+      "productName": "具体的なプロダクト名（あれば）",
+      "substituteSolution": "代替ソリューションの詳細",
+      "website": "公式サイトURL（判明する場合）",
+      "targetCustomers": "主要ターゲット顧客",
+      "threatLevel": "脅威レベル（1-10）",
+      "threatReason": "脅威と考える理由"
     }
   ],
   "competitiveAdvantageAnalysis": {
     "proposedAdvantages": ["提案された優位性1", "提案された優位性2"],
-    "realityCheck": "優位性の現実性評価",
+    "realityCheck": "優位性の現実性評価（既存競合との比較含む）",
     "sustainabilityScore": "持続可能性スコア（1-10）",
-    "moatStrength": "参入障壁の強さ"
+    "moatStrength": "参入障壁の強さ（技術・ネットワーク・規模等）",
+    "competitiveGaps": ["競合が対応できていない課題1", "競合が対応できていない課題2"]
   },
   "marketPositioning": {
-    "whitespaceOpportunities": ["ホワイトスペース1", "ホワイトスペース2"],
-    "differentiationStrategy": "差別化戦略の提案",
-    "competitiveResponse": "競合の想定対応",
-    "marketEntryTiming": "市場参入タイミングの評価"
+    "whitespaceOpportunities": ["市場の空白地帯1", "市場の空白地帯2"],
+    "differentiationStrategy": "差別化戦略の提案（具体的なポジショニング）",
+    "competitiveResponse": "競合の想定対応とその対策",
+    "marketEntryTiming": "市場参入タイミングの評価（競合動向考慮）",
+    "pricingStrategy": "競合を考慮した価格戦略"
+  },
+  "competitiveLandscape": {
+    "marketMaturity": "市場の成熟度（新興/成長/成熟/衰退）",
+    "competitionIntensity": "競争激しさ（1-10）",
+    "keySuccessFactors": ["この市場での成功要因1", "成功要因2"],
+    "barrierToEntry": "新規参入障壁の高さ（1-10）"
   }
 }`;
 
@@ -748,7 +1009,22 @@ ${industrySpecific.additionalPoints.slice(0, 2).map((point, i) => `- ${point}`).
     });
 
     const content = response.choices[0].message.content;
-    const parsedData = JSON.parse(content);
+    
+    // Perplexity APIは時々markdownコードブロックでJSONを返すため、JSON部分を抽出
+    let jsonContent = content;
+    if (content.includes('```json')) {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+    } else if (content.includes('```')) {
+      const jsonMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+    }
+    
+    const parsedData = JSON.parse(jsonContent);
 
     return {
       data: parsedData,
@@ -756,8 +1032,12 @@ ${industrySpecific.additionalPoints.slice(0, 2).map((point, i) => `- ${point}`).
       cost: calculatePerplexityCost(response.usage)
     };
   } catch (error) {
-    logger.error('Competitive analysis error', error);
-    throw new Error('Failed to perform competitive analysis');
+    logger.error('Competitive analysis error', { 
+      error: error.message,
+      content: response?.choices?.[0]?.message?.content?.substring(0, 500) || 'No content',
+      taskId: 'competitive-analysis'
+    });
+    throw new Error(`Failed to perform competitive analysis: ${error.message}`);
   }
 }
 
@@ -918,4 +1198,69 @@ function calculatePerplexityCost(usage) {
   const costPer1M = 1.0; // $1.0/1M tokens (概算)
   
   return (usage.total_tokens / 1000000) * costPer1M;
+}
+
+/**
+ * ★ 新規追加: Webhook通知関数
+ * Background Function完了時にwebhook-task-completeに通知
+ */
+async function notifyWebhook(taskId, status, result, error) {
+  try {
+    const webhookUrl = `${process.env.URL || 'http://localhost:8888'}/.netlify/functions/webhook-task-complete`;
+    
+    const payload = {
+      taskId,
+      status,
+      result,
+      error,
+      metadata: {
+        completedAt: Date.now(),
+        source: 'verify-business-idea-background',
+        version: '1.0.0'
+      }
+    };
+
+    logger.info('Sending webhook notification', {
+      taskId,
+      status,
+      webhookUrl,
+      hasResult: !!result,
+      hasError: !!error
+    });
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': process.env.MVP_API_SECRET,
+        'X-Background-Function': 'true'
+      },
+      body: JSON.stringify(payload),
+      // 短いタイムアウト（Background Function完了を遅らせない）
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Webhook responded with status ${response.status}`);
+    }
+
+    const responseData = await response.json();
+    
+    logger.info('Webhook notification sent successfully', {
+      taskId,
+      status,
+      webhookResponse: responseData
+    });
+
+  } catch (error) {
+    logger.error('Failed to send webhook notification', {
+      taskId,
+      status,
+      error: error.message,
+      stack: error.stack
+    });
+    
+    // Webhook失敗は致命的エラーではないため、エラーを再スローしない
+    // Background Function本体の処理は継続される
+  }
 }

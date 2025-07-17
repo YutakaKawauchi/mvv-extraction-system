@@ -50,6 +50,7 @@ export const useAsyncTask = (
   const lastTaskRequestRef = useRef<AsyncTaskCreateRequest | null>(null);
   const mountedRef = useRef(true);
   const completedTasksRef = useRef<Set<string>>(new Set());
+  const initializationRef = useRef(false);
 
   const {
     onComplete,
@@ -58,8 +59,16 @@ export const useAsyncTask = (
     enablePersistence = true
   } = options;
 
-  // コンポーネントアンマウント時のクリーンアップ
+  // React Strict Mode対応: マウント状態の初期化と管理
   useEffect(() => {
+    // Strict Modeでの二重実行を検知
+    if (initializationRef.current) {
+    }
+    
+    initializationRef.current = true;
+    mountedRef.current = true;
+    
+    
     return () => {
       mountedRef.current = false;
     };
@@ -74,11 +83,12 @@ export const useAsyncTask = (
 
   // タスク状態の監視
   useEffect(() => {
-    if (!task) return;
+    if (!task) {
+      return;
+    }
 
     // 完了/失敗時のコールバック（重複実行防止）
     if (task.status === 'completed' && onComplete && !completedTasksRef.current.has(task.id)) {
-      console.log(`🎯 Triggering onComplete for task ${task.id} with result:`, task.result);
       completedTasksRef.current.add(task.id);
       onComplete(task.result);
       
@@ -86,8 +96,12 @@ export const useAsyncTask = (
       asyncTaskStorageService.markTaskAsConsumed(task.id).catch(err => 
         console.error(`Failed to mark task ${task.id} as consumed:`, err)
       );
+
+      // Blob削除API呼び出し（サイレント）
+      cleanupTaskBlob(task.id).catch(err => 
+        console.warn(`Failed to cleanup blob for task ${task.id}:`, err)
+      );
     } else if (task.status === 'failed' && onError && task.error && !completedTasksRef.current.has(task.id)) {
-      console.log(`❌ Triggering onError for task ${task.id}:`, task.error);
       completedTasksRef.current.add(task.id);
       onError(new Error(task.error.message));
     }
@@ -96,26 +110,82 @@ export const useAsyncTask = (
     if (onProgress && task.progress) {
       onProgress(task.progress.percentage, task.progress.currentStep);
     }
-  }, [task, onComplete, onError, onProgress]);
+  }, [task, onComplete, onError, onProgress, task?.status, task?.result, task?.timestamps?.lastUpdatedAt]);
 
   // アクティブなタスクの定期チェック
   useEffect(() => {
-    if (!task || !['queued', 'processing'].includes(task.status)) return;
+    if (!task || !['queued', 'processing'].includes(task.status)) {
+      return;
+    }
 
     const pollInterval = setInterval(async () => {
       try {
         const updatedTask = await asyncTaskStorageService.getTask(task.id);
-        if (updatedTask && mountedRef.current && updatedTask.timestamps.lastUpdatedAt > task.timestamps.lastUpdatedAt) {
-          console.log(`🔄 Task ${task.id} status update: ${updatedTask.status} (${updatedTask.progress?.percentage}%)`);
-          setTask(updatedTask);
+        if (updatedTask && mountedRef.current) {
+          // ステータスが変更された場合、またはタイムスタンプが更新された場合に更新
+          if (updatedTask.timestamps.lastUpdatedAt >= task.timestamps.lastUpdatedAt || 
+              task.status !== updatedTask.status) {
+            setTask(updatedTask);
+            
+            // completedまたはfailedの場合はポーリングを停止
+            if (updatedTask.status === 'completed' || updatedTask.status === 'failed') {
+              clearInterval(pollInterval);
+              return;
+            }
+          }
         }
       } catch (err) {
         console.error('Failed to poll task status:', err);
       }
     }, 2000); // 2秒間隔でチェック
 
-    return () => clearInterval(pollInterval);
-  }, [task?.id, task?.status]);
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [task?.id, task?.status, task?.timestamps?.lastUpdatedAt]);
+
+  // フォールバックタスク検知メカニズム
+  useEffect(() => {
+    if (task) {
+      return;
+    }
+
+    const fallbackInterval = setInterval(async () => {
+      if (!mountedRef.current) {
+        return;
+      }
+
+      try {
+        // 最近5分以内に作成された未処理タスクを検索
+        const recentTasks = await asyncTaskStorageService.getRecentTasks(5 * 60 * 1000); // 5分
+        
+        if (recentTasks.length > 0) {
+          // 最新のアクティブタスクを取得
+          const activeTask = recentTasks.find(t => 
+            ['queued', 'processing'].includes(t.status)
+          ) || recentTasks.find(t => 
+            ['completed', 'failed'].includes(t.status) && !completedTasksRef.current.has(t.id)
+          );
+
+          if (activeTask && mountedRef.current) {
+            setTask(activeTask);
+          }
+        }
+      } catch (err) {
+        console.error('Fallback task detection error:', err);
+      }
+    }, 5000); // 5秒間隔でチェック
+
+    // 30秒後にフォールバック検知を停止
+    const timeoutId = setTimeout(() => {
+      clearInterval(fallbackInterval);
+    }, 30000);
+
+    return () => {
+      clearInterval(fallbackInterval);
+      clearTimeout(timeoutId);
+    };
+  }, [task]); // taskが変更されたときに再実行
 
   /**
    * 既存タスクの読み込み
@@ -141,13 +211,15 @@ export const useAsyncTask = (
     try {
       setError(null);
       lastTaskRequestRef.current = request;
-
       const newTask = await asyncTaskService.startTask(request);
+      
       if (mountedRef.current) {
         setTask(newTask);
       }
       return newTask;
     } catch (err) {
+      console.error('Failed to start task:', err);
+      
       if (mountedRef.current) {
         const errorMessage = err instanceof Error ? err.message : '不明なエラー';
         setError(errorMessage);
@@ -157,7 +229,7 @@ export const useAsyncTask = (
       }
       throw err;
     }
-  }, [onError]);
+  }, [onError, task?.id]);
 
   /**
    * タスクのキャンセル
@@ -290,3 +362,50 @@ export const useAsyncTask = (
     getEstimatedTimeRemaining
   };
 };
+
+/**
+ * Blob削除API呼び出し関数
+ */
+async function cleanupTaskBlob(taskId: string): Promise<void> {
+  try {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8888/.netlify/functions';
+    const apiSecret = import.meta.env.VITE_API_SECRET;
+    
+    if (!apiSecret) {
+      console.warn('API secret not configured, skipping blob cleanup');
+      return;
+    }
+
+    console.log('🗑️ Cleaning up blob for task:', taskId);
+    
+    const response = await fetch(`${apiBaseUrl}/cleanup-task-blob?taskId=${encodeURIComponent(taskId)}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiSecret
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('✅ Blob cleanup successful:', {
+        taskId,
+        deleted: result.deleted,
+        originalDataSize: result.data?.originalDataSize
+      });
+    } else {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+      console.warn('⚠️ Blob cleanup failed:', {
+        taskId,
+        status: response.status,
+        error: errorData.error
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️ Blob cleanup request failed:', {
+      taskId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    // エラーは投げない（サイレント失敗）
+  }
+}

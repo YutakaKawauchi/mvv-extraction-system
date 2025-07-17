@@ -74,7 +74,9 @@ LOGIN_RATE_LIMIT=5  # attempts per 15 minutes
 
 ## API Endpoints
 
-### POST /auth/login
+All authentication endpoints use the v2 implementation for production.
+
+### POST /.netlify/functions/auth-login-v2
 ```javascript
 // Request
 {
@@ -102,7 +104,7 @@ LOGIN_RATE_LIMIT=5  # attempts per 15 minutes
 }
 ```
 
-### POST /auth/validate
+### POST /.netlify/functions/auth-validate-v2
 ```javascript
 // Request Header
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -121,7 +123,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### POST /auth/refresh
+### POST /.netlify/functions/auth-refresh-v2
 ```javascript
 // Request Header
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...

@@ -79,7 +79,11 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
 
   // フィルタリング・検索・ソート
   useEffect(() => {
-    let filtered = [...ideas];
+    // 重複を取り除く
+    const uniqueIdeas = ideas.filter((idea, index, self) => 
+      index === self.findIndex(i => i.id === idea.id)
+    );
+    let filtered = [...uniqueIdeas];
 
     // 検索フィルター
     if (searchTerm.trim()) {
@@ -155,7 +159,15 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
   };
 
   // ユニークな企業リスト
-  const uniqueCompanies = Array.from(new Set(ideas.map(idea => ({ id: idea.companyId, name: idea.companyName }))))
+  const uniqueCompanies = React.useMemo(() => {
+    const companiesMap = new Map();
+    ideas.forEach(idea => {
+      if (!companiesMap.has(idea.companyId)) {
+        companiesMap.set(idea.companyId, { id: idea.companyId, name: idea.companyName });
+      }
+    });
+    return Array.from(companiesMap.values());
+  }, [ideas])
     .sort((a, b) => a.name.localeCompare(b.name));
 
   // ステータス統計
@@ -174,12 +186,22 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
   };
 
 
-  if (!isOpen) return null;
-
   return (
-    <div className={`fixed inset-y-0 right-0 w-96 bg-white shadow-xl border-l border-gray-200 z-40 transform transition-transform duration-300 ease-in-out ${className}`}>
+    <>
+      {/* 背景オーバーレイ */}
+      <div 
+        className={`fixed inset-0 bg-black transition-opacity duration-300 ease-in-out z-30 ${
+          isOpen ? 'opacity-25' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={onClose}
+      />
+      
+      {/* サイドバー */}
+      <div className={`fixed inset-y-0 right-0 w-96 bg-white shadow-xl border-l border-gray-200 z-40 transform transition-all duration-300 ease-in-out flex flex-col h-full ${
+        isOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+      } ${className}`}>
       {/* ヘッダー */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Database className="w-5 h-5 text-blue-600" />
           <h2 className="text-lg font-semibold text-gray-900">保存済みアイデア</h2>
@@ -198,10 +220,10 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
       </div>
 
       {/* 統計サマリー */}
-      <div className="p-4 bg-gray-50 border-b border-gray-200">
+      <div className="p-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div className="text-center">
-            <div className="text-green-600 font-bold">{statusCounts.verified || 0}</div>
+            <div className="text-green-600 font-bold">{ideas.filter(i => !!i.verification).length}</div>
             <div className="text-gray-600">検証済み</div>
           </div>
           <div className="text-center">
@@ -216,7 +238,7 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
       </div>
 
       {/* 検索・フィルター */}
-      <div className="p-4 space-y-3 border-b border-gray-200">
+      <div className="p-4 space-y-3 border-b border-gray-200 flex-shrink-0">
         {/* 検索 */}
         <div className="relative">
           <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
@@ -248,8 +270,8 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
             className="text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">全企業</option>
-            {uniqueCompanies.map(company => (
-              <option key={company.id} value={company.id}>{company.name}</option>
+            {uniqueCompanies.map((company, index) => (
+              <option key={`${company.id}-${index}`} value={company.id}>{company.name}</option>
             ))}
           </select>
         </div>
@@ -280,7 +302,7 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
       </div>
 
       {/* アクションボタン */}
-      <div className="p-3 border-b border-gray-200">
+      <div className="p-3 border-b border-gray-200 flex-shrink-0">
         <button
           onClick={loadIdeas}
           disabled={isLoading}
@@ -292,7 +314,7 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
       </div>
 
       {/* アイデア一覧 */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {error && (
           <div className="p-4 text-sm text-red-600 bg-red-50 border-b border-red-200">
             {error}
@@ -312,9 +334,9 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
           </div>
         ) : (
           <div className="space-y-1 p-2">
-            {filteredIdeas.map((idea) => (
+            {filteredIdeas.map((idea, index) => (
               <div
-                key={idea.id}
+                key={`${idea.id}-${index}`}
                 className="group p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
                 onClick={() => onViewDetails(idea)}
               >
@@ -332,6 +354,11 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
                   
                   <div className="flex items-center gap-1 ml-2">
                     {getStatusIcon(idea.status)}
+                    {idea.verification && (
+                      <div className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-medium" title="検証済み">
+                        検証済み
+                      </div>
+                    )}
                     {idea.autoSaved && (
                       <div className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-medium" title="自動保存済み">
                         Auto
@@ -401,6 +428,7 @@ export const SavedIdeasPanel: React.FC<SavedIdeasPanelProps> = ({
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 };

@@ -96,6 +96,19 @@ interface GenerationResult {
   };
 }
 
+// 星評価表示のヘルパー関数
+const renderStarRating = (score: number | string, maxScore: number = 10): string => {
+  const numScore = typeof score === 'string' ? parseInt(score) : score;
+  if (isNaN(numScore) || numScore < 0) return '☆☆☆☆☆';
+  
+  // 10段階を5つ星に変換
+  const starScore = Math.round((numScore / maxScore) * 5);
+  const filledStars = Math.min(starScore, 5);
+  const emptyStars = 5 - filledStars;
+  
+  return '★'.repeat(filledStars) + '☆'.repeat(emptyStars);
+};
+
 export const BusinessInnovationLab: React.FC = () => {
   const { companies, loadCompanies } = useCompanyStore();
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
@@ -131,10 +144,35 @@ export const BusinessInnovationLab: React.FC = () => {
   
   // 非同期タスク管理（検証用）
   const verificationTask = useAsyncTask(undefined, {
-    onComplete: (result: VerificationResult) => {
+    onComplete: async (result: VerificationResult) => {
       console.log('🎉 Async verification completed:', result);
-      console.log('📋 selectedIdeaForVerification:', selectedIdeaForVerification);
-      console.log('📊 Current verificationResults:', verificationResults);
+      
+      // Comprehensive検証結果の詳細構造をデバッグ
+      if (result.metadata?.verificationLevel === 'comprehensive') {
+        console.log('📊 Comprehensive検証結果詳細構造:', {
+          verificationLevel: result.metadata.verificationLevel,
+          hasMarketValidation: !!result.marketValidation,
+          marketValidationKeys: result.marketValidation ? Object.keys(result.marketValidation) : 'null',
+          industryAnalysisStructure: {
+            hasData: !!result.industryAnalysis,
+            keys: result.industryAnalysis ? Object.keys(result.industryAnalysis) : [],
+            solutionAssessment: result.industryAnalysis?.solutionAssessment,
+            problemValidation: result.industryAnalysis?.problemValidation
+          },
+          competitiveAnalysisStructure: {
+            hasData: !!result.competitiveAnalysis,
+            keys: result.competitiveAnalysis ? Object.keys(result.competitiveAnalysis) : [],
+            directCompetitors: result.competitiveAnalysis?.directCompetitors,
+            competitiveAdvantageAnalysis: result.competitiveAnalysis?.competitiveAdvantageAnalysis
+          },
+          overallAssessmentStructure: {
+            hasData: !!result.overallAssessment,
+            keys: result.overallAssessment ? Object.keys(result.overallAssessment) : [],
+            overallScore: result.overallAssessment?.overallScore,
+            recommendation: result.overallAssessment?.recommendation
+          }
+        });
+      }
       
       if (selectedIdeaForVerification !== null) {
         setVerificationResults(prev => {
@@ -142,13 +180,85 @@ export const BusinessInnovationLab: React.FC = () => {
             ...prev,
             [selectedIdeaForVerification]: result
           };
-          console.log('📈 Updated verificationResults:', newResults);
+          
           return newResults;
         });
+        
+        // 自動保存機能: 検証結果を既存アイデアに保存
+        const currentIdea = savedIdeas[selectedIdeaForVerification];
+        console.log('🔍 Auto-save debug info:', {
+          selectedIdeaForVerification,
+          hasCurrentIdea: !!currentIdea,
+          currentIdeaId: currentIdea?.id,
+          savedIdeasCount: savedIdeas.length,
+          verificationLevel: result.metadata?.verificationLevel,
+          resultDataSize: JSON.stringify(result).length,
+          resultKeys: Object.keys(result),
+          metadataKeys: result.metadata ? Object.keys(result.metadata) : []
+        });
+        
+        if (currentIdea) {
+          try {
+            const startTime = Date.now();
+            const verificationData = {
+              industryAnalysis: result.industryAnalysis,
+              marketValidation: result.marketValidation,
+              businessModelValidation: result.businessModelValidation,
+              competitiveAnalysis: result.competitiveAnalysis,
+              improvementSuggestions: result.improvementSuggestions,
+              overallAssessment: result.overallAssessment,
+              metadata: {
+                ...result.metadata,
+                verifiedAt: Date.now()
+              }
+            };
+            
+            console.log('💾 Starting auto-save with data:', {
+              verificationDataSize: JSON.stringify(verificationData).length,
+              verificationLevel: verificationData.metadata?.verificationLevel,
+              ideaId: currentIdea.id,
+              timestamp: new Date().toISOString()
+            });
+            
+            await ideaStorageService.updateIdeaWithVerification(currentIdea.id, verificationData);
+            const saveTime = Date.now() - startTime;
+            
+            console.log('✅ Verification result auto-saved successfully:', {
+              ideaId: currentIdea.id,
+              verificationLevel: verificationData.metadata?.verificationLevel,
+              saveTimeMs: saveTime,
+              dataSize: JSON.stringify(verificationData).length
+            });
+            
+            // 保存されたアイデアリストを更新
+            await loadSavedIdeas();
+          } catch (saveError) {
+            console.error('❌ Failed to auto-save verification result:', {
+              error: saveError,
+              errorMessage: saveError instanceof Error ? saveError.message : String(saveError),
+              errorStack: saveError instanceof Error ? saveError.stack : undefined,
+              ideaId: currentIdea.id,
+              verificationLevel: result.metadata?.verificationLevel,
+              timestamp: new Date().toISOString()
+            });
+            // 自動保存の失敗はユーザーに通知しない（サイレント失敗）
+          }
+        } else {
+          console.warn('⚠️ Cannot auto-save: currentIdea is null', {
+            selectedIdeaForVerification,
+            savedIdeasCount: savedIdeas.length,
+            verificationLevel: result.metadata?.verificationLevel
+          });
+        }
+        
+        // UIの更新後にselectedIdeaForVerificationをリセット
+        setTimeout(() => {
+          setSelectedIdeaForVerification(null);
+        }, 500); // 少し長めに変更
       } else {
         console.warn('⚠️ selectedIdeaForVerification is null, cannot store result');
+        setSelectedIdeaForVerification(null);
       }
-      setSelectedIdeaForVerification(null);
     },
     onError: (error: Error) => {
       console.error('❌ Async verification failed:', error);
@@ -157,15 +267,11 @@ export const BusinessInnovationLab: React.FC = () => {
     },
     enablePersistence: true
   });
+
   
   // Excel Export機能のstate
   const [showExportWizard, setShowExportWizard] = useState(false);
 
-  // verificationResults変更の監視（デバッグ用）
-  useEffect(() => {
-    console.log('🔄 verificationResults changed:', verificationResults);
-    console.log('📊 Keys in verificationResults:', Object.keys(verificationResults));
-  }, [verificationResults]);
 
   useEffect(() => {
     loadCompanies();
@@ -330,7 +436,7 @@ export const BusinessInnovationLab: React.FC = () => {
           
           for (const idea of result.data.ideas) {
             try {
-              const ideaId = `auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              const ideaId = `auto-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
               const storedIdea: StoredBusinessIdea = {
                 ...idea,
                 id: ideaId,
@@ -389,6 +495,14 @@ export const BusinessInnovationLab: React.FC = () => {
   // アイデア復元機能
   const handleRestoreIdea = async (idea: StoredBusinessIdea) => {
     try {
+      // 企業データの存在確認
+      const targetCompany = companies.find(c => c.id === idea.companyId);
+      if (!targetCompany) {
+        console.warn(`Company with ID ${idea.companyId} not found. Available companies:`, companies.map(c => ({id: c.id, name: c.name})));
+        setError(`企業「${idea.companyName}」が見つかりません。企業データを確認してください。`);
+        return;
+      }
+
       // 1. 元のパラメータを復元（新しいパラメータのデフォルト値を含む）
       setSelectedCompanyId(idea.companyId);
       setAnalysisParams({
@@ -521,9 +635,7 @@ export const BusinessInnovationLab: React.FC = () => {
     setError(null);
 
     try {
-      console.log(`🔍 Starting async ${verificationLevel} verification for "${idea.title}"`);
-      console.log(`📋 Set selectedIdeaForVerification to:`, index);
-      console.log(`📊 Current verificationResults:`, verificationResults);
+      console.log(`⏳ Starting async ${verificationLevel} verification for "${idea.title}"`);
       
       // 非同期タスクリクエストを作成
       // embeddingsデータを削除してリクエストサイズを軽量化
@@ -944,7 +1056,16 @@ export const BusinessInnovationLab: React.FC = () => {
                     {/* 総合評価 */}
                     {verificationResults[index].overallAssessment && (
                       <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
-                        <h6 className="font-semibold text-purple-900 mb-3">総合評価</h6>
+                        <div className="flex items-center justify-between mb-3">
+                          <h6 className="font-semibold text-purple-900">検証1: 総合評価</h6>
+                          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            verificationResults[index].overallAssessment.recommendation?.decision === 'GO' ? 'bg-green-100 text-green-800' :
+                            verificationResults[index].overallAssessment.recommendation?.decision === 'CONDITIONAL-GO' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            推奨: {verificationResults[index].overallAssessment.recommendation?.decision || 'N/A'}
+                          </div>
+                        </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                           <div className="text-center">
                             <div className="text-lg font-bold text-purple-600">
@@ -971,28 +1092,253 @@ export const BusinessInnovationLab: React.FC = () => {
                             <div className="text-xs text-orange-700">総合スコア</div>
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                            verificationResults[index].overallAssessment.recommendation?.decision === 'GO' ? 'bg-green-100 text-green-800' :
-                            verificationResults[index].overallAssessment.recommendation?.decision === 'CONDITIONAL-GO' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            推奨: {verificationResults[index].overallAssessment.recommendation?.decision || 'N/A'}
-                          </div>
+                        <div>
                           <p className="text-sm text-purple-800">
                             {verificationResults[index].overallAssessment.recommendation?.reasoning || '詳細な理由は分析中です'}
                           </p>
                         </div>
+
+                        {/* 業界専門分析・競合分析サマリー (総合評価内に統合) */}
+                        {(verificationResults[index].industryAnalysis || verificationResults[index].competitiveAnalysis) && (
+                          <div className="mt-4 grid md:grid-cols-2 gap-3">
+                            {verificationResults[index].industryAnalysis && (
+                              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div className="font-semibold text-blue-900 mb-2">業界専門分析</div>
+                                <div className="text-sm text-blue-800 space-y-1">
+                                  <div>
+                                    <span className="font-medium">緊急度:</span> 
+                                    {(() => {
+                                      const urgency = verificationResults[index].industryAnalysis?.data?.problemValidation?.urgencyLevel || 
+                                                     verificationResults[index].industryAnalysis?.problemValidation?.urgencyLevel;
+                                      const urgencyScore = urgency || 'N/A';
+                                      return urgencyScore === 'N/A' ? 'N/A' : `${renderStarRating(urgencyScore)} (${urgencyScore}/10)`;
+                                    })()}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">革新性:</span> 
+                                    {(() => {
+                                      const innovation = verificationResults[index].industryAnalysis?.data?.solutionAssessment?.innovationLevel || 
+                                                        verificationResults[index].industryAnalysis?.solutionAssessment?.innovationLevel;
+                                      const innovationScore = innovation || 'N/A';
+                                      return innovationScore === 'N/A' ? 'N/A' : `${renderStarRating(innovationScore)} (${innovationScore}/10)`;
+                                    })()}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            {verificationResults[index].competitiveAnalysis && (
+                              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <div className="font-semibold text-green-900 mb-2">競合分析</div>
+                                <div className="text-sm text-green-800 space-y-1">
+                                  <div>
+                                    <span className="font-medium">直接競合:</span> 
+                                    {(() => {
+                                      const competitors = verificationResults[index].competitiveAnalysis?.data?.directCompetitors || 
+                                                         verificationResults[index].competitiveAnalysis?.directCompetitors;
+                                      return Array.isArray(competitors) ? competitors.length : 0;
+                                    })()}社
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">優位性持続:</span> 
+                                    {(() => {
+                                      const sustainability = verificationResults[index].competitiveAnalysis?.data?.competitiveAdvantageAnalysis?.sustainabilityScore || 
+                                                            verificationResults[index].competitiveAnalysis?.competitiveAdvantageAnalysis?.sustainabilityScore;
+                                      const sustainabilityScore = sustainability || 'N/A';
+                                      return sustainabilityScore === 'N/A' ? 'N/A' : `${renderStarRating(sustainabilityScore)} (${sustainabilityScore}/10)`;
+                                    })()}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 市場検証結果 (Comprehensive/Expert レベル) */}
+                    {verificationResults[index].marketValidation ? (
+                      <div className="mb-4 p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
+                        <h6 className="font-semibold text-cyan-900 mb-3">検証2: 市場検証結果</h6>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="font-medium text-cyan-800 mb-2">市場規模</div>
+                            <div className="text-sm text-cyan-700 space-y-1">
+                              <div>総市場: {verificationResults[index].marketValidation.marketSize?.totalMarket || '調査中'}</div>
+                              <div>対象市場: {verificationResults[index].marketValidation.marketSize?.targetMarket || '調査中'}</div>
+                              <div>成長率: {verificationResults[index].marketValidation.marketSize?.growthRate || 'N/A'}%</div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="font-medium text-cyan-800 mb-2">顧客セグメント</div>
+                            <div className="text-sm text-cyan-700 space-y-1">
+                              <div>主要顧客: {verificationResults[index].marketValidation.customerSegmentation?.primarySegment || '分析中'}</div>
+                              <div>支払意欲: {verificationResults[index].marketValidation.customerSegmentation?.willingness_to_pay || 'N/A'}/10</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      verificationResults[index].metadata?.verificationLevel === 'comprehensive' && (
+                        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                          <h6 className="font-semibold text-amber-900 mb-3">🔄 検証2: 市場検証結果</h6>
+                          <div className="text-sm text-amber-700">
+                            <p>市場検証が現在実行されていません。競合分析からの市場洞察をご確認ください。</p>
+                            <p className="text-xs mt-1">※次回のアップデートで市場検証機能が強化されます</p>
+                          </div>
+                        </div>
+                      )
+                    )}
+
+                    {/* ビジネスモデル検証結果 */}
+                    {verificationResults[index].businessModelValidation && (
+                      <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                        <h6 className="font-semibold text-purple-900 mb-3">検証3: ビジネスモデル検証</h6>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="font-medium text-purple-800 mb-2">収益モデル</div>
+                            <div className="text-sm text-purple-700 space-y-1">
+                              <div>実行可能性: {verificationResults[index].businessModelValidation.revenueModelValidation?.viability || 'N/A'}/10</div>
+                              <div>価格持続性: {verificationResults[index].businessModelValidation.revenueModelValidation?.pricingSustainability || '分析中'}</div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="font-medium text-purple-800 mb-2">価値提案</div>
+                            <div className="text-sm text-purple-700 space-y-1">
+                              <div>独自性: {verificationResults[index].businessModelValidation.valuePropositionTest?.uniquenessScore || 'N/A'}/10</div>
+                              <div>顧客適合: {verificationResults[index].businessModelValidation.valuePropositionTest?.customerJobsFit || '評価中'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 業界固有の詳細分析 */}
+                    {verificationResults[index].industryAnalysis?.industrySpecificInsights && (
+                      <div className="mb-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                        <h6 className="font-semibold text-indigo-900 mb-3">検証4: 業界固有の洞察</h6>
+                        <div className="space-y-3">
+                          {verificationResults[index].industryAnalysis.industrySpecificInsights.keyPlayersReaction && (
+                            <div>
+                              <div className="font-medium text-indigo-800 mb-1">主要プレイヤーの想定反応</div>
+                              <div className="text-sm text-indigo-700">
+                                {verificationResults[index].industryAnalysis.industrySpecificInsights.keyPlayersReaction}
+                              </div>
+                            </div>
+                          )}
+                          {verificationResults[index].industryAnalysis.industrySpecificInsights.valueChainImpact && (
+                            <div>
+                              <div className="font-medium text-indigo-800 mb-1">バリューチェーンへの影響</div>
+                              <div className="text-sm text-indigo-700">
+                                {verificationResults[index].industryAnalysis.industrySpecificInsights.valueChainImpact}
+                              </div>
+                            </div>
+                          )}
+                          {verificationResults[index].industryAnalysis.industrySpecificInsights.timing && (
+                            <div>
+                              <div className="font-medium text-indigo-800 mb-1">市場投入タイミング</div>
+                              <div className="text-sm text-indigo-700">
+                                {verificationResults[index].industryAnalysis.industrySpecificInsights.timing}
+                              </div>
+                            </div>
+                          )}
+                          {verificationResults[index].industryAnalysis.industrySpecificInsights.riskFactors && (
+                            <div>
+                              <div className="font-medium text-indigo-800 mb-1">リスク要因</div>
+                              <div className="text-sm text-indigo-700 space-y-1">
+                                {verificationResults[index].industryAnalysis.industrySpecificInsights.riskFactors.map((risk: string, riskIndex: number) => (
+                                  <div key={riskIndex} className="flex items-start">
+                                    <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full mt-1.5 mr-2"></span>
+                                    <span>{risk}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 競合分析の詳細 */}
+                    {verificationResults[index].competitiveAnalysis && (
+                      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <h6 className="font-semibold text-red-900 mb-3">検証5: 競合分析詳細</h6>
+                        <div className="overflow-x-auto">
+                          {verificationResults[index].competitiveAnalysis.directCompetitors?.length === 0 ? (
+                            <div className="p-4 bg-red-100 border border-red-300 rounded-lg text-center">
+                              <p className="text-red-800 font-medium">直接競合は見つかりませんでした。</p>
+                              <p className="text-red-700 text-sm mt-1">
+                                このアイデアは革新的なソリューションの可能性があります。
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="flex space-x-3 pb-2" style={{ minWidth: 'max-content' }}>
+                              {verificationResults[index].competitiveAnalysis.directCompetitors?.map((competitor: any, compIndex: number) => (
+                              <div key={compIndex} className="flex-shrink-0 w-80 p-3 bg-red-100 rounded border">
+                                <div className="font-medium text-red-900 text-sm mb-2">
+                                  {competitor.website ? (
+                                    <a 
+                                      href={competitor.website} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-red-900 hover:text-red-700 hover:underline transition-colors"
+                                    >
+                                      {competitor.name}
+                                    </a>
+                                  ) : (
+                                    competitor.name
+                                  )}
+                                  {competitor.productName && (
+                                    <span className="text-xs font-normal text-red-700 block">({competitor.productName})</span>
+                                  )}
+                                </div>
+                                <div className="text-red-800 text-xs mb-2 line-clamp-3">{competitor.description}</div>
+                                {competitor.website && (
+                                  <div className="text-red-600 text-xs mb-1 truncate">
+                                    <span className="font-medium">URL:</span> 
+                                    <a 
+                                      href={competitor.website} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="ml-1 text-red-600 hover:text-red-800 hover:underline transition-colors"
+                                    >
+                                      {competitor.website}
+                                    </a>
+                                  </div>
+                                )}
+                                {competitor.pricingModel && (
+                                  <div className="text-red-700 text-xs mb-1">
+                                    <span className="font-medium">価格:</span> {competitor.pricingModel}
+                                  </div>
+                                )}
+                                <div className="text-red-700 text-xs mb-1">
+                                  <span className="font-medium">強み:</span> {competitor.strengths?.slice(0, 2).join(', ') || 'N/A'}
+                                </div>
+                                <div className="text-red-700 text-xs">
+                                  <span className="font-medium">弱み:</span> {competitor.weaknesses?.slice(0, 2).join(', ') || 'N/A'}
+                                </div>
+                              </div>
+                            ))}
+                            </div>
+                          )}
+                        </div>
+                        {verificationResults[index].competitiveAnalysis.marketPositioning && (
+                          <div className="mt-3">
+                            <div className="font-medium text-red-800 mb-1">市場ポジショニング</div>
+                            <div className="text-sm text-red-700">
+                              {verificationResults[index].competitiveAnalysis.marketPositioning.differentiationStrategy || '戦略分析中'}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* 改善提案 */}
                     {verificationResults[index].improvementSuggestions && (
                       <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                        <h6 className="font-semibold text-orange-900 mb-3">改善提案</h6>
+                        <h6 className="font-semibold text-orange-900 mb-3">検証6: 改善提案</h6>
                         {verificationResults[index].improvementSuggestions.improvementRecommendations?.slice(0, 3).map((rec: any, recIndex: number) => (
                           <div key={recIndex} className="mb-3 p-3 bg-orange-100 rounded border">
-                            <div className="font-medium text-orange-900 text-sm">{rec.area}</div>
+                            <div className="font-medium text-orange-900 text-sm">改善提案 {recIndex + 1}: {rec.area}</div>
                             <div className="text-orange-800 text-xs mt-1">{rec.recommendedChange}</div>
                             <div className="text-orange-700 text-xs mt-1">期待効果: {rec.expectedImpact}</div>
                           </div>
@@ -1000,38 +1346,6 @@ export const BusinessInnovationLab: React.FC = () => {
                       </div>
                     )}
 
-                    {/* 業界分析サマリー */}
-                    {verificationResults[index].industryAnalysis && (
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                          <h6 className="font-semibold text-blue-900 mb-2">業界専門分析</h6>
-                          <div className="text-sm text-blue-800 space-y-1">
-                            <div>
-                              <span className="font-medium">緊急度:</span> 
-                              {verificationResults[index].industryAnalysis.problemValidation?.urgencyLevel || 'N/A'}/10
-                            </div>
-                            <div>
-                              <span className="font-medium">革新性:</span> 
-                              {verificationResults[index].industryAnalysis.solutionAssessment?.innovationLevel || 'N/A'}/10
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                          <h6 className="font-semibold text-green-900 mb-2">競合分析</h6>
-                          <div className="text-sm text-green-800 space-y-1">
-                            <div>
-                              <span className="font-medium">直接競合:</span> 
-                              {verificationResults[index].competitiveAnalysis?.directCompetitors?.length || 0}社
-                            </div>
-                            <div>
-                              <span className="font-medium">優位性持続:</span> 
-                              {verificationResults[index].competitiveAnalysis?.competitiveAdvantageAnalysis?.sustainabilityScore || 'N/A'}/10
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -1068,6 +1382,11 @@ export const BusinessInnovationLab: React.FC = () => {
               {savedIdeas.length > 0 && (
                 <span className="ml-1 bg-blue-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
                   {savedIdeas.length}
+                </span>
+              )}
+              {savedIdeas.filter(idea => !!idea.verification).length > 0 && (
+                <span className="ml-1 bg-green-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full" title="検証済みアイデア数">
+                  ✓{savedIdeas.filter(idea => !!idea.verification).length}
                 </span>
               )}
             </button>

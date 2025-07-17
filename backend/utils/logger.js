@@ -33,10 +33,13 @@ const LOG_DIR = path.join(__dirname, '..', 'logs');
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_FILES = 30; // Keep 30 days of logs
 
-// Ensure log directory exists
+// Ensure log directory exists (Netlify Functions環境では無効)
 const ensureLogDirectory = () => {
-  if (!fs.existsSync(LOG_DIR)) {
-    fs.mkdirSync(LOG_DIR, { recursive: true });
+  // Netlify Functions環境では /var/task/logs を作成できないため無効化
+  if (isDevelopment) {
+    if (!fs.existsSync(LOG_DIR)) {
+      fs.mkdirSync(LOG_DIR, { recursive: true });
+    }
   }
 };
 
@@ -80,10 +83,11 @@ const rotateLogsIfNeeded = () => {
   }
 };
 
-// Write to log file
+// Write to log file (Netlify Functions環境では無効)
 const writeToFile = (logEntry) => {
-  if (!isDevelopment && process.env.NODE_ENV !== 'production') {
-    return; // Only log to file in development or production
+  // Netlify Functions環境ではファイルシステムへの書き込みは無効化
+  if (!isDevelopment) {
+    return; // 本番環境（Netlify Functions）ではファイルログを無効化
   }
 
   try {
@@ -100,7 +104,10 @@ const writeToFile = (logEntry) => {
       }
     });
   } catch (err) {
-    console.error('File logging error:', err.message);
+    // Netlify Functions環境でのエラーは無視（コンソールログのみ）
+    if (isDevelopment) {
+      console.error('File logging error:', err.message);
+    }
   }
 };
 

@@ -520,6 +520,32 @@ export class AsyncTaskStorageService {
   }
 
   /**
+   * 最近作成されたタスクの取得（フォールバック検知用）
+   */
+  async getRecentTasks(maxAgeMs: number = 5 * 60 * 1000): Promise<AsyncTask[]> {
+    try {
+      const cutoffTime = Date.now() - maxAgeMs;
+      
+      const recentTasks = await this.db.asyncTasks
+        .where('timestamps.createdAt')
+        .above(cutoffTime)
+        .toArray();
+      
+      // 作成日時で降順ソート（新しいものが先）
+      return recentTasks.sort((a, b) => b.timestamps.createdAt - a.timestamps.createdAt);
+    } catch (error) {
+      console.error('Failed to get recent tasks:', error);
+      throw new AsyncTaskError(
+        '最近のタスクの取得に失敗しました',
+        'RECENT_TASKS_GET_FAILED',
+        '',
+        true,
+        error
+      );
+    }
+  }
+
+  /**
    * 定期クリーンアップジョブのセットアップ
    */
   private setupCleanupJob(): void {
