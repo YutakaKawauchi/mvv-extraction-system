@@ -22,6 +22,9 @@ const { logger } = require('../../utils/logger');
  */
 
 exports.handler = async (event, context) => {
+  // ログリクエスト記録（CORS対応のため必須）
+  logger.apiRequest(event.httpMethod, event.path, event.headers, event.body);
+  
   // Netlify Blobs Lambda互換性のための初期化
   connectLambda(event);
   

@@ -38,45 +38,19 @@ AI-powered system for extracting Mission, Vision, and Values (MVV) from Japanese
 - ✅ OpenAI GPT-4o integration (high accuracy, 3-8s processing)
 - ✅ Perplexity AI integration (50% cost reduction, web search capabilities, 3-12s processing)
 - ✅ Local development environment (WSL2 compatible)
-- ✅ Comprehensive logging system (460 entries on 2025-07-08)
+- ✅ Comprehensive logging system
 - ✅ Enhanced CSV import system with duplicate checking
 - ✅ Improved UI/UX with better error handling
 - ✅ Zero production errors - excellent stability
 - ✅ **Netlify Functions Authentication System (Production Ready)**
-  - JWT-based authentication with 24h token expiration
-  - Rate limiting (5 attempts/15min) for security
-  - Mobile-responsive login interface with UX improvements
-  - Automatic session management and refresh
-  - Dual authentication support (API key + JWT)
-  - Production credentials: Set via environment variables (secure)
-- ✅ **Production deployment completed with authentication (2025-07-08)**
-- ✅ **Design documentation updated for Phase 3 preparation (2025-07-09)**
-  - Updated all 6 design documents to reflect enhanced company management system
-  - Created comprehensive company-management-enhancement.md implementation record
-  - Updated testing guides with new API endpoints and procedures
-  - Documented 4-stage automated pipeline and enterprise features
-- ✅ **Professional Excel Export System (2025-07-11)**
-  - ExcelJS-based comprehensive Excel export with 5 specialized data sheets
-  - Step-by-step export wizard with preview and progress tracking
-  - Advanced Excel features: window freezing, auto-filters, text wrapping, conditional formatting
-  - JSIC industry classification integration and professional styling
-  - Mobile-responsive export interface with detailed configuration options
-- ✅ **Unified Idea Generation Dialog System (Phase γ) (2025-07-14)**
-  - 3-step wizard: Company Selection → Parameter Settings → Idea Generation
-  - Preset functionality with 3 strategic business presets (DX-conservative, Innovation-aggressive, CX-balanced)
-  - Conditional UI with business model-specific guidance and technology recommendations
-  - Enhanced constraint parameters: Tech preferences, Risk tolerance, Revenue expectations
-  - Clean unified interface replacing duplicate UI elements
-  - State synchronization fix for seamless dialog-based generation
-- ✅ **Comprehensive Async Task System (Phase ε) (2025-07-15)**
-  - Complete async task lifecycle management (queued → processing → completed → consumed)
-  - Background Functions with CORS-compliant development endpoints
-  - Smart polling with exponential backoff and automatic cleanup
-  - IndexedDB integration with persistent task storage
-  - API logging integration for complete request/response tracking
-  - Real-time UI updates with React hooks integration
-  - Support for 15-minute long-running tasks with proper error handling
-  - Comprehensive test suite with mock services and development tools
+- ✅ **Professional Excel Export System** → See `docs/excel-export-system-design.md`
+- ✅ **Unified Idea Generation Dialog System (Phase γ)**
+- ✅ **Comprehensive Async Task System (Phase ε)**
+- ✅ **Real-time Analysis Dashboard** → See `docs/realtime-analysis-system.md`
+- ✅ **Visual Analytics Gallery** → See `docs/visual-analytics-gallery-design.md`
+- ✅ **Business Innovation Lab Beta v2** → See `docs/business-innovation-lab-beta-v2-design.md`
+- ✅ **Comprehensive AI Cache System**
+- 📊 **Next Phase**: Expert verification differentiation and advanced AI insights
 
 ## Common Commands
 
@@ -147,131 +121,48 @@ netlify env:set JWT_EXPIRATION "24h"
 
 ## Architecture & Key Components
 
-### Frontend Structure (`/frontend`)
-- **src/components/**: UI components organized by feature (Company/, MVV/, Results/)
-  - **common/**: Reusable UI components with accessibility support (Button, LoadingSpinner, StatusBadge, ScrollToTopButton, ExcelExportWizard)
-  - **CompanyManager/**: Company CRUD operations with mobile-optimized layouts
-  - **ResultsViewer/**: Responsive data display (dual mobile/desktop views)
-  - **MVVExtractor/**: Batch processing interfaces
-  - **Dashboard/**: Main navigation and overview with session status
-  - **auth/**: Authentication components (Login, AuthGuard, SessionStatus)
-- **src/services/**: API clients (api.ts, indexedDB.ts, excelProcessor.ts)
-- **src/stores/**: Zustand state management (companies, MVV data, authentication)
-- **src/types/**: TypeScript interfaces (including auth types)
-- **src/utils/**: Helper functions (formatters, authApi.ts)
-
-### Backend Structure (`/backend`)
-- **netlify/functions/**: Serverless endpoints
-  - `extract-mvv.js`: OpenAI GPT-4o extraction endpoint (auth protected)
-  - `extract-mvv-perplexity.js`: Perplexity AI extraction endpoint (auth protected)
-  - `extract-company-info.js`: Company information extraction endpoint (auth protected)
-  - `health.js`: Health check endpoint
-  - **Authentication endpoints**:
-    - `auth-login.js`: JWT token generation with comprehensive rate limiting and logging
-    - `auth-login-v2.js`: Simplified JWT token generation (clean implementation)
-    - `auth-validate.js`: JWT token validation with detailed error handling
-    - `auth-validate-v2.js`: Simplified JWT token validation
-    - `auth-refresh.js`: JWT token refresh with age validation
-    - `auth-refresh-v2.js`: Simplified JWT token refresh
-- **utils/**: Shared utilities
-  - `cors.js`: CORS configuration
-  - `rateLimiter.js`: Enhanced rate limiting (API + auth rate limiting)
-  - `auth.js`: Dual authentication (API key + JWT validation)
-  - `jwt.js`: JWT token generation, validation, and refresh
-  - `logger.js`: Comprehensive logging system
-- **test/**: Test suite with comprehensive API testing
-  - `company-info-api.test.js`: Company info API tests (mock/integration/minimal modes)
-  - `helpers/`: Test utilities and mock data
-  - `fixtures/`: Test data fixtures
+For detailed architecture and component information, refer to:
+- **System Architecture**: `docs/system-architecture.md`
+- **Component Architecture**: `docs/component-architecture.md`
+- **API Design**: `docs/ai-insights-api-design.md`
 
 ### Key Technologies
-- **Frontend**: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB) + TinySegmenter (Japanese morphological analysis) + ExcelJS 4.4.0 (Professional Excel export)
+- **Frontend**: React 19.1.0 + TypeScript 5.8.3 + Vite 7.0.0 + TailwindCSS 4.1.11 + Zustand 5.0.6 + Dexie 4.0.11 (IndexedDB) + TinySegmenter (Japanese morphological analysis) + ExcelJS 4.4.0
 - **Backend**: Netlify Functions + OpenAI 5.8.2 + Perplexity AI + jsonwebtoken 9.0.2 (JWT authentication)
-- **Testing**: Jest 29.7.0 with comprehensive API testing (mock/integration/minimal modes)
+- **Testing**: Jest 29.7.0 with comprehensive API testing
 - **Authentication**: JWT-based with environment variable credentials
 - **Security**: CORS protection, dual authentication (API key + JWT), rate limiting, sensitive data masking
 - **Logging**: Environment-aware logging (console + file output)
-- **Async Tasks**: Background Functions with IndexedDB persistence, smart polling, lifecycle management
+- **Async Tasks**: Background Functions with IndexedDB persistence
 - **Accessibility**: WCAG 2.1 AA compliance, ARIA labels, screen reader support, keyboard navigation
 - **Mobile**: Responsive design, touch-friendly (44px+ targets), mobile-first layouts
-- **Data Export**: ExcelJS-based professional Excel export with advanced formatting and multiple specialized sheets
-- **Visual Analytics**: Screenshot capture with IndexedDB persistence, browser-compatible image processing, Excel image embedding
-
-### Authentication Features
-- **Login Interface**: Mobile-responsive login with password visibility toggle
-- **Session Management**: Automatic token refresh, session status display, logout functionality
-- **Rate Limiting**: 5 login attempts per 15 minutes per IP
-- **Token Security**: 24-hour JWT expiration with secure generation
-- **Route Protection**: AuthGuard component protects entire application
-- **Dual Auth**: Backward compatibility with existing API key authentication
-
-### Async Task System Architecture (Phase ε)
-- **Task Lifecycle**: queued → processing → completed → consumed (with automatic cleanup)
-- **Background Functions**: 15-minute execution time with proper timeout handling
-- **Smart Polling**: Exponential backoff (2-30 seconds) with automatic suspension
-- **IndexedDB Storage**: Persistent task storage with automatic cleanup policies
-- **API Integration**: Complete request/response logging for audit trails
-- **React Hooks**: useAsyncTask for seamless UI integration with real-time updates
-- **CORS Handling**: Development-specific endpoints to resolve cross-origin issues
-- **Error Recovery**: Comprehensive error handling with retry mechanisms
-- **Debug Tools**: Global helpers for development and troubleshooting
 
 ### Core Features
 1. **Company Management**: CSV import/export with duplicate checking, CRUD operations, status tracking
 2. **MVV Extraction**: Batch processing (5 parallel), confidence scoring, real-time progress
-3. **AI Similarity Analysis**: 62-company similarity analysis, interactive dashboard, Japanese morphological analysis
+3. **AI Similarity Analysis**: 62-company similarity analysis, interactive dashboard
 4. **Data Persistence**: IndexedDB for local storage
 5. **Results Management**: Filter/search, manual editing, CSV/JSON export
-6. **Visual Analytics Gallery**: AI analysis screen capture with IndexedDB storage and Excel integration
-7. **Professional Excel Export**: 5+ specialized data sheets with visual analytics integration and advanced formatting
-8. **Responsive Design**: Mobile-first approach with adaptive layouts (card/table views)
-9. **Accessibility**: Full WCAG 2.1 AA compliance with screen reader and keyboard support
-10. **Enhanced UX**: Smooth scroll-to-top, improved error handling, detailed feedback
+6. **Visual Analytics Gallery**: AI analysis screen capture → See `docs/visual-analytics-gallery-design.md`
+7. **Professional Excel Export**: 5+ specialized data sheets → See `docs/excel-export-system-design.md`
+8. **Responsive Design**: Mobile-first approach with adaptive layouts
+9. **Accessibility**: Full WCAG 2.1 AA compliance
+10. **Enhanced UX**: Smooth scroll-to-top, improved error handling
 11. **Performance**: Optimized rendering, throttled events, 60fps smooth interactions
 
 ### API Endpoints
-- `POST /.netlify/functions/extract-mvv`: OpenAI GPT-4o extraction (auth protected)
-- `POST /.netlify/functions/extract-mvv-perplexity`: Perplexity AI extraction with web search (auth protected)
-- `POST /.netlify/functions/extract-company-info`: Company information extraction with Perplexity API (auth protected)
-- `POST /.netlify/functions/generate-business-ideas`: Business idea generation (auth protected, temperature 0.7)
-- `POST /.netlify/functions/verify-business-idea`: AI verification system with 3-tier analysis (auth protected)
-- `GET /.netlify/functions/health`: Health check (public)
-- **Async Task endpoints**:
-  - `POST /.netlify/functions/start-async-task`: Start async task (auth protected)
-  - `GET /.netlify/functions/task-status`: Get task status (auth protected)
-  - `POST /.netlify/functions/verify-business-idea-async`: Async verification proxy (development)
-  - `POST /.netlify/functions/verify-business-idea-background`: Background verification (production)
-  - `POST /.netlify/functions/long-running-mock`: Mock service for testing (development)
-- **Authentication endpoints**:
-  - `POST /.netlify/functions/auth-login-v2`: JWT token generation (production)
-  - `POST /.netlify/functions/auth-validate-v2`: JWT token validation (production)
-  - `POST /.netlify/functions/auth-refresh-v2`: JWT token refresh (production)
-  - `POST /.netlify/functions/auth-login`: JWT token generation (comprehensive logging)
-  - `POST /.netlify/functions/auth-validate`: JWT token validation (comprehensive logging)
-  - `POST /.netlify/functions/auth-refresh`: JWT token refresh (comprehensive logging)
 
-### API Response Format
-```json
-{
-  "success": true,
-  "data": {
-    "mission": "企業の使命",
-    "vision": "企業のビジョン", 
-    "values": ["価値観1", "価値観2"],
-    "confidence_scores": {
-      "mission": 0.95,
-      "vision": 0.90,
-      "values": 0.85
-    },
-    "extracted_from": "情報源"
-  },
-  "metadata": {
-    "processingTime": 2500,
-    "timestamp": "2025-01-08T...",
-    "source": "openai|perplexity"
-  }
-}
-```
+For complete API documentation, see `docs/ai-insights-api-design.md`
+
+Main endpoints:
+- `POST /.netlify/functions/extract-mvv`: OpenAI GPT-4o extraction
+- `POST /.netlify/functions/extract-mvv-perplexity`: Perplexity AI extraction
+- `POST /.netlify/functions/extract-company-info`: Company information extraction
+- `POST /.netlify/functions/generate-business-ideas`: Business idea generation
+- `POST /.netlify/functions/verify-business-idea`: AI verification system
+- `GET /.netlify/functions/health`: Health check
+- **Async Task endpoints**: See `docs/system-architecture.md`
+- **Authentication endpoints**: See `docs/netlify-auth-design.md`
 
 ### Development Notes
 - Frontend uses Vite proxy for local API calls
@@ -287,211 +178,9 @@ netlify env:set JWT_EXPIRATION "24h"
 
 **⚠️ EVERY new API function MUST follow this exact CORS pattern to avoid errors:**
 
-#### Required CORS Pattern (Copy from extract-mvv.js)
-```javascript
-const { handleCors, corsHeaders } = require('../../utils/cors');
-
-exports.handler = async (event, context) => {
-  // 1. Handle CORS preflight - MUST BE FIRST
-  const corsResult = handleCors(event);
-  if (corsResult) return corsResult;
-
-  // 2. Get CORS headers for ALL responses
-  const corsHeadersObj = corsHeaders(event.headers.origin || event.headers.Origin);
-
-  // 3. Method validation with CORS headers
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers: {
-        ...corsHeadersObj,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
-  }
-
-  try {
-    // Your function logic here...
-    
-    // 4. Success response with CORS headers
-    return {
-      statusCode: 200,
-      headers: {
-        ...corsHeadersObj,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ success: true, data: result })
-    };
-
-  } catch (error) {
-    // 5. Error response with CORS headers
-    return {
-      statusCode: 500,
-      headers: {
-        ...corsHeadersObj,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ success: false, error: 'Internal server error' })
-    };
-  }
-};
-```
-
-#### CORS Checklist for New Functions
-- [ ] Import `handleCors` and `corsHeaders` from `../../utils/cors`
-- [ ] Call `handleCors(event)` as the FIRST line in the handler
-- [ ] Get `corsHeadersObj` using both origin headers: `event.headers.origin || event.headers.Origin`
-- [ ] Apply `...corsHeadersObj` to EVERY response (success, error, validation failures)
-- [ ] Include `'Content-Type': 'application/json'` in all headers
-
-#### Common CORS Mistakes (⚠️ AVOID THESE)
-```javascript
-// ❌ WRONG: Missing handleCors() call
-// ❌ WRONG: Missing CORS headers in some responses
-// ❌ WRONG: Not using spread operator ...corsHeadersObj
-// ❌ WRONG: Forgetting origin fallback
-// ❌ WRONG: Using static corsHeaders instead of corsHeaders(origin)
-```
-
-**📋 Template**: Use `/backend/templates/api-function-template.js` for new functions
-
-### Professional Excel Export System
-
-#### Overview
-Comprehensive Excel export system using ExcelJS 4.4.0 for generating professional business reports with 5 specialized data sheets, advanced formatting, and business intelligence features.
-
-#### Excel Export Features
-- **5 Specialized Data Sheets**: Executive Summary, MVV Analysis (Simple/Detail), Company Master Data, Company Detailed Profiles
-- **Advanced Excel Functions**: Window pane freezing, auto-filters, conditional formatting, text wrapping
-- **Professional Styling**: Color-coded confidence scores, alternating row colors, proper borders and fonts
-- **Step-by-step Wizard**: Interactive export configuration with preview and progress tracking
-- **Mobile-responsive Interface**: Touch-friendly controls and adaptive layouts
-
-#### Data Sheets Specification
-
-**1. Executive Summary**
-- Project overview and key statistics
-- Industry breakdown with completion rates
-- Data quality distribution (high/medium/low confidence)
-- Generated report metadata
-
-**2. MVV Analysis (Simple)**
-- Basic MVV data: No, Company Name, Industry, Mission, Vision, Values
-- Confidence scores with color-coded indicators
-- Investigation date and source URLs
-- Window freezing: No + Company Name columns
-- Full auto-filtering on all columns
-
-**3. MVV Analysis (Detail)**
-- Comprehensive JOIN of MVV + Company Information data
-- JSIC industry classifications (Major/Middle/Minor categories)
-- Financial data, business segments, listing information
-- Text wrapping for Mission/Vision/Values with automatic row height
-- 29 total columns with complete business intelligence data
-
-**4. Company Master Data**
-- Basic company information and processing status
-- Creation/update timestamps and error tracking
-- Website URLs and category classifications
-- Processing pipeline status indicators
-
-**5. Company Detailed Profiles**
-- Complete company profiles with 43 data fields
-- Financial metrics, ESG information, competitive positioning
-- JSIC classifications and industry positioning
-- MVV extraction status and confidence indicators
-
-#### Technical Implementation
-```typescript
-// Excel Export Service
-src/services/excelProcessor.ts - Core Excel generation engine
-src/components/common/ExcelExportWizard.tsx - Step-by-step UI wizard
-
-// Key Features
-- ExcelJS workbook generation with professional themes
-- Conditional formatting for confidence scores
-- Dynamic column width adjustment
-- Multi-sheet generation with cross-referencing
-- Progress tracking and error handling
-```
-
-#### Usage Example
-```bash
-# Access via Results tab → Excel Export button
-# Configure export options in step-by-step wizard
-# Preview settings and start generation
-# Download professional Excel report with multiple sheets
-```
-
-### Company Information Extraction API
-New endpoint for extracting comprehensive company information using Perplexity API with automatic industry classification:
-
-```bash
-# Test company info extraction
-curl -X POST "http://localhost:8888/.netlify/functions/extract-company-info" \
--H "Content-Type: application/json" \
--H "X-API-Key: your-api-key" \
--d '{
-  "companyId": "test-001",
-  "companyName": "トヨタ自動車",
-  "companyWebsite": "https://global.toyota/jp/",
-  "includeFinancials": true,
-  "includeESG": true,
-  "includeCompetitors": true
-}'
-```
-
-Response format with industry classification:
-```json
-{
-  "success": true,
-  "data": {
-    "founded_year": 1937,
-    "employee_count": 375235,
-    "headquarters_location": "愛知県豊田市",
-    "financial_data": {
-      "revenue": 31377000,
-      "operating_profit": 5353000,
-      "net_profit": 4943000
-    },
-    "business_structure": {
-      "segments": ["自動車", "金融", "その他"],
-      "main_products": ["乗用車", "商用車", "部品"]
-    },
-    "industry_classification": {
-      "jsic_major_category": "E",
-      "jsic_major_name": "製造業",
-      "jsic_middle_category": "305",
-      "jsic_middle_name": "輸送用機械器具製造業",
-      "jsic_minor_category": "3051",
-      "jsic_minor_name": "自動車・同附属品製造業",
-      "primary_industry": "自動車製造業",
-      "business_type": "自動車メーカー"
-    },
-    "listing_info": {
-      "status": "listed",
-      "stock_code": "7203",
-      "exchange": "東証プライム"
-    }
-  }
-}
-```
-
-#### Industry Classification Features
-- **Automatic Classification**: Uses Japanese Standard Industrial Classification (JSIC)
-- **Hierarchical Structure**: Major (A-T), Middle (3-digit), Minor (4-digit) categories
-- **Manual Override**: No longer requires manual category input
-- **Dynamic Updates**: Categories automatically updated when company info is extracted
-
-### UX/UI Guidelines
-- **Mobile-First**: Design for mobile first, then enhance for desktop
-- **Touch Targets**: Minimum 44px for all interactive elements
-- **Responsive Breakpoints**: sm (640px), md (768px), lg (1024px), xl (1280px)
-- **Accessibility**: Always include ARIA labels, roles, and keyboard navigation
-- **Performance**: Use throttled scroll events, avoid layout thrashing
-- **Feedback**: Provide clear loading states and error messages
-- **Component Structure**: Reusable components in `/common/` with full accessibility support
+For the complete CORS implementation guide and template, see:
+- **CORS Guide**: `docs/development-testing-guide.md#cors-implementation`
+- **Template**: `/backend/templates/api-function-template.js`
 
 ## Git Workflow & Branch Strategy
 
@@ -514,73 +203,16 @@ perf/performance-improvement # Performance optimizations
 
 ### Development Workflow
 
-#### 1. Creating Feature Branch
-```bash
-# Ensure main is up to date
-git checkout main
-git pull origin main
+For complete workflow guide, see `docs/development-testing-guide.md`
 
-# Create and checkout feature branch
-git checkout -b feature/csv-import-enhancement
-
-# Work on your feature...
-# Make commits with clear messages
-git add .
-git commit -m "Add duplicate checking for CSV import"
-```
-
-#### 2. Pull Request Process
-```bash
-# Push feature branch to remote
-git push -u origin feature/csv-import-enhancement
-
-# Create Pull Request via GitHub web interface
-# Include description of changes, testing done, and any notes
-```
-
-#### 3. Pull Request Requirements
-- **Clear Description**: What was changed and why
-- **Testing Evidence**: Screenshots, test results, or manual testing notes
-- **Breaking Changes**: Document any breaking changes
-- **Performance Impact**: Note any performance implications
-
-#### 4. Review & Merge Process
-- **Code Review**: At least one review required (can be self-review for solo development)
-- **Local Testing**: Verify feature works in local environment
-- **GitHub Actions Testing**: MANDATORY - Test GitHub Actions build before merge
-  ```bash
-  # Test GitHub Actions workflow on feature branch
-  gh workflow run deploy.yml --ref feature/your-branch-name
-  
-  # Monitor workflow execution
-  gh run list --workflow=deploy.yml --limit=3
-  gh run watch <run-id>
-  
-  # Verify build job succeeds (deploy may fail due to branch protection)
-  # Only proceed with merge if build job passes successfully
-  ```
-- **Documentation**: Update relevant documentation if needed
-- **Merge**: Use "Squash and merge" to keep clean history
-
-#### 5. Post-Merge Cleanup
-```bash
-# Switch back to main and pull latest
-git checkout main
-git pull origin main
-
-# Delete local feature branch
-git branch -d feature/csv-import-enhancement
-
-# Delete remote feature branch (if not auto-deleted)
-git push origin --delete feature/csv-import-enhancement
-```
+Key points:
+1. Create feature branch from main
+2. Make commits with clear messages
+3. **MANDATORY**: Test GitHub Actions build before merge
+4. Create Pull Request with clear description
+5. Merge using "Squash and merge"
 
 ### Deployment Strategy
-
-**Staging Environment (Development)**
-- All feature branches tested in local development environment
-- Manual testing with sample datasets (30-company and 100-company)
-- Performance validation before merge
 
 **Production Environment**
 - Only `main` branch deployed to production
@@ -590,31 +222,10 @@ git push origin --delete feature/csv-import-enhancement
 ### Emergency Procedures
 
 **Hotfix Process**
-```bash
-# Create hotfix branch from main
-git checkout main
-git checkout -b fix/critical-bug-fix
-
-# Make minimal fix
-git add .
-git commit -m "Fix critical bug in API endpoint"
-
-# MANDATORY: Test GitHub Actions build before merge
-gh workflow run deploy.yml --ref fix/critical-bug-fix
-gh run watch <run-id>
-
-# Push and create urgent PR only after build succeeds
-git push -u origin fix/critical-bug-fix
-# Create PR with "URGENT" label
-```
-
-**Rollback Process**
-```bash
-# If production issue detected, rollback to previous version
-git checkout main
-git revert HEAD  # Revert last commit
-git push origin main  # Deploy rollback
-```
+- Create hotfix branch from main
+- Make minimal fix
+- **MANDATORY**: Test GitHub Actions build before merge
+- Create urgent PR with "URGENT" label
 
 ### Quality Assurance
 
@@ -626,424 +237,63 @@ git push origin main  # Deploy rollback
 - [ ] Documentation updated if needed
 - [ ] Breaking changes documented
 
-**Post-Merge Monitoring**
-- [ ] Production deployment successful
-- [ ] API endpoints responding normally
-- [ ] Performance metrics within expected range
-- [ ] No error spikes in logs
-
 ### Logging System
 - **Development**: Colorful console output + file logging in `/backend/logs/`
 - **Production**: Structured JSON logging for monitoring
 - **Features**: Sensitive data masking, request/response tracking, performance metrics
 - **Log files**: Automatically excluded from git commits via .gitignore
 
-### Perplexity AI Integration Details (Updated 2025-07-11)
+### Perplexity AI Integration
 - **Model**: `sonar-pro` (Latest model with web search capabilities)
-- **Features**: Real-time web search, prioritized official website information
-- **Cost**: ~$0.011 per company processed (extremely cost-effective)
-- **Processing Time**: 1 second average (dramatically optimized performance)
+- **Cost**: ~$0.011 per company processed
+- **Processing Time**: 1 second average
 - **Throughput**: 31.6 companies/minute processing speed
 - **Accuracy**: Mission 95%+, Vision 90%+, Values 85%+
-- **Production Results**: 100% success rate (89/89 companies processed without errors)
-- **Performance Optimization**: Highly optimized batch processing (2min 49sec for 89 companies)
-- **Cost Optimization (2025-07-11)**: Fixed duplicate API call issue reducing cost from ~$0.022 to ~$0.011 per company
-- **Recent Improvements**: Enhanced CSV import with duplicate checking, better error handling, admin panel integration
+- **Production Results**: 100% success rate
 
-### Tested Functionality
-```bash
-# Perplexity API direct test
-curl -X POST "http://localhost:8888/.netlify/functions/extract-mvv-perplexity" \
--H "Content-Type: application/json" \
--H "X-API-Key: mvv-extraction-2024-secure-key" \
--d '{"companyId":"test-001","companyName":"サイバーエージェント","companyWebsite":"https://www.cyberagent.co.jp/"}'
+For implementation details, see `docs/perplexity-integration-design.md`
 
-# Expected successful response
-{
-  "success": true,
-  "data": {
-    "mission": "新しい力とインターネットで日本の閉塞感を打破する",
-    "vision": "21世紀を代表する会社を創る", 
-    "values": ["イノベーションの創出", "社会的価値と経済価値の両立", ...],
-    "confidence_scores": {"mission": 0.95, "vision": 1.0, "values": 0.85},
-    "extracted_from": "https://www.cyberagent.co.jp/sustainability/society/"
-  }
-}
-```
-
-### Resolved Issues & Current Status
-- ✅ Production deployment completed and stable
-- ✅ Enhanced CSV import system with duplicate checking implemented
-- ✅ Improved UI/UX with better error handling and notifications
-- ✅ Both OpenAI + Perplexity AI functions operational in production
-- ✅ Comprehensive logging system running (460 entries on 2025-07-08)
-- ✅ Zero production errors - excellent system stability
-- ✅ Performance optimization completed (3-12 second processing times)
-- 🔄 Continuous feature improvements and optimizations
-
-### Production Performance Metrics (Updated 2025-07-08)
+### Production Performance Metrics
 - **Success Rate**: 100% (89/89 companies processed successfully)
-- **Average Processing Time**: 1 second per company (significantly optimized)
-- **Processing Speed**: 31.6 companies/minute (22.7 companies/minute effective rate)
+- **Average Processing Time**: 1 second per company
+- **Processing Speed**: 31.6 companies/minute
 - **Batch Processing**: 89 companies processed in 2 minutes 49 seconds
 - **Error Analysis**: Zero errors in recent large-scale operations
 - **System Uptime**: 100% availability
-- **Cost Efficiency**: ~$0.011 per company processed (Perplexity API cost)
+- **Cost Efficiency**: ~$0.011 per company processed
 
-### Current System Status (Updated 2025-07-14)
-1. **✅ Production Deploy**: System fully operational with zero errors
-2. **✅ Authentication System**: JWT-based authentication deployed to production
-3. **✅ Unified Idea Generation Dialog System (Phase γ)**: Complete UI overhaul for business idea generation
-   - ✅ 3-Step Wizard: Company Selection → Parameter Settings → Idea Generation
-   - ✅ Strategic Presets: DX-conservative, Innovation-aggressive, CX-balanced
-   - ✅ Conditional UI: Business model-specific guidance and technology recommendations
-   - ✅ Enhanced Constraints: Tech preferences, risk tolerance, revenue expectations
-   - ✅ Clean Interface: Eliminated duplicate UI elements for streamlined UX
-4. **✅ Real-time Analysis Dashboard**: Dynamic MVV analysis using IndexedDB
-   - ✅ Similar Company Search: Real-time embedding similarity calculation
-   - ✅ Trend Analysis: Morphological analysis with JSIC categories
-   - ✅ Interactive Word Cloud: Independent tab with zoom/pan/drag functionality
-   - ✅ Competitive Positioning Map: MDS-based with industry filtering and drag navigation
-   - ✅ Uniqueness Analysis (β): Multi-factor scoring algorithm
-   - ✅ Quality Assessment (β): Rule-based MVV quality evaluation
-4. **✅ Enhanced Company Management**: Comprehensive company information extraction with JSIC integration
-5. **✅ Professional Excel Export System with Visual Analytics**: ExcelJS-based comprehensive business reporting
-   - ✅ 5+ Specialized Data Sheets: Executive Summary, MVV Analysis, Company Master, AI Analysis Reports
-   - ✅ **Visual Analytics Gallery Integration (NEW)**: TabID-based screenshot sheets with chronological arrangement
-   - ✅ Browser-compatible image embedding: Base64 to ArrayBuffer conversion (no Buffer dependency)
-   - ✅ Improved Export Wizard: Removed inaccurate estimations, added image warning
-   - ✅ Business Intelligence Integration: JSIC classifications, financial data, competitive analysis
-6. **✅ Visual Analytics Gallery (2025-07-13)**
-   - ✅ Screenshot Capture: High-quality AI analysis screen capture (2100×1350px)
-   - ✅ IndexedDB Storage: Permanent storage without session management
-   - ✅ Efficient Storage Queries: Native IndexedDB count() and cursor APIs
-   - ✅ Excel Integration: Automatic TabID grouping and multi-sheet export
-   - ✅ Simplified Architecture: Removed session management for better UX
-7. **✅ Admin Panel with Hidden Menu Access**
-   - ✅ Hidden Menu Access: Ctrl+Shift+A keyboard shortcut activation
-   - ✅ Data Diagnostics: Company data integrity and MVV consistency checks
-   - ✅ Recovery Tools: Bulk extraction, single test execution, batch processing
-   - ✅ System Diagnostics: API health check and performance monitoring
-8. **✅ Business Innovation Lab Beta v2 (2025-07-14)**
-   - ✅ **AI Verification System**: 3-tier analysis with industry-specific expertise
-     - 🚀 **Basic**: Fast verification (15-30s, industry analysis simplified)
-     - 🎯 **Comprehensive (β)**: Detailed analysis + competitive research (45-90s)
-     - 🔬 **Expert (Development)**: Currently equivalent to Comprehensive
-   - ✅ **Idea Storage & Management**: IndexedDB-based persistent storage with CRUD operations
-   - ✅ **Excel Export System**: Beautiful Lean Canvas layout with professional formatting
-   - ✅ **Enhanced UX**: Loading states, error handling, real-time feedback
-   - ✅ **AI-powered Analysis**: Industry expert analysis, business model validation, competitive research
-   - ✅ **Step-by-step Verification**: Parallel processing for optimal performance
-9. **✅ Comprehensive AI Cache System (2025-07-14)**
-   - ✅ **Phase 1**: Company info cache (IndexedDB) - 7-day deterministic API cache
-   - ✅ **Phase 2**: Industry analysis partial cache - 30-day confidence-based reuse
-   - ✅ **Phase 3**: Server-side cache cleanup - removed non-functional stateless cache
-   - ✅ **60-80% API cost reduction** for repeated company operations
-   - ✅ **Interactive Management**: Real-time statistics, cleanup tools, admin panel integration
-   - ✅ **Intelligent Strategy**: Temperature-based caching (0.1=cache, 0.7=no cache)
-10. **📊 Next Phase**: Expert verification differentiation and advanced AI insights
+## Design Documentation
 
-### AI Verification System & Cache Architecture (Updated 2025-07-14)
+All detailed design documentation is organized in the `/docs` directory:
 
-#### Business Innovation Lab Beta v2 - AI Verification Levels
-**🚀 Basic Verification (Production Ready)**
-- **Processing Time**: 15-30 seconds
-- **Cost**: ~$0.02 per verification
-- **Analysis Scope**: 
-  - ✅ Business model validation (GPT-4o-mini)
-  - ✅ Improvement suggestions generation
-  - ✅ Overall assessment with feasibility scoring
-  - ❌ Industry analysis (simplified placeholder)
-  - ❌ Competitive analysis (skipped)
-- **Use Cases**: Initial idea validation, quick feasibility check
-- **Cache Strategy**: Business model results cached for similar ideas
+### System Design
+- `system-architecture.md` - Complete system architecture
+- `component-architecture.md` - Frontend component design
+- `scalability-analysis.md` - Performance and scaling analysis
 
-**🎯 Comprehensive Verification (β Version)**
-- **Processing Time**: 45-90 seconds  
-- **Cost**: ~$0.08 per verification
-- **Analysis Scope**:
-  - ✅ Industry expert analysis (Perplexity sonar-pro)
-  - ✅ Business model validation (GPT-4o-mini)
-  - ✅ Competitive analysis (Perplexity sonar-pro)
-  - ✅ Improvement suggestions (detailed)
-  - ✅ Overall assessment (multi-factor)
-- **Use Cases**: Business plan development, investment decision
-- **Cache Strategy**: Industry analysis cached for 30 days (confidence-based)
+### Feature Documentation
+- `excel-export-system-design.md` - Professional Excel export system
+- `visual-analytics-gallery-design.md` - Screenshot capture and gallery
+- `business-innovation-lab-beta-v2-design.md` - AI verification system
+- `realtime-analysis-system.md` - Real-time MVV analysis
+- `admin-panel-design.md` - Admin panel features
+- `company-management-enhancement.md` - Enhanced company management
 
-**🔬 Expert Verification (Development Phase)**
-- **Current Status**: Equivalent to Comprehensive (TODO: differentiation needed)
-- **Planned Features**: 
-  - Enhanced prompt complexity for deeper analysis
-  - Extended timeout (120s) for thorough processing
-  - Advanced model selection and parameter tuning
-  - Specialized expert-level insights and recommendations
+### API & Integration
+- `ai-insights-api-design.md` - API endpoint specifications
+- `perplexity-integration-design.md` - Perplexity API integration
+- `netlify-auth-design.md` - Authentication system design
 
-#### Comprehensive AI Cache System
-**Phase 1: Company Information Cache (IndexedDB)**
-```typescript
-// Deterministic APIs (temperature: 0.1) - 100% cacheable
-extractCompanyInfo()     // 7-day cache, ~$0.011/call → $0
-extractMVVPerplexity()   // 7-day cache, ~$0.011/call → $0  
-classifyCompany()        // 7-day cache, ~$0.005/call → $0
-```
+### Development Guides
+- `development-testing-guide.md` - Development and testing procedures
+- `authentication-setup.md` - Authentication configuration guide
+- `scoring-algorithms.md` - AI scoring and analysis algorithms
 
-**Phase 2: Industry Analysis Partial Cache**
-```typescript
-// Partially deterministic (temperature: 0.2-0.4) - selective cache
-verifyBusinessIdea() {
-  industryAnalysis: cached,        // 30-day cache (85% confidence)
-  businessValidation: fresh,       // Always fresh (idea-specific)
-  competitiveAnalysis: cached      // 30-day cache (industry-specific)
-}
-```
-
-**Phase 3: Creative Content (No Cache)**
-```typescript
-// Creative APIs (temperature: 0.7) - never cached
-generateBusinessIdeas()  // Always fresh, creative variety
-```
-
-**Cache Performance Metrics**
-- **Hit Rate Target**: 60-80% for repeated operations
-- **Cost Reduction**: $0.08 → $0.02 average per comprehensive verification
-- **Response Time**: Instant for cached company info (7-day validity)
-- **Storage Management**: Automatic cleanup, 50MB IndexedDB limit
-- **Admin Interface**: Real-time statistics via Ctrl+Shift+A panel
-
-### Real-time Analysis System Architecture (Updated 2025-07-11)
-
-#### Current Implementation: Dynamic Analysis Dashboard
-- **Data Source**: IndexedDB (client-side storage with embeddings)
-- **Processing**: Real-time similarity calculation using OpenAI text-embedding-3-small
-- **Analysis**: Combined embeddings + morphological analysis for enhanced accuracy
-- **Performance**: LRU caching, progressive calculation, symmetric matrix optimization
-
-#### Key Components
-- **Similar Company Search**: Real-time embedding similarity with detailed explanations
-- **Trend Analysis**: TinySegmenter morphological analysis with JSIC category support
-- **Interactive Word Cloud**: Independent component with zoom/pan/drag functionality
-- **Competitive Positioning Map**: MDS-based visualization with industry filtering
-- **Uniqueness Analysis (β)**: Multi-factor scoring (base + industry-relative + cross-industry + rarity)
-- **Quality Assessment (β)**: Rule-based MVV maturity evaluation
-
-#### Technical Features
-- **Multi-industry Support**: Industry-agnostic keyword extraction and analysis
-- **Performance Optimization**: Client-side caching, progressive loading, optimized calculations
-- **Interactive UI**: Drag navigation, modal interactions, responsive design
-- **Real-time Processing**: No pre-calculation required, instant similarity results
-
-### Visual Analytics Gallery Architecture (Updated 2025-07-13)
-
-#### Screenshot Storage & Management
-- **IndexedDB Storage**: Permanent persistence without session management
-- **Database Structure**: 
-  ```javascript
-  // Simplified schema (session management removed)
-  interface ScreenshotMetadata {
-    id: string;
-    timestamp: number;
-    name: string;
-    description: string;
-    tabId: string;  // finder, trends, wordcloud, positioning, uniqueness, quality
-    width: number;
-    height: number;
-    size: number;
-  }
-  ```
-- **Efficient Queries**: Native IndexedDB `count()` and cursor APIs for performance
-- **Storage Optimization**: Automatic cleanup (50 screenshots max), LRU-based deletion
-
-#### Excel Image Integration
-- **Browser Compatibility**: Custom Base64 to ArrayBuffer conversion (no Node.js Buffer dependency)
-  ```javascript
-  // Browser-native approach
-  private base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
-  }
-  ```
-- **TabID-based Sheets**: Automatic grouping by analysis type (finder, trends, wordcloud, etc.)
-- **Chronological Layout**: Time-series arrangement within each sheet
-- **Image Optimization**: Aspect ratio preservation with max dimensions (400×300px display)
-
-#### UI/UX Improvements
-- **Export Wizard Simplification**: Removed inaccurate file size/time estimations
-- **Visual Analytics Warning**: Specific alerts for large image datasets
-- **Accurate File Naming**: Real-time filename generation matching actual downloads
-- **Performance Indicators**: Loading states and storage usage display
-
-#### Technical Solutions & Browser Compatibility
-
-**Buffer.from() Browser Compatibility Issue (Resolved 2025-07-13)**
-- **Problem**: Node.js `Buffer.from()` not available in browser environments
-- **Error**: `ReferenceError: Buffer is not defined` during Excel image embedding
-- **Solution**: Custom Base64 to ArrayBuffer conversion using browser-native APIs
-  ```javascript
-  // ❌ Node.js-only (causes browser error)
-  const imageBuffer = Buffer.from(base64Data, 'base64');
-  
-  // ✅ Browser-compatible solution
-  private base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binaryString = atob(base64);  // Native browser API
-    const length = binaryString.length;
-    const bytes = new Uint8Array(length);
-    
-    for (let i = 0; i < length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    
-    return bytes.buffer;  // Compatible with ExcelJS
-  }
-  ```
-
-**IndexedDB Performance Optimization**
-- **Efficient Counting**: Using native `count()` API instead of loading all data
-- **Cursor-based TabID Counting**: IndexedDB cursor for memory-efficient operations
-- **No Session Management**: Simplified data model for better performance and UX
-
-## Business Innovation Lab - Development Status & Roadmap
-
-### Beta v1 (Completed 2025-07-13)
-**Status**: ✅ Production Ready  
-**Features Delivered**:
-- AI-powered business idea generation with 6-stage analysis process
-- Professional 9-block Lean Canvas with business color scheme
-- Advanced business analysis: Existing Alternatives & Early Adopters
-- 3-tier caching system for cost optimization (90%+ API call reduction)
-- Quality-focused approach: Default 1 deep idea with reasoning
-- Step-by-step progress visualization and professional UX
-
-### Beta v2 (In Development)
-**Status**: 🔄 In Progress  
-**Timeline**: 2025-07-13 - 2025-07-20
-
-#### Implementation Plan (Phase α+ → β)
-1. **AI Verification System**: Secondary AI to validate and enhance generated ideas
-   - **Industry Analysis AI**: Deep domain knowledge validation with Perplexity API
-   - **Business Model Validation**: Revenue/cost structure verification
-   - **Market Reality Check**: Real-time market data integration for feasibility validation
-   - **Competitive Intelligence**: Advanced competitor analysis and positioning validation
-2. **Enhanced Lean Canvas**: 
-   - Interactive editing capabilities with real-time validation
-   - Export integration with existing Excel system
-   - Visual improvement with validation indicators
-3. **Idea Management System**: 
-   - IndexedDB storage for persistent idea collections
-   - Version tracking and iteration history
-   - Comparison tools between verified vs original ideas
-
-### Phase 4: AI-Powered Insights and Recommendations
-**Status**: Planning Phase  
-**Timeline**: Q2-Q3 2025
-
-#### Planned Features
-1. **Advanced AI Enhancement**: GPT-4o powered deep analysis
-2. **Predictive Market Analysis**: Trend prediction and competitive intelligence
-3. **Multi-language Support**: International company analysis capabilities
-4. **Enterprise Integration**: SSO, custom branding, advanced security features
-
-#### Cost Optimization Strategy
-- **Smart Caching**: Current 3-tier system achieving 90%+ cost reduction
-- **Tiered Usage**: Freemium model with professional tiers
-- **Target Cost**: <$0.02/user/month operational cost (achieved via caching)
-
-## Upcoming Enhancement Roadmap (2025-07-14)
-
-### Phase δ: Advanced Idea Management & User Experience (Week 1-2)
-
-#### Phase δ.1: Auto-Save System
-**Priority**: High | **Complexity**: Low | **Timeline**: 1-2 days
-- **Automatic Idea Preservation**: Generated ideas automatically saved without user action
-- **User Settings**: Toggle for auto-save preferences with opt-out option
-- **Background Processing**: Silent saves with user notifications for important actions
-- **Recovery System**: Unsaved changes recovery on browser crashes or navigation
-
-#### Phase δ.2: API Request/Response Logging System  
-**Priority**: High | **Complexity**: Medium | **Timeline**: 3-4 days
-- **Complete API Audit Trail**: Full request/response logging for all AI interactions
-- **Persistent Storage**: IndexedDB-based log storage with search and filtering
-- **Debug Interface**: JSON viewer with formatted display and export capabilities
-- **Performance Metrics**: Processing times, token counts, costs, and model information
-- **Data Schema**:
-  ```typescript
-  interface ApiRequestLog {
-    id: string;
-    endpoint: string;
-    timestamp: Date;
-    request: object;
-    response: object;
-    processingTime: number;
-    model: string;
-    tokens: number;
-    cost: number;
-    success: boolean;
-  }
-  ```
-
-### Phase ε: Async Verification & Canvas Editing (Week 3-4)
-
-#### Phase ε.1: Background Verification API
-**Priority**: Medium | **Complexity**: High | **Timeline**: 5-7 days
-- **Async Processing**: `verify-business-idea-background.js` with job queue system
-- **Status Polling**: Real-time progress updates with WebSocket-like polling
-- **Timeout Resolution**: Eliminate current 30s timeout limitations
-- **Error Recovery**: Robust retry mechanisms and partial result handling
-- **Architecture**:
-  ```
-  Client → Background API → Job Queue → Status Check → Result Delivery
-  ```
-
-#### Phase ε.2: Lean Canvas Editor System
-**Priority**: Medium | **Complexity**: Medium | **Timeline**: 4-5 days
-- **Inline Editing**: Direct canvas modification with real-time validation
-- **Version Control**: Change tracking with diff visualization
-- **Auto-Save Integration**: Seamless integration with Phase δ.1
-- **AI Suggestion Integration**: Direct application of verification recommendations
-- **Export Options**: Multiple format exports (PDF, PNG, Excel integration)
-
-### Phase ζ: Advanced Management & Analytics (Week 5-6)
-
-#### Phase ζ.1: Version Management System
-**Priority**: Low | **Complexity**: High | **Timeline**: 7-10 days
-- **Idea Evolution Tracking**: Complete version history with branching support
-- **Change Visualization**: Timeline view with diff comparisons
-- **Rollback Capabilities**: Easy reversion to previous versions
-- **Collaboration Features**: Notes, comments, and change explanations
-- **Merge Functionality**: Combining insights from multiple verification rounds
-
-#### Phase ζ.2: Advanced Analytics Dashboard
-**Priority**: Low | **Complexity**: Medium | **Timeline**: 3-4 days
-- **Cross-Company Analysis**: Idea similarity and trend identification
-- **Performance Metrics**: Success rate tracking and improvement suggestions
-- **Cost Analytics**: Detailed API usage and optimization recommendations
-- **Export Capabilities**: Comprehensive reporting with data visualization
-
-### Implementation Strategy
-
-**Technical Approach**:
-- **Incremental Development**: Each phase builds upon previous implementations
-- **Backward Compatibility**: All new features maintain existing functionality
-- **Performance First**: Optimization for large datasets and concurrent users
-- **Mobile Responsive**: Ensuring all new features work across all devices
-
-**Quality Assurance**:
-- **Comprehensive Testing**: Unit, integration, and user acceptance testing
-- **Documentation Updates**: Real-time documentation maintenance
-- **User Feedback Integration**: Regular user testing and feedback incorporation
-- **Performance Monitoring**: Continuous monitoring of system performance metrics
-
-**Deployment Strategy**:
-- **Feature Flags**: Gradual rollout with ability to disable problematic features
-- **A/B Testing**: User experience optimization through controlled testing
-- **Monitoring**: Real-time error tracking and performance monitoring
-- **Rollback Plans**: Quick reversion capabilities for all new features
+### Roadmap
+For upcoming features and enhancements, see `docs/roadmap-2025.md`
 
 ---
 
-*Last Updated: 2025-07-14*  
-*Current Status: Business Innovation Lab Beta v2 + Unified Dialog System (Phase γ) (Production)*  
-*Next Phase: Auto-Save & API Logging Systems (Phase δ)*
+*Last Updated: 2025-07-17*  
+*Current Status: Business Innovation Lab Beta v2 + Comprehensive AI Systems*  
+*Next Phase: Expert verification differentiation & advanced AI insights*

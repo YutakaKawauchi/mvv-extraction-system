@@ -4,7 +4,7 @@
 
 AI技術を活用して日本企業のMission（使命）、Vision（理念）、Values（価値観）を自動抽出・分析するWebアプリケーションシステム。
 
-**最新状況**: Phase 3完了 (Visual Analytics Gallery with Excel Integration) (2025-07-13)
+**最新状況**: Phase 3完了 + 非同期タスクシステム改善 (2025-07-17)
 **対象企業**: 94社 (業界問わず、ヘルスケア中心から拡張済み)
 **主要機能**: MVV抽出、企業情報抽出、リアルタイム分析ダッシュボード、Visual Analytics Gallery、Professional Excel Export、4段階自動パイプライン、管理者パネル
 
@@ -707,6 +707,13 @@ const BATCH_CONFIG = {
 - **リアルタイム分析**: 5つの分析UI + LRUキャッシュ最適化
 - **堅牢なエラー処理**: 3段階リトライ + 指数バックオフ
 - **包括的監視**: 詳細なログとメトリクス
+
+### 🛠️ **最新修正・改善（2025-07-17）**
+- **Perplexity API JSON解析強化**: markdownコードブロック（````json`）対応の正規表現ベース抽出
+- **市場検証API修正**: 未対応の`response_format`パラメータ削除、変数スコープエラー修正
+- **競合分析UI改善**: 企業名・URLクリック可能化、説明文3行表示対応
+- **CORS保護強化**: cleanup-task-blob APIのCORS対応修正
+- **TypeScriptエラー修正**: ideaStorage.tsのスコープエラー解決
 
 ### 📊 **運用実績**
 - **処理実績**: 89社 × 平均1秒 = 総処理時間2分49秒（大幅短縮）

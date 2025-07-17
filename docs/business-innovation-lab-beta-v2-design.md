@@ -195,6 +195,15 @@ function getIndustrySpecificPrompts(industry, jsicCategory) {
   - Orange: Improvement suggestions
   - Mixed gradients for overall assessment
 
+### Competitive Analysis UI Enhancements (2025-07-17)
+- **Clickable Company Names**: Company names are now hyperlinked to their websites
+- **Clickable URLs**: URL fields are also clickable for easy navigation
+- **Extended Descriptions**: Competitor descriptions expanded from 2 lines to 3 lines display
+- **Enhanced User Experience**: 
+  - Hover effects on clickable elements
+  - External link security attributes (`target="_blank"`, `rel="noopener noreferrer"`)
+  - Improved visual feedback for interactive elements
+
 ## Cost Optimization Strategy
 
 ### Multi-API Approach
