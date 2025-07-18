@@ -23,10 +23,12 @@ export interface AsyncTaskProgress {
   percentage: number;           // 0-100の進捗率
   currentStep: string;         // 現在の処理ステップ
   estimatedTimeRemaining?: number; // 推定残り時間（秒）
+  updatedAt?: number;          // 最終更新時刻
   detailedSteps?: {
     stepName: string;
     status: 'pending' | 'processing' | 'completed' | 'failed';
     duration?: number;
+    startTime?: number;        // ステップ開始時刻
   }[];
 }
 
@@ -130,11 +132,17 @@ export interface BackgroundTaskResponse {
   status: AsyncTaskStatus;
   progress?: AsyncTaskProgress;
   result?: any;
+  data?: any;                    // API レスポンス用データ
   error?: string;
   metadata?: {
     backgroundFunctionId?: string;
     processingTime?: number;
     cost?: number;
+    completedViaPulling?: boolean;      // 404エラーで完了判定した場合のフラグ
+    finalProgress?: AsyncTaskProgress;  // 最終進捗情報
+    resultSource?: string;              // 結果の取得元 ('resultBlob', 'unavailable' など)
+    retrievedAt?: number;               // 結果取得時刻
+    currentProgress?: AsyncTaskProgress; // 現在の進捗情報（実行中）
   };
 }
 

@@ -376,22 +376,28 @@ async function cleanupTaskBlob(taskId: string): Promise<void> {
       return;
     }
 
-    console.log('🗑️ Cleaning up blob for task:', taskId);
+    console.log('🗑️ Cleaning up task blobs for task:', taskId);
     
-    const response = await fetch(`${apiBaseUrl}/cleanup-task-blob?taskId=${encodeURIComponent(taskId)}`, {
+    const response = await fetch(`${apiBaseUrl}/cleanup-task-blob`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': apiSecret
-      }
+      },
+      body: JSON.stringify({
+        taskId,
+        cleanup: 'all'  // 全てのブロブを削除（結果＋進捗）
+      })
     });
 
     if (response.ok) {
       const result = await response.json();
       console.log('✅ Blob cleanup successful:', {
         taskId,
-        deleted: result.deleted,
-        originalDataSize: result.data?.originalDataSize
+        cleanup: result.cleanup,
+        totalDeleted: result.summary?.totalDeleted || 0,
+        totalSize: result.summary?.totalSize || 0,
+        deletedBlobs: Object.keys(result.deleted || {}).filter(key => result.deleted[key]?.deleted)
       });
     } else {
       const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));

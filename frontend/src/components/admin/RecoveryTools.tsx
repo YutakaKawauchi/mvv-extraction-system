@@ -4,13 +4,14 @@
  */
 
 import React, { useState } from 'react';
-import { Wrench, Play, TestTube, Settings, AlertTriangle, DollarSign } from 'lucide-react';
+import { Wrench, Play, TestTube, Settings, AlertTriangle, DollarSign, Trash2 } from 'lucide-react';
 import { Button } from '../common';
 import { BulkCompanyInfoExtractor } from '../CompanyManager/BulkCompanyInfoExtractor';
 import { SingleCompanyInfoExtractor } from '../CompanyManager/SingleCompanyInfoExtractor';
+import { BlobCleanupTool } from './BlobCleanupTool';
 import { useNotification } from '../../hooks/useNotification';
 
-type RecoveryTool = 'bulk' | 'single' | 'batch' | null;
+type RecoveryTool = 'bulk' | 'single' | 'batch' | 'cleanup' | null;
 
 export const RecoveryTools: React.FC = () => {
   const [activeTool, setActiveTool] = useState<RecoveryTool>(null);
@@ -43,6 +44,15 @@ export const RecoveryTools: React.FC = () => {
       cost: '約3.5円/企業',
       warning: '新規企業データ用',
       color: 'purple'
+    },
+    {
+      id: 'cleanup' as RecoveryTool,
+      title: 'ブロブクリーンアップ',
+      description: 'テスト失敗やごみファイルを一括削除',
+      icon: Trash2,
+      cost: '無料',
+      warning: '管理者専用',
+      color: 'red'
     }
   ];
 
@@ -68,6 +78,13 @@ export const RecoveryTools: React.FC = () => {
           border: 'border-purple-200',
           text: 'text-purple-900',
           icon: 'text-purple-500'
+        };
+      case 'red':
+        return {
+          bg: 'bg-red-50 hover:bg-red-100',
+          border: 'border-red-200',
+          text: 'text-red-900',
+          icon: 'text-red-500'
         };
       default:
         return {
@@ -141,6 +158,21 @@ export const RecoveryTools: React.FC = () => {
             </div>
           </div>
         );
+      case 'cleanup':
+        return (
+          <div className="mt-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <h4 className="font-medium text-red-900 flex items-center">
+                <Trash2 className="h-5 w-5 mr-2" />
+                ブロブクリーンアップ
+              </h4>
+              <p className="text-sm text-red-700 mt-1">
+                テスト失敗やごみファイルを一括削除。Netlify Blobsストアのメンテナンス
+              </p>
+            </div>
+            <BlobCleanupTool />
+          </div>
+        );
       default:
         return null;
     }
@@ -171,7 +203,7 @@ export const RecoveryTools: React.FC = () => {
       </div>
 
       {/* ツール選択 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {tools.map((tool) => {
           const Icon = tool.icon;
           const colors = getColorClasses(tool.color);
@@ -212,7 +244,7 @@ export const RecoveryTools: React.FC = () => {
                   className="w-full"
                 >
                   <Play className="h-4 w-4 mr-2" />
-                  {isActive ? '実行中...' : '選択'}
+                  {isActive ? '選択済み' : '選択'}
                 </Button>
               </div>
             </div>
@@ -230,6 +262,7 @@ export const RecoveryTools: React.FC = () => {
           <div>• <strong>一括企業情報抽出:</strong> データ不足を自動検出して修復</div>
           <div>• <strong>1件テスト実行:</strong> 少額でテスト・検証</div>
           <div>• <strong>完全バッチ処理:</strong> 新規データの全段階処理</div>
+          <div>• <strong>ブロブクリーンアップ:</strong> テスト失敗・ごみファイルの一括削除</div>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCompanyStore } from '../../stores/companyStore';
 import { 
   Lightbulb, 
@@ -137,15 +137,27 @@ export const BusinessInnovationLab: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [maxIdeas] = useState(1); // デフォルト1案
   
+  // 進捗表示への参照
+  const progressRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
+  
+  // 通知状態
+  const [showVerificationStarted, setShowVerificationStarted] = useState(false);
+  
   // Beta v2: AI検証機能のstate (Phase ε.1.5: 非同期対応)
-  const [verificationResults, setVerificationResults] = useState<{[ideaIndex: number]: VerificationResult}>({});
-  const [selectedIdeaForVerification, setSelectedIdeaForVerification] = useState<number | null>(null);
+  const [verificationResults, setVerificationResults] = useState<{[ideaId: string]: VerificationResult}>({});
+  const [selectedIdeaForVerification, setSelectedIdeaForVerification] = useState<string | null>(null);
   const [verificationLevel, setVerificationLevel] = useState<'basic' | 'comprehensive' | 'expert'>('basic');
   
   // 非同期タスク管理（検証用）
   const verificationTask = useAsyncTask(undefined, {
     onComplete: async (result: VerificationResult) => {
       console.log('🎉 Async verification completed:', result);
+      
+      // Defensive check for undefined result
+      if (!result) {
+        console.error('❌ Verification result is undefined');
+        return;
+      }
       
       // Comprehensive検証結果の詳細構造をデバッグ
       if (result.metadata?.verificationLevel === 'comprehensive') {
@@ -185,7 +197,7 @@ export const BusinessInnovationLab: React.FC = () => {
         });
         
         // 自動保存機能: 検証結果を既存アイデアに保存
-        const currentIdea = savedIdeas[selectedIdeaForVerification];
+        const currentIdea = savedIdeas.find(idea => idea.id === selectedIdeaForVerification);
         console.log('🔍 Auto-save debug info:', {
           selectedIdeaForVerification,
           hasCurrentIdea: !!currentIdea,
@@ -533,7 +545,7 @@ export const BusinessInnovationLab: React.FC = () => {
 
       // 3. 検証結果がある場合は検証状態も復元
       if (idea.verification) {
-        setVerificationResults({ 0: idea.verification });
+        setVerificationResults({ [idea.id]: idea.verification });
       } else {
         setVerificationResults({});
       }
@@ -543,7 +555,10 @@ export const BusinessInnovationLab: React.FC = () => {
       setProgress(0);
       setSelectedIdeaForVerification(null);
       
-      // 5. パネルを閉じる
+      // 5. savedIdeas を再読み込みして同期
+      await loadSavedIdeas();
+
+      // 6. パネルを閉じる
       setShowSavedIdeasPanel(false);
 
       console.log('Idea restored successfully:', idea.title);
@@ -565,14 +580,14 @@ export const BusinessInnovationLab: React.FC = () => {
   
 
 
-  const handleSaveIdea = async (idea: BusinessIdea, index: number) => {
+  const handleSaveIdea = async (idea: BusinessIdea) => {
     if (!selectedCompany) {
       setError('企業情報が不正です');
       return;
     }
 
     try {
-      const verification = verificationResults[index];
+      const verification = getVerificationResult(idea);
       
       const savedIdea: Omit<StoredBusinessIdea, 'id' | 'createdAt' | 'updatedAt'> = {
         companyId: selectedCompany.id,
@@ -624,6 +639,41 @@ export const BusinessInnovationLab: React.FC = () => {
     }
   };
 
+  // ヘルパー関数: 生成されたアイデアに対応する保存済みアイデアのIDを取得
+  const getCorrespondingIdeaId = (idea: BusinessIdea): string | null => {
+    const correspondingIdea = savedIdeas.find(savedIdea => 
+      savedIdea.title === idea.title && 
+      savedIdea.description === idea.description
+    );
+    return correspondingIdea?.id || null;
+  };
+
+  // ヘルパー関数: 現在のアイデアが検証中かどうかを確認
+  const isIdeaBeingVerified = (idea: BusinessIdea): boolean => {
+    const ideaId = getCorrespondingIdeaId(idea);
+    return verificationTask.isRunning && selectedIdeaForVerification === ideaId;
+  };
+
+  // ヘルパー関数: 生成されたアイデアに対応する検証結果を取得
+  const getVerificationResult = (idea: BusinessIdea): VerificationResult | undefined => {
+    const ideaId = getCorrespondingIdeaId(idea);
+    if (ideaId && verificationResults[ideaId]) {
+      return verificationResults[ideaId];
+    }
+    
+    // フォールバック: 復元されたアイデアの場合、アイデア自体に検証結果が含まれている可能性
+    if (idea.verification) {
+      return idea.verification;
+    }
+    
+    // フォールバック: 単一復元アイデアの場合、インデックス"0"に保存されている可能性（レガシー対応）
+    if (Object.keys(verificationResults).length === 1 && verificationResults["0"]) {
+      return verificationResults["0"];
+    }
+    
+    return undefined;
+  };
+
   // Beta v2: AI検証機能 (Phase ε.1.5: 非同期対応)
   const handleVerifyIdea = async (idea: BusinessIdea, index: number) => {
     if (!selectedCompany) {
@@ -631,7 +681,15 @@ export const BusinessInnovationLab: React.FC = () => {
       return;
     }
 
-    setSelectedIdeaForVerification(index);
+    // 生成されたアイデアに対応する保存済みアイデアIDを取得
+    const correspondingIdeaId = getCorrespondingIdeaId(idea);
+    
+    if (!correspondingIdeaId) {
+      setError('対応する保存済みアイデアが見つかりません');
+      return;
+    }
+
+    setSelectedIdeaForVerification(correspondingIdeaId);
     setError(null);
 
     try {
@@ -667,6 +725,23 @@ export const BusinessInnovationLab: React.FC = () => {
       const startedTask = await verificationTask.startTask(taskRequest);
       
       console.log(`⏳ Async verification task started for "${idea.title}" (Task ID: ${startedTask?.id || 'unknown'})`);
+      
+      // 開始通知を表示
+      setShowVerificationStarted(true);
+      setTimeout(() => setShowVerificationStarted(false), 3000);
+      
+      // 進捗表示部分へ自動スクロール（少し遅延を入れて確実に表示後にスクロール）
+      setTimeout(() => {
+        const progressElement = progressRefs.current[index];
+        if (progressElement) {
+          progressElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+        }
+      }, 300);
+      
     } catch (error) {
       console.error('Failed to start async verification:', error);
       setError(error instanceof Error ? error.message : '検証の開始に失敗しました');
@@ -891,26 +966,41 @@ export const BusinessInnovationLab: React.FC = () => {
                   </div>
                   <div className="flex items-center space-x-2 ml-4">
                     {/* Beta v2: AI検証ボタン (Phase ε.1.5: 非同期対応) */}
-                    <button
-                      onClick={() => handleVerifyIdea(idea, index)}
-                      disabled={verificationTask.isRunning && selectedIdeaForVerification === index}
-                      className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-purple-100 to-purple-200 text-purple-700 rounded-lg hover:from-purple-200 hover:to-purple-300 hover:text-purple-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {verificationTask.isRunning && selectedIdeaForVerification === index ? (
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      ) : verificationTask.isCompleted && selectedIdeaForVerification === index ? (
-                        <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                      ) : verificationTask.isFailed && selectedIdeaForVerification === index ? (
-                        <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
-                      ) : (
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                      )}
-                      <span className="text-xs">β</span>
-                      {verificationTask.isRunning && selectedIdeaForVerification === index ? '検証中' : '検証'}
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      {/* 検証レベル選択 */}
+                      <select
+                        value={verificationLevel}
+                        onChange={(e) => setVerificationLevel(e.target.value as 'basic' | 'comprehensive' | 'expert')}
+                        disabled={isIdeaBeingVerified(idea)}
+                        className="text-xs bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border border-purple-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="basic">🚀 Basic</option>
+                        <option value="comprehensive">🎯 Comprehensive</option>
+                        <option value="expert">🔬 Expert</option>
+                      </select>
+                      
+                      {/* 検証ボタン */}
+                      <button
+                        onClick={() => handleVerifyIdea(idea, index)}
+                        disabled={isIdeaBeingVerified(idea)}
+                        className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-purple-100 to-purple-200 text-purple-700 rounded-lg hover:from-purple-200 hover:to-purple-300 hover:text-purple-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isIdeaBeingVerified(idea) ? (
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        ) : getVerificationResult(idea) ? (
+                          <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                        ) : verificationTask.isFailed && selectedIdeaForVerification === getCorrespondingIdeaId(idea) ? (
+                          <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                        )}
+                        <span className="text-xs">β</span>
+                        {isIdeaBeingVerified(idea) ? '検証中' : '検証'}
+                      </button>
+                    </div>
                     
                     <button
-                      onClick={() => handleSaveIdea(idea, index)}
+                      onClick={() => handleSaveIdea(idea)}
                       className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-lg hover:from-blue-100 hover:to-blue-200 hover:text-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       <Save className="h-4 w-4 mr-2" />
@@ -1004,38 +1094,48 @@ export const BusinessInnovationLab: React.FC = () => {
                 </div>
 
                 {/* Beta v2: 非同期検証進捗表示 (Phase ε.1.5) */}
-                {verificationTask.isRunning && selectedIdeaForVerification === index && (
-                  <div className="mt-6 border-t border-gray-200 pt-6">
-                    <div className="mb-4">
-                      <h6 className="font-semibold text-purple-900 mb-3 flex items-center">
+                {isIdeaBeingVerified(idea) && (
+                  <div 
+                    ref={(el) => { progressRefs.current[index] = el; }}
+                    className="mt-6 border-t border-gray-200 pt-6 scroll-mt-4 animate-in slide-in-from-bottom-4 duration-500"
+                  >
+                    {/* 注目を引くヘッダー */}
+                    <div className="mb-4 bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg p-4 border-l-4 border-purple-500">
+                      <h6 className="font-semibold text-purple-900 mb-2 flex items-center">
                         <RefreshCw className="h-5 w-5 mr-2 text-purple-600 animate-spin" />
-                        AI検証進行中 - {verificationLevel}レベル
+                        🤖 AI検証進行中 - {verificationLevel}レベル
                       </h6>
-                      <AsyncTaskProgress 
-                        task={verificationTask.task}
-                        showDetailedSteps={true}
-                        showElapsedTime={true}
-                        showEstimatedTime={true}
-                        showControls={true}
-                        onCancel={() => {
-                          verificationTask.cancelTask();
-                          setSelectedIdeaForVerification(null);
-                        }}
-                        onRetry={() => {
-                          if (verificationTask.task) {
-                            verificationTask.retryTask();
-                          }
-                        }}
-                        className="bg-purple-50 border border-purple-200"
-                      />
+                      <p className="text-sm text-purple-700">
+                        高度なAI分析により、アイデアの詳細検証を実行しています...
+                      </p>
                     </div>
+                    
+                    <AsyncTaskProgress 
+                      task={verificationTask.task}
+                      showDetailedSteps={true}
+                      showElapsedTime={true}
+                      showEstimatedTime={true}
+                      showControls={true}
+                      onCancel={() => {
+                        verificationTask.cancelTask();
+                        setSelectedIdeaForVerification(null);
+                      }}
+                      onRetry={() => {
+                        if (verificationTask.task) {
+                          verificationTask.retryTask();
+                        }
+                      }}
+                      className="bg-purple-50 border border-purple-200 shadow-lg"
+                    />
                   </div>
                 )}
 
                 {/* Beta v2: AI検証結果表示 */}
-                {verificationResults[index] && (
-                  <div className="mt-6 border-t border-gray-200 pt-6">
-                    <div className="flex items-center mb-4">
+                {(() => {
+                  const verificationResult = getVerificationResult(idea);
+                  return verificationResult && (
+                    <div className="mt-6 border-t border-gray-200 pt-6">
+                      <div className="flex items-center mb-4">
                       <div className="bg-purple-100 p-2 rounded-lg mr-3">
                         <CheckCircle className="h-5 w-5 text-purple-600" />
                       </div>
@@ -1045,71 +1145,71 @@ export const BusinessInnovationLab: React.FC = () => {
                       </div>
                       <div className="ml-auto text-right">
                         <div className="text-xs text-gray-500">
-                          検証レベル: {verificationResults[index].metadata.verificationLevel}
+                          検証レベル: {verificationResult.metadata.verificationLevel}
                         </div>
                         <div className="text-xs text-gray-500">
-                          信頼度: {(verificationResults[index].metadata.confidence * 100).toFixed(0)}%
+                          信頼度: {(verificationResult.metadata.confidence * 100).toFixed(0)}%
                         </div>
                       </div>
                     </div>
 
                     {/* 総合評価 */}
-                    {verificationResults[index].overallAssessment && (
+                    {verificationResult.overallAssessment && (
                       <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
                         <div className="flex items-center justify-between mb-3">
                           <h6 className="font-semibold text-purple-900">検証1: 総合評価</h6>
                           <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                            verificationResults[index].overallAssessment.recommendation?.decision === 'GO' ? 'bg-green-100 text-green-800' :
-                            verificationResults[index].overallAssessment.recommendation?.decision === 'CONDITIONAL-GO' ? 'bg-yellow-100 text-yellow-800' :
+                            verificationResult.overallAssessment.recommendation?.decision === 'GO' ? 'bg-green-100 text-green-800' :
+                            verificationResult.overallAssessment.recommendation?.decision === 'CONDITIONAL-GO' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
-                            推奨: {verificationResults[index].overallAssessment.recommendation?.decision || 'N/A'}
+                            推奨: {verificationResult.overallAssessment.recommendation?.decision || 'N/A'}
                           </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                           <div className="text-center">
                             <div className="text-lg font-bold text-purple-600">
-                              {verificationResults[index].overallAssessment.overallScore?.viabilityScore || 'N/A'}
+                              {verificationResult.overallAssessment.overallScore?.viabilityScore || 'N/A'}
                             </div>
                             <div className="text-xs text-purple-700">実行可能性</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold text-blue-600">
-                              {verificationResults[index].overallAssessment.overallScore?.innovationScore || 'N/A'}
+                              {verificationResult.overallAssessment.overallScore?.innovationScore || 'N/A'}
                             </div>
                             <div className="text-xs text-blue-700">革新性</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold text-green-600">
-                              {verificationResults[index].overallAssessment.overallScore?.marketPotentialScore || 'N/A'}
+                              {verificationResult.overallAssessment.overallScore?.marketPotentialScore || 'N/A'}
                             </div>
                             <div className="text-xs text-green-700">市場ポテンシャル</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold text-orange-600">
-                              {verificationResults[index].overallAssessment.overallScore?.totalScore || 'N/A'}
+                              {verificationResult.overallAssessment.overallScore?.totalScore || 'N/A'}
                             </div>
                             <div className="text-xs text-orange-700">総合スコア</div>
                           </div>
                         </div>
                         <div>
                           <p className="text-sm text-purple-800">
-                            {verificationResults[index].overallAssessment.recommendation?.reasoning || '詳細な理由は分析中です'}
+                            {verificationResult.overallAssessment.recommendation?.reasoning || '詳細な理由は分析中です'}
                           </p>
                         </div>
 
                         {/* 業界専門分析・競合分析サマリー (総合評価内に統合) */}
-                        {(verificationResults[index].industryAnalysis || verificationResults[index].competitiveAnalysis) && (
+                        {(verificationResult.industryAnalysis || verificationResult.competitiveAnalysis) && (
                           <div className="mt-4 grid md:grid-cols-2 gap-3">
-                            {verificationResults[index].industryAnalysis && (
+                            {verificationResult.industryAnalysis && (
                               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                 <div className="font-semibold text-blue-900 mb-2">業界専門分析</div>
                                 <div className="text-sm text-blue-800 space-y-1">
                                   <div>
                                     <span className="font-medium">緊急度:</span> 
                                     {(() => {
-                                      const urgency = verificationResults[index].industryAnalysis?.data?.problemValidation?.urgencyLevel || 
-                                                     verificationResults[index].industryAnalysis?.problemValidation?.urgencyLevel;
+                                      const urgency = verificationResult.industryAnalysis?.data?.problemValidation?.urgencyLevel || 
+                                                     verificationResult.industryAnalysis?.problemValidation?.urgencyLevel;
                                       const urgencyScore = urgency || 'N/A';
                                       return urgencyScore === 'N/A' ? 'N/A' : `${renderStarRating(urgencyScore)} (${urgencyScore}/10)`;
                                     })()}
@@ -1117,8 +1217,8 @@ export const BusinessInnovationLab: React.FC = () => {
                                   <div>
                                     <span className="font-medium">革新性:</span> 
                                     {(() => {
-                                      const innovation = verificationResults[index].industryAnalysis?.data?.solutionAssessment?.innovationLevel || 
-                                                        verificationResults[index].industryAnalysis?.solutionAssessment?.innovationLevel;
+                                      const innovation = verificationResult.industryAnalysis?.data?.solutionAssessment?.innovationLevel || 
+                                                        verificationResult.industryAnalysis?.solutionAssessment?.innovationLevel;
                                       const innovationScore = innovation || 'N/A';
                                       return innovationScore === 'N/A' ? 'N/A' : `${renderStarRating(innovationScore)} (${innovationScore}/10)`;
                                     })()}
@@ -1126,23 +1226,23 @@ export const BusinessInnovationLab: React.FC = () => {
                                 </div>
                               </div>
                             )}
-                            {verificationResults[index].competitiveAnalysis && (
+                            {verificationResult.competitiveAnalysis && (
                               <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                                 <div className="font-semibold text-green-900 mb-2">競合分析</div>
                                 <div className="text-sm text-green-800 space-y-1">
                                   <div>
                                     <span className="font-medium">直接競合:</span> 
                                     {(() => {
-                                      const competitors = verificationResults[index].competitiveAnalysis?.data?.directCompetitors || 
-                                                         verificationResults[index].competitiveAnalysis?.directCompetitors;
+                                      const competitors = verificationResult.competitiveAnalysis?.data?.directCompetitors || 
+                                                         verificationResult.competitiveAnalysis?.directCompetitors;
                                       return Array.isArray(competitors) ? competitors.length : 0;
                                     })()}社
                                   </div>
                                   <div>
                                     <span className="font-medium">優位性持続:</span> 
                                     {(() => {
-                                      const sustainability = verificationResults[index].competitiveAnalysis?.data?.competitiveAdvantageAnalysis?.sustainabilityScore || 
-                                                            verificationResults[index].competitiveAnalysis?.competitiveAdvantageAnalysis?.sustainabilityScore;
+                                      const sustainability = verificationResult.competitiveAnalysis?.data?.competitiveAdvantageAnalysis?.sustainabilityScore || 
+                                                            verificationResult.competitiveAnalysis?.competitiveAdvantageAnalysis?.sustainabilityScore;
                                       const sustainabilityScore = sustainability || 'N/A';
                                       return sustainabilityScore === 'N/A' ? 'N/A' : `${renderStarRating(sustainabilityScore)} (${sustainabilityScore}/10)`;
                                     })()}
@@ -1156,29 +1256,29 @@ export const BusinessInnovationLab: React.FC = () => {
                     )}
 
                     {/* 市場検証結果 (Comprehensive/Expert レベル) */}
-                    {verificationResults[index].marketValidation ? (
+                    {verificationResult.marketValidation ? (
                       <div className="mb-4 p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
                         <h6 className="font-semibold text-cyan-900 mb-3">検証2: 市場検証結果</h6>
                         <div className="grid md:grid-cols-2 gap-4">
                           <div>
                             <div className="font-medium text-cyan-800 mb-2">市場規模</div>
                             <div className="text-sm text-cyan-700 space-y-1">
-                              <div>総市場: {verificationResults[index].marketValidation.marketSize?.totalMarket || '調査中'}</div>
-                              <div>対象市場: {verificationResults[index].marketValidation.marketSize?.targetMarket || '調査中'}</div>
-                              <div>成長率: {verificationResults[index].marketValidation.marketSize?.growthRate || 'N/A'}%</div>
+                              <div>総市場: {verificationResult.marketValidation.marketSize?.totalMarket || '調査中'}</div>
+                              <div>対象市場: {verificationResult.marketValidation.marketSize?.targetMarket || '調査中'}</div>
+                              <div>成長率: {verificationResult.marketValidation.marketSize?.growthRate || 'N/A'}%</div>
                             </div>
                           </div>
                           <div>
                             <div className="font-medium text-cyan-800 mb-2">顧客セグメント</div>
                             <div className="text-sm text-cyan-700 space-y-1">
-                              <div>主要顧客: {verificationResults[index].marketValidation.customerSegmentation?.primarySegment || '分析中'}</div>
-                              <div>支払意欲: {verificationResults[index].marketValidation.customerSegmentation?.willingness_to_pay || 'N/A'}/10</div>
+                              <div>主要顧客: {verificationResult.marketValidation.customerSegmentation?.primarySegment || '分析中'}</div>
+                              <div>支払意欲: {verificationResult.marketValidation.customerSegmentation?.willingness_to_pay || 'N/A'}/10</div>
                             </div>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      verificationResults[index].metadata?.verificationLevel === 'comprehensive' && (
+                      verificationResult.metadata?.verificationLevel === 'comprehensive' && (
                         <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                           <h6 className="font-semibold text-amber-900 mb-3">🔄 検証2: 市場検証結果</h6>
                           <div className="text-sm text-amber-700">
@@ -1190,22 +1290,22 @@ export const BusinessInnovationLab: React.FC = () => {
                     )}
 
                     {/* ビジネスモデル検証結果 */}
-                    {verificationResults[index].businessModelValidation && (
+                    {verificationResult.businessModelValidation && (
                       <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                         <h6 className="font-semibold text-purple-900 mb-3">検証3: ビジネスモデル検証</h6>
                         <div className="grid md:grid-cols-2 gap-4">
                           <div>
                             <div className="font-medium text-purple-800 mb-2">収益モデル</div>
                             <div className="text-sm text-purple-700 space-y-1">
-                              <div>実行可能性: {verificationResults[index].businessModelValidation.revenueModelValidation?.viability || 'N/A'}/10</div>
-                              <div>価格持続性: {verificationResults[index].businessModelValidation.revenueModelValidation?.pricingSustainability || '分析中'}</div>
+                              <div>実行可能性: {verificationResult.businessModelValidation.revenueModelValidation?.viability || 'N/A'}/10</div>
+                              <div>価格持続性: {verificationResult.businessModelValidation.revenueModelValidation?.pricingSustainability || '分析中'}</div>
                             </div>
                           </div>
                           <div>
                             <div className="font-medium text-purple-800 mb-2">価値提案</div>
                             <div className="text-sm text-purple-700 space-y-1">
-                              <div>独自性: {verificationResults[index].businessModelValidation.valuePropositionTest?.uniquenessScore || 'N/A'}/10</div>
-                              <div>顧客適合: {verificationResults[index].businessModelValidation.valuePropositionTest?.customerJobsFit || '評価中'}</div>
+                              <div>独自性: {verificationResult.businessModelValidation.valuePropositionTest?.uniquenessScore || 'N/A'}/10</div>
+                              <div>顧客適合: {verificationResult.businessModelValidation.valuePropositionTest?.customerJobsFit || '評価中'}</div>
                             </div>
                           </div>
                         </div>
@@ -1213,39 +1313,39 @@ export const BusinessInnovationLab: React.FC = () => {
                     )}
 
                     {/* 業界固有の詳細分析 */}
-                    {verificationResults[index].industryAnalysis?.industrySpecificInsights && (
+                    {verificationResult.industryAnalysis?.industrySpecificInsights && (
                       <div className="mb-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
                         <h6 className="font-semibold text-indigo-900 mb-3">検証4: 業界固有の洞察</h6>
                         <div className="space-y-3">
-                          {verificationResults[index].industryAnalysis.industrySpecificInsights.keyPlayersReaction && (
+                          {verificationResult.industryAnalysis.industrySpecificInsights.keyPlayersReaction && (
                             <div>
                               <div className="font-medium text-indigo-800 mb-1">主要プレイヤーの想定反応</div>
                               <div className="text-sm text-indigo-700">
-                                {verificationResults[index].industryAnalysis.industrySpecificInsights.keyPlayersReaction}
+                                {verificationResult.industryAnalysis.industrySpecificInsights.keyPlayersReaction}
                               </div>
                             </div>
                           )}
-                          {verificationResults[index].industryAnalysis.industrySpecificInsights.valueChainImpact && (
+                          {verificationResult.industryAnalysis.industrySpecificInsights.valueChainImpact && (
                             <div>
                               <div className="font-medium text-indigo-800 mb-1">バリューチェーンへの影響</div>
                               <div className="text-sm text-indigo-700">
-                                {verificationResults[index].industryAnalysis.industrySpecificInsights.valueChainImpact}
+                                {verificationResult.industryAnalysis.industrySpecificInsights.valueChainImpact}
                               </div>
                             </div>
                           )}
-                          {verificationResults[index].industryAnalysis.industrySpecificInsights.timing && (
+                          {verificationResult.industryAnalysis.industrySpecificInsights.timing && (
                             <div>
                               <div className="font-medium text-indigo-800 mb-1">市場投入タイミング</div>
                               <div className="text-sm text-indigo-700">
-                                {verificationResults[index].industryAnalysis.industrySpecificInsights.timing}
+                                {verificationResult.industryAnalysis.industrySpecificInsights.timing}
                               </div>
                             </div>
                           )}
-                          {verificationResults[index].industryAnalysis.industrySpecificInsights.riskFactors && (
+                          {verificationResult.industryAnalysis.industrySpecificInsights.riskFactors && (
                             <div>
                               <div className="font-medium text-indigo-800 mb-1">リスク要因</div>
                               <div className="text-sm text-indigo-700 space-y-1">
-                                {verificationResults[index].industryAnalysis.industrySpecificInsights.riskFactors.map((risk: string, riskIndex: number) => (
+                                {verificationResult.industryAnalysis.industrySpecificInsights.riskFactors.map((risk: string, riskIndex: number) => (
                                   <div key={riskIndex} className="flex items-start">
                                     <span className="inline-block w-2 h-2 bg-indigo-400 rounded-full mt-1.5 mr-2"></span>
                                     <span>{risk}</span>
@@ -1259,11 +1359,11 @@ export const BusinessInnovationLab: React.FC = () => {
                     )}
 
                     {/* 競合分析の詳細 */}
-                    {verificationResults[index].competitiveAnalysis && (
+                    {verificationResult.competitiveAnalysis && (
                       <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                         <h6 className="font-semibold text-red-900 mb-3">検証5: 競合分析詳細</h6>
                         <div className="overflow-x-auto">
-                          {verificationResults[index].competitiveAnalysis.directCompetitors?.length === 0 ? (
+                          {verificationResult.competitiveAnalysis.directCompetitors?.length === 0 ? (
                             <div className="p-4 bg-red-100 border border-red-300 rounded-lg text-center">
                               <p className="text-red-800 font-medium">直接競合は見つかりませんでした。</p>
                               <p className="text-red-700 text-sm mt-1">
@@ -1272,7 +1372,7 @@ export const BusinessInnovationLab: React.FC = () => {
                             </div>
                           ) : (
                             <div className="flex space-x-3 pb-2" style={{ minWidth: 'max-content' }}>
-                              {verificationResults[index].competitiveAnalysis.directCompetitors?.map((competitor: any, compIndex: number) => (
+                              {verificationResult.competitiveAnalysis.directCompetitors?.map((competitor: any, compIndex: number) => (
                               <div key={compIndex} className="flex-shrink-0 w-80 p-3 bg-red-100 rounded border">
                                 <div className="font-medium text-red-900 text-sm mb-2">
                                   {competitor.website ? (
@@ -1321,11 +1421,11 @@ export const BusinessInnovationLab: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        {verificationResults[index].competitiveAnalysis.marketPositioning && (
+                        {verificationResult.competitiveAnalysis.marketPositioning && (
                           <div className="mt-3">
                             <div className="font-medium text-red-800 mb-1">市場ポジショニング</div>
                             <div className="text-sm text-red-700">
-                              {verificationResults[index].competitiveAnalysis.marketPositioning.differentiationStrategy || '戦略分析中'}
+                              {verificationResult.competitiveAnalysis.marketPositioning.differentiationStrategy || '戦略分析中'}
                             </div>
                           </div>
                         )}
@@ -1333,10 +1433,10 @@ export const BusinessInnovationLab: React.FC = () => {
                     )}
 
                     {/* 改善提案 */}
-                    {verificationResults[index].improvementSuggestions && (
+                    {verificationResult.improvementSuggestions && (
                       <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
                         <h6 className="font-semibold text-orange-900 mb-3">検証6: 改善提案</h6>
-                        {verificationResults[index].improvementSuggestions.improvementRecommendations?.slice(0, 3).map((rec: any, recIndex: number) => (
+                        {verificationResult.improvementSuggestions.improvementRecommendations?.slice(0, 3).map((rec: any, recIndex: number) => (
                           <div key={recIndex} className="mb-3 p-3 bg-orange-100 rounded border">
                             <div className="font-medium text-orange-900 text-sm">改善提案 {recIndex + 1}: {rec.area}</div>
                             <div className="text-orange-800 text-xs mt-1">{rec.recommendedChange}</div>
@@ -1347,7 +1447,8 @@ export const BusinessInnovationLab: React.FC = () => {
                     )}
 
                   </div>
-                )}
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -1419,34 +1520,6 @@ export const BusinessInnovationLab: React.FC = () => {
             <span className="text-blue-100 opacity-90">改善提案機能</span>
           </div>
         </div>
-        
-        {/* Beta v2: 検証レベル選択 */}
-        <div className="mt-4 bg-blue-800 bg-opacity-20 rounded-lg p-4 border border-blue-300 border-opacity-30">
-          <label className="block text-sm font-medium text-blue-100 mb-3 flex items-center">
-            <Zap className="h-4 w-4 mr-2" />
-            AI検証レベル選択
-          </label>
-          <select
-            value={verificationLevel}
-            onChange={(e) => setVerificationLevel(e.target.value as 'basic' | 'comprehensive' | 'expert')}
-            className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm font-medium"
-          >
-            <option value="basic" className="text-gray-900 py-2">
-              🚀 Basic - 基本的な検証（推奨・高速）
-            </option>
-            <option value="comprehensive" className="text-gray-900 py-2">
-              🎯 Comprehensive (β版) - 詳細分析 + 競合調査
-            </option>
-            <option value="expert" className="text-gray-900 py-2">
-              🔬 Expert (開発中) - 専門家レベル分析
-            </option>
-          </select>
-          <div className="mt-2 text-xs text-blue-200 opacity-80 space-y-1">
-            <p>• Basic: 高速検証（15-30秒、業界分析簡略化）</p>
-            <p>• Comprehensive (β版): 詳細分析 + 競合調査（45-90秒）</p>
-            <p>• Expert (開発中): 現在はComprehensiveと同等の処理</p>
-          </div>
-        </div>
       </div>
 
       {/* エラー表示 */}
@@ -1455,6 +1528,19 @@ export const BusinessInnovationLab: React.FC = () => {
           <div className="flex items-center">
             <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
             <span className="text-red-800">{error}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 検証開始通知 */}
+      {showVerificationStarted && (
+        <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-4 rounded-lg shadow-2xl animate-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center space-x-3">
+            <RefreshCw className="h-5 w-5 animate-spin" />
+            <div>
+              <p className="font-semibold">🤖 AI検証を開始しました</p>
+              <p className="text-sm opacity-90">詳細な分析を実行中...</p>
+            </div>
           </div>
         </div>
       )}

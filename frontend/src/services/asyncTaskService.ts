@@ -71,7 +71,9 @@ export class AsyncTaskService {
 
       // 8. 最新の更新されたタスクを取得して返す
       const updatedTask = await asyncTaskStorageService.getTask(task.id);
-      console.log(`Async task started: ${task.id} (${task.type})`);
+      if (import.meta.env.DEV) {
+        console.log(`Async task started: ${task.id} (${task.type})`);
+      }
       
       return updatedTask || task;
     } catch (error) {
@@ -166,11 +168,15 @@ export class AsyncTaskService {
         const task = await asyncTaskStorageService.getTask(taskId);
         if (!task) {
           console.warn(`Task not found for polling: ${taskId}`);
+          this.stopPolling(taskId);
           return;
         }
 
-        // 完了状態チェック
-        if (['completed', 'failed', 'cancelled'].includes(task.status)) {
+        // 完了状態チェック（最優先）
+        if (['completed', 'failed', 'cancelled', 'consumed'].includes(task.status)) {
+          if (import.meta.env.DEV) {
+            console.log(`🔄 Stopping polling for ${taskId}: status is ${task.status}`);
+          }
           this.stopPolling(taskId);
           return;
         }
@@ -180,6 +186,16 @@ export class AsyncTaskService {
         
         if (statusUpdate) {
           await this.updateTaskFromBackground(taskId, statusUpdate);
+          
+          // 更新後に再度完了チェック
+          const updatedTask = await asyncTaskStorageService.getTask(taskId);
+          if (updatedTask && ['completed', 'failed', 'cancelled'].includes(updatedTask.status)) {
+            if (import.meta.env.DEV) {
+              console.log(`🔄 Task ${taskId} completed after update. Stopping polling.`);
+            }
+            this.stopPolling(taskId);
+            return;
+          }
         }
 
         // 次のポーリング間隔を計算（指数バックオフ）
@@ -240,11 +256,125 @@ export class AsyncTaskService {
   }
 
   /**
-   * Background Task ステータスチェック
+   * Background Task ステータスチェック（進捗情報付き）
    */
   private async checkBackgroundTaskStatus(taskId: string): Promise<BackgroundTaskResponse | null> {
     try {
-      const response = await fetch(`${this.API_BASE_URL}/task-status?taskId=${taskId}`, {
+      // ローカルタスクの状態を事前チェック
+      const localTask = await asyncTaskStorageService.getTask(taskId);
+      if (!localTask) {
+        console.warn(`Local task not found: ${taskId}`);
+        return null;
+      }
+
+      // ローカルタスクが既に完了している場合は、リモートチェックをスキップ
+      if (['completed', 'failed', 'cancelled', 'consumed'].includes(localTask.status)) {
+        console.log(`🔄 Task ${taskId} already ${localTask.status} locally. Skipping remote check.`);
+        return null;
+      }
+
+      // Phase 1: 実行監視フェーズ - progress blob を監視
+      if (import.meta.env.DEV) {
+        console.log(`🔍 Phase 1: Monitoring progress for task ${taskId}`);
+      }
+      const progressResponse = await this.checkTaskProgress(taskId);
+      
+      // Phase 2: 完了検知フェーズ - result blob の存在確認
+      if (import.meta.env.DEV) {
+        console.log(`🔍 Phase 2: Checking for completion of task ${taskId}`);
+      }
+      const resultResponse = await this.checkTaskCompletion(taskId);
+      
+      if (resultResponse) {
+        // Phase 3: 結果取得・表示フェーズ
+        console.log(`✅ Phase 3: Task ${taskId} completed, result available`);
+        return {
+          success: true,
+          taskId,
+          status: 'completed',
+          progress: progressResponse,
+          data: resultResponse.result,
+          result: resultResponse.result,
+          metadata: {
+            completedViaPulling: true,
+            finalProgress: progressResponse,
+            resultSource: 'resultBlob',
+            retrievedAt: Date.now()
+          }
+        };
+      }
+
+      // まだ実行中の場合
+      if (progressResponse) {
+        console.log(`⏳ Task ${taskId} still running - progress: ${progressResponse.percentage}%`);
+        return {
+          success: true,
+          taskId,
+          status: 'processing',
+          progress: progressResponse,
+          data: null,
+          result: null,
+          metadata: {
+            completedViaPulling: false,
+            currentProgress: progressResponse
+          }
+        };
+      }
+
+      // progress blob も result blob もない場合（タスクが存在しないか、まだ開始されていない）
+      console.log(`❓ Task ${taskId} - no progress or result found`);
+      return null;
+
+    } catch (error) {
+      console.error(`❌ Background task status check failed for ${taskId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Phase 2: タスク完了検知（result blob の存在確認）
+   * 洗練された設計 v2.0
+   */
+  private async checkTaskCompletion(taskId: string): Promise<{ result: any } | null> {
+    try {
+      const resultResponse = await fetch(`${this.API_BASE_URL}/task-result?taskId=${taskId}`, {
+        method: 'GET',
+        headers: {
+          'X-API-Key': this.API_SECRET
+        }
+      });
+
+      if (resultResponse.ok) {
+        const resultData = await resultResponse.json();
+        if (import.meta.env.DEV) {
+          console.log(`📦 Result blob found for ${taskId}:`, {
+            hasResult: !!resultData.result,
+            resultKeys: resultData.result ? Object.keys(resultData.result) : 'null',
+            status: resultData.status
+          });
+        }
+        return resultData;
+      } else if (resultResponse.status === 404) {
+        // 404は「result blob がまだ存在しない」（実行中）の明確な意味
+        console.log(`📋 Task ${taskId} result not yet available (still running)`);
+        return null;
+      } else {
+        console.warn(`❌ Unexpected response for task ${taskId}:`, resultResponse.status);
+        return null;
+      }
+    } catch (error) {
+      console.warn(`❌ Error checking task completion for ${taskId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * タスク進捗情報取得
+   */
+  private async checkTaskProgress(taskId: string): Promise<any | null> {
+    try {
+      // task-progressエンドポイントを使用して進捗情報を取得
+      const response = await fetch(`${this.API_BASE_URL}/task-progress?taskId=${taskId}`, {
         method: 'GET',
         headers: {
           'X-API-Key': this.API_SECRET
@@ -252,18 +382,34 @@ export class AsyncTaskService {
       });
 
       if (!response.ok) {
-        if (response.status === 404) {
-          // タスクが見つからない場合は処理中と判断
+        if (response.status === 404 || response.status === 400) {
+          // 進捗情報が見つからない場合は正常（まだ進捗が保存されていない）
           return null;
         }
-        throw new Error(`Status check failed: ${response.status}`);
+        throw new Error(`Progress check failed: ${response.status}`);
       }
 
       const responseData = await response.json();
-      // レスポンスがネストされている場合は展開
-      return responseData.data || responseData;
+      if (responseData.success && responseData.progress) {
+        if (import.meta.env.DEV) {
+          console.log(`📈 Progress update for task ${taskId}:`, {
+            percentage: responseData.progress.percentage,
+            currentStep: responseData.progress.currentStep,
+            detailedSteps: responseData.progress.detailedSteps?.length || 0,
+            updatedAt: responseData.progress.updatedAt
+          });
+        }
+        return responseData.progress;
+      }
+
+      return null;
     } catch (error) {
-      console.error(`Status check error for task ${taskId}:`, error);
+      // CORSエラーやネットワークエラーの場合は警告のみでエラーを投げない
+      if (error instanceof Error && error.message.includes('CORS')) {
+        console.warn(`Progress check skipped due to CORS for task ${taskId}`);
+        return null;
+      }
+      console.error(`Progress check error for task ${taskId}:`, error);
       return null;
     }
   }
@@ -281,14 +427,35 @@ export class AsyncTaskService {
     };
 
     if (backgroundResult.progress) {
-      update.progress = backgroundResult.progress;
+      // 新しい進捗形式に対応
+      if (backgroundResult.progress.percentage !== undefined) {
+        update.progress = {
+          percentage: backgroundResult.progress.percentage,
+          currentStep: backgroundResult.progress.currentStep || '処理中...',
+          detailedSteps: backgroundResult.progress.detailedSteps || [],
+          updatedAt: backgroundResult.progress.updatedAt || Date.now()
+        };
+        
+        if (import.meta.env.DEV) {
+          console.log(`📈 Progress update for task ${taskId}:`, {
+            percentage: update.progress.percentage,
+            currentStep: update.progress.currentStep,
+            detailedStepsCount: update.progress.detailedSteps?.length || 0
+          });
+        }
+      } else {
+        // 従来の進捗形式にも対応
+        update.progress = backgroundResult.progress;
+      }
     }
 
     if (backgroundResult.result) {
       update.result = backgroundResult.result;
-      console.log('📊 Task result received:', backgroundResult.result);
-      console.log('📊 Task result keys:', Object.keys(backgroundResult.result));
-      console.log('📊 Task result metadata:', backgroundResult.result.metadata);
+      if (import.meta.env.DEV) {
+        console.log('📊 Task result received:', backgroundResult.result);
+        console.log('📊 Task result keys:', Object.keys(backgroundResult.result));
+        console.log('📊 Task result metadata:', backgroundResult.result.metadata);
+      }
     }
 
     if (backgroundResult.error) {
@@ -302,11 +469,56 @@ export class AsyncTaskService {
     await asyncTaskStorageService.updateTask(update);
     console.log(`🔄 Task ${taskId} updated in storage with status: ${backgroundResult.status}`);
 
-    // 完了時のAPIログ更新
+    // 完了時のAPIログ更新とクリーンアップ
     if (['completed', 'failed', 'cancelled'].includes(backgroundResult.status)) {
       console.log(`✅ Task ${taskId} ${backgroundResult.status}. Stopping polling.`);
       await this.logFinalTaskResult(taskId, backgroundResult);
       this.stopPolling(taskId);
+      
+      // タスクブロブのクリーンアップ（結果＋進捗）
+      await this.cleanupTaskBlobs(taskId);
+    }
+  }
+
+  /**
+   * タスクブロブの統一クリーンアップ（結果＋進捗）
+   */
+  private async cleanupTaskBlobs(taskId: string, cleanup: 'all' | 'result' | 'progress' = 'all'): Promise<void> {
+    try {
+      const response = await fetch(`${this.API_BASE_URL}/cleanup-task-blob`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': this.API_SECRET
+        },
+        body: JSON.stringify({
+          taskId,
+          cleanup
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`🧹 Task blob cleanup successful:`, {
+          taskId,
+          cleanup,
+          totalDeleted: result.summary?.totalDeleted || 0,
+          totalSize: result.summary?.totalSize || 0,
+          deletedBlobs: Object.keys(result.deleted || {}).filter(key => result.deleted[key]?.deleted)
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.warn(`Task blob cleanup failed:`, {
+          taskId,
+          cleanup,
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData.error || 'Unknown error'
+        });
+      }
+    } catch (error) {
+      console.error(`Task blob cleanup error for ${taskId}:`, error);
+      // クリーンアップエラーは非致命的なので、処理を継続
     }
   }
 
