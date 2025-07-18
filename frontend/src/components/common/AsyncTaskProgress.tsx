@@ -10,7 +10,12 @@ import {
   Clock, 
   AlertTriangle,
   RefreshCw,
-  X
+  X,
+  BarChart3,
+  Target,
+  Users,
+  TrendingUp,
+  Lightbulb
 } from 'lucide-react';
 import type { AsyncTask, AsyncTaskStatus } from '../../types/asyncTask';
 
@@ -112,6 +117,26 @@ export const AsyncTaskProgress: React.FC<AsyncTaskProgressProps> = ({
     }
   };
 
+  const getStepIcon = (stepName: string) => {
+    const name = stepName.toLowerCase();
+    if (name.includes('業界') || name.includes('industry')) {
+      return <BarChart3 className="w-4 h-4" />;
+    }
+    if (name.includes('市場') || name.includes('market')) {
+      return <Target className="w-4 h-4" />;
+    }
+    if (name.includes('競合') || name.includes('competitive')) {
+      return <Users className="w-4 h-4" />;
+    }
+    if (name.includes('改善') || name.includes('improvement')) {
+      return <Lightbulb className="w-4 h-4" />;
+    }
+    if (name.includes('評価') || name.includes('assessment')) {
+      return <TrendingUp className="w-4 h-4" />;
+    }
+    return <Clock className="w-4 h-4" />;
+  };
+
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -197,16 +222,30 @@ export const AsyncTaskProgress: React.FC<AsyncTaskProgressProps> = ({
           <span className="text-sm font-medium text-gray-700">
             進捗
           </span>
-          <span className="text-sm text-gray-600">
-            {task.progress.percentage}%
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">
+              {task.progress.percentage}%
+            </span>
+            {task.status === 'processing' && (
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+            )}
+          </div>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-3">
+        <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
           <div 
-            className={`h-3 rounded-full transition-all duration-500 ${getStatusColor(task.status)}`}
+            className={`h-4 rounded-full transition-all duration-700 ease-out relative ${getStatusColor(task.status)}`}
             style={{ width: `${task.progress.percentage}%` }}
-          />
+          >
+            {task.status === 'processing' && task.progress.percentage > 0 && (
+              <div className="absolute inset-0 bg-white bg-opacity-30 animate-pulse rounded-full" />
+            )}
+          </div>
         </div>
+        {task.status === 'processing' && (
+          <div className="mt-1 text-xs text-gray-500 text-center">
+            AI検証プロセスを実行中...
+          </div>
+        )}
       </div>
 
       {/* 現在のステップ */}
@@ -220,31 +259,67 @@ export const AsyncTaskProgress: React.FC<AsyncTaskProgressProps> = ({
       {/* 詳細ステップ */}
       {showDetailedSteps && task.progress.detailedSteps && task.progress.detailedSteps.length > 0 && (
         <div className="mb-4">
-          <p className="text-sm text-gray-600 mb-3">詳細ステップ:</p>
-          <div className="space-y-2">
-            {task.progress.detailedSteps.map((step, index) => (
-              <div key={index} className="flex items-center space-x-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  step.status === 'completed' ? 'bg-green-500' :
-                  step.status === 'processing' ? 'bg-blue-500' :
-                  step.status === 'failed' ? 'bg-red-500' :
-                  'bg-gray-300'
-                }`} />
-                <span className={`text-sm ${
-                  step.status === 'completed' ? 'text-green-700' :
-                  step.status === 'processing' ? 'text-blue-700' :
-                  step.status === 'failed' ? 'text-red-700' :
-                  'text-gray-600'
+          <p className="text-sm text-gray-600 mb-3">実行ステップ:</p>
+          <div className="space-y-3">
+            {task.progress.detailedSteps.map((step, index) => {
+              const isCompleted = step.status === 'completed';
+              const isProcessing = step.status === 'processing';
+              const isFailed = step.status === 'failed';
+              const elapsed = step.startTime ? Math.floor((Date.now() - step.startTime) / 1000) : 0;
+              
+              return (
+                <div key={index} className={`flex items-center space-x-3 p-3 rounded-lg border ${
+                  isCompleted ? 'bg-green-50 border-green-200' :
+                  isProcessing ? 'bg-blue-50 border-blue-200' :
+                  isFailed ? 'bg-red-50 border-red-200' :
+                  'bg-gray-50 border-gray-200'
                 }`}>
-                  {step.stepName}
-                </span>
-                {step.duration && (
-                  <span className="text-xs text-gray-500">
-                    ({formatTime(step.duration / 1000)})
-                  </span>
-                )}
-              </div>
-            ))}
+                  {/* ステップアイコン */}
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                    isCompleted ? 'bg-green-500 text-white' :
+                    isProcessing ? 'bg-blue-500 text-white' :
+                    isFailed ? 'bg-red-500 text-white' :
+                    'bg-gray-300 text-gray-600'
+                  }`}>
+                    {isCompleted ? <CheckCircle className="w-4 h-4" /> :
+                     isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> :
+                     isFailed ? <XCircle className="w-4 h-4" /> :
+                     getStepIcon(step.stepName)}
+                  </div>
+                  
+                  {/* ステップ情報 */}
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-medium ${
+                        isCompleted ? 'text-green-700' :
+                        isProcessing ? 'text-blue-700' :
+                        isFailed ? 'text-red-700' :
+                        'text-gray-600'
+                      }`}>
+                        {step.stepName}
+                      </span>
+                      {isProcessing && elapsed > 0 && (
+                        <span className="text-xs text-blue-600">
+                          {formatTime(elapsed)}経過
+                        </span>
+                      )}
+                      {step.duration && isCompleted && (
+                        <span className="text-xs text-green-600">
+                          {formatTime(step.duration / 1000)}で完了
+                        </span>
+                      )}
+                    </div>
+                    {isProcessing && (
+                      <div className="mt-1">
+                        <div className="w-full bg-blue-200 rounded-full h-1">
+                          <div className="h-1 bg-blue-500 rounded-full animate-pulse" style={{ width: '60%' }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

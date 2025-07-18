@@ -1,4 +1,5 @@
 const { OpenAI } = require('openai');
+const { getStore, connectLambda } = require('@netlify/blobs');
 const { handleCors, corsHeaders } = require('../../utils/cors');
 const { validateApiAccess } = require('../../utils/auth');
 const { logger } = require('../../utils/logger');
@@ -30,6 +31,9 @@ const usageTracker = new UsageTracker();
 exports.handler = async (event, context) => {
   // Background Functions specific context
   context.callbackWaitsForEmptyEventLoop = false;
+  
+  // Netlify Blobs Lambda互換性のための初期化
+  connectLambda(event);
   
   // Handle CORS preflight
   const corsResponse = handleCors(event);
@@ -104,21 +108,89 @@ exports.handler = async (event, context) => {
       timeout: '15 minutes'
     });
 
-    // Progress tracking helper
+    // 全検証ステップの定義（順序保持）
+    const allVerificationSteps = [
+      '利用制限確認',
+      '業界エキスパート分析実行',
+      'Perplexity API呼び出し',
+      'ビジネスモデル・競合分析並列実行',
+      '改善提案・代替案生成',
+      '最終評価・意思決定支援'
+    ];
+
+    // Progress tracking helper with proper step completion management
     const updateProgress = async (percentage, currentStep, detailedStep = null) => {
+      // 既存の詳細ステップを取得または初期化
+      let detailedSteps = progress.detailedSteps || [];
+      
+      // 新しいステップが追加された場合
+      if (detailedStep) {
+        // 同じステップが既に存在するかチェック
+        const existingStepIndex = detailedSteps.findIndex(step => step.stepName === detailedStep);
+        
+        if (existingStepIndex === -1) {
+          // 新しいステップを追加
+          detailedSteps.push({
+            stepName: detailedStep,
+            status: 'processing',
+            startTime: Date.now()
+          });
+          
+          // 全ステップの状態を更新
+          detailedSteps = allVerificationSteps.map(stepName => {
+            const existingStep = detailedSteps.find(step => step.stepName === stepName);
+            
+            if (existingStep) {
+              // 現在のステップより前のステップは完了済みにマーク
+              if (allVerificationSteps.indexOf(stepName) < allVerificationSteps.indexOf(detailedStep)) {
+                return {
+                  ...existingStep,
+                  status: 'completed',
+                  duration: existingStep.duration || (Date.now() - existingStep.startTime)
+                };
+              }
+              // 現在のステップは処理中
+              else if (stepName === detailedStep) {
+                return {
+                  ...existingStep,
+                  status: 'processing'
+                };
+              }
+              // その他は既存の状態を保持
+              return existingStep;
+            } else {
+              // まだ開始されていないステップは pending
+              return {
+                stepName,
+                status: 'pending',
+                startTime: null
+              };
+            }
+          }).filter(step => {
+            // 実際に追加されたステップのみを保持
+            return detailedSteps.some(existingStep => existingStep.stepName === step.stepName) ||
+                   allVerificationSteps.indexOf(step.stepName) <= allVerificationSteps.indexOf(detailedStep);
+          });
+        } else {
+          // 既存ステップの状態更新
+          detailedSteps[existingStepIndex] = {
+            ...detailedSteps[existingStepIndex],
+            status: 'processing'
+          };
+        }
+      }
+
       const progressUpdate = {
+        taskId,
         percentage,
         currentStep,
-        detailedSteps: progress.detailedSteps || []
+        detailedSteps,
+        status: 'processing',
+        updatedAt: Date.now()
       };
       
-      if (detailedStep) {
-        progressUpdate.detailedSteps.push({
-          stepName: detailedStep,
-          status: 'processing',
-          startTime: Date.now()
-        });
-      }
+      // progressオブジェクトも更新（次回の呼び出しで参照される）
+      progress.detailedSteps = detailedSteps;
       
       logger.info('Background verification progress', {
         taskId,
@@ -127,8 +199,43 @@ exports.handler = async (event, context) => {
         detailedStep
       });
       
-      // In a real implementation, you would update the task status in a database
-      // For now, we log the progress for monitoring
+      // Save progress to Netlify Blobs for frontend polling
+      try {
+        // Netlify Blobsストアを初期化（webhook-task-completeと同じパターン）
+        const taskStore = getStore('async-task-results');
+        
+        // Save progress update with a specific key pattern
+        const progressKey = `${taskId}_progress`;
+        const progressJson = JSON.stringify(progressUpdate);
+        
+        await taskStore.set(progressKey, progressJson);
+        
+        logger.info('Progress saved to Netlify Blobs', { 
+          taskId,
+          progressKey,
+          percentage,
+          currentStep,
+          progressUpdateKeys: Object.keys(progressUpdate),
+          progressJsonLength: progressJson.length
+        });
+      } catch (blobError) {
+        logger.error('Failed to save progress to Netlify Blobs', {
+          taskId,
+          error: blobError.message,
+          stack: blobError.stack,
+          percentage,
+          currentStep
+        });
+        
+        // 代替手段として、ログベースの進捗追跡を使用
+        logger.info('Using fallback progress tracking', {
+          taskId,
+          percentage,
+          currentStep,
+          detailedStep,
+          progressFallback: true
+        });
+      }
     };
 
     // 利用量チェック

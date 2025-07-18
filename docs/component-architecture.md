@@ -33,6 +33,12 @@ App.tsx
 │       │   ├── ResultsTable
 │       │   ├── MVVDisplay
 │       │   └── ExcelExportWizard 📊
+│       ├── BusinessInnovationLab 🚀
+│       │   ├── IdeaGenerator
+│       │   ├── VerificationInterface
+│       │   ├── ProgressMonitor
+│       │   ├── ResultDisplay
+│       │   └── AsyncTaskManager
 │       ├── AdminPanel 🔧
 │       │   ├── DataDiagnostics
 │       │   ├── RecoveryTools
@@ -49,6 +55,7 @@ App.tsx
 ⭐ = リアルタイム分析コンポーネント  
 🎯 = Visual Analytics機能  
 📊 = Excel Export機能  
+🚀 = Business Innovation Lab v2.1  
 🔧 = 管理者パネル
 
 ### 1.2 状態管理アーキテクチャ
@@ -501,9 +508,118 @@ const VirtualizedList = ({ items }: { items: LargeDataset }) => {
 };
 ```
 
-## 4. データフロー
+## 4. Business Innovation Lab v2.1 コンポーネント詳細
 
-### 4.1 初期化フロー
+### 4.1 IdeaGenerator コンポーネント
+**責務**: ビジネスアイディアの生成
+```typescript
+interface IdeaGeneratorProps {
+  selectedCompanies: Company[];
+  onIdeaGenerated: (idea: BusinessIdea) => void;
+}
+
+export const IdeaGenerator: React.FC<IdeaGeneratorProps> = ({
+  selectedCompanies,
+  onIdeaGenerated
+}) => {
+  // MVV統合型アイディア生成
+  // OpenAI GPT-4o-mini使用
+  // 6段階分析プロセス
+  // Lean Canvas自動生成
+};
+```
+
+### 4.2 VerificationInterface コンポーネント  
+**責務**: AI検証プロセスの管理
+```typescript
+interface VerificationInterfaceProps {
+  idea: BusinessIdea;
+  company: Company;
+  verificationLevel: 'basic' | 'comprehensive' | 'expert';
+  onVerificationStart: (taskId: string) => void;
+}
+
+export const VerificationInterface: React.FC<VerificationInterfaceProps> = ({
+  idea,
+  company,
+  verificationLevel,
+  onVerificationStart
+}) => {
+  // 検証レベル選択UI
+  // 検証開始トリガー
+  // Background Function起動
+  // 非同期タスク管理
+};
+```
+
+### 4.3 ProgressMonitor コンポーネント (Phase-based v2.0)
+**責務**: リアルタイム進捗監視
+```typescript
+interface ProgressMonitorProps {
+  taskId: string;
+  onProgress: (progress: VerificationProgress) => void;
+  onComplete: () => void;
+}
+
+export const ProgressMonitor: React.FC<ProgressMonitorProps> = ({
+  taskId,
+  onProgress,
+  onComplete
+}) => {
+  // Phase 1: task-progress APIポーリング (5秒間隔)
+  // 進捗率表示 (0-100%)
+  // ステップバイステップ進捗表示
+  // 推定残り時間表示
+  // Phase 2: task-result API完了検知
+};
+```
+
+### 4.4 ResultDisplay コンポーネント (Progressive Disclosure)
+**責務**: 段階的結果表示
+```typescript
+interface ResultDisplayProps {
+  verificationResult: VerificationResult;
+  isLoading: boolean;
+}
+
+export const ResultDisplay: React.FC<ResultDisplayProps> = ({
+  verificationResult,
+  isLoading
+}) => {
+  // 段階的開示: Industry Analysis → Business Model → Competitive → Improvements → Assessment
+  // 折りたたみ可能セクション
+  // スコア可視化 (カラーコード付き)
+  // GO/NO-GO/CONDITIONAL-GO判定表示
+  // 改善提案の優先度表示
+  // アニメーション付き結果表示
+};
+```
+
+### 4.5 AsyncTaskManager コンポーネント
+**責務**: 非同期タスクの統合管理
+```typescript
+interface AsyncTaskManagerProps {
+  activeTasks: AsyncTask[];
+  onTaskCancel: (taskId: string) => void;
+  onTaskRetry: (taskId: string) => void;
+}
+
+export const AsyncTaskManager: React.FC<AsyncTaskManagerProps> = ({
+  activeTasks,
+  onTaskCancel,
+  onTaskRetry
+}) => {
+  // 複数タスクの同時管理
+  // タスクキャンセル機能
+  // タスク再試行機能
+  // エラーハンドリング
+  // タスクブロブクリーンアップ
+};
+```
+
+## 5. データフロー
+
+### 5.1 初期化フロー
 ```
 1. App起動
    ↓
@@ -520,7 +636,30 @@ const VirtualizedList = ({ items }: { items: LargeDataset }) => {
 7. UI状態更新 → コンポーネント再レンダリング
 ```
 
-### 4.2 インタラクションフロー
+### 5.2 Verification結果表示フロー (Phase-based v2.0)
+```
+1. 検証開始 (VerificationInterface)
+   ↓
+2. Background Function起動 (start-async-task)
+   ↓
+3. 進捗監視開始 (ProgressMonitor)
+   ↓
+4. Phase 1: task-progress API ポーリング
+   │ └─ 5秒間隔で進捗確認
+   │ └─ 進捗率・ステップ表示更新
+   ↓
+5. Phase 2: task-result API 完了検知
+   │ └─ 404: まだ実行中
+   │ └─ 200: 完了済み
+   ↓
+6. Phase 3: 結果表示 (ResultDisplay)
+   │ └─ 段階的結果開示
+   │ └─ アニメーション付き表示
+   ↓
+7. タスクブロブクリーンアップ
+```
+
+### 5.3 インタラクションフロー
 ```
 1. ユーザー操作 (企業選択、フィルター変更)
    ↓
@@ -535,9 +674,9 @@ const VirtualizedList = ({ items }: { items: LargeDataset }) => {
 6. 状態更新 → UI再描画
 ```
 
-## 5. エラーハンドリング
+## 6. エラーハンドリング
 
-### 5.1 ErrorBoundary実装
+### 6.1 ErrorBoundary実装
 ```typescript
 export class ErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
@@ -574,7 +713,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 }
 ```
 
-### 5.2 非同期エラー処理
+### 6.2 非同期エラー処理
 ```typescript
 const useAsyncError = () => {
   const [error, setError] = useState<Error | null>(null);

@@ -32,6 +32,16 @@ AI技術を活用して日本企業のMission（使命）、Vision（理念）�
 │  │ • Visual Analyt │ │ • Auth Store    │ │ • Screenshots   │          │
 │  │ • Excel Export  │ │ • Progress Track│ │ • LRU Cache     │          │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘          │
+│                                   │                                     │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐          │
+│  │Business Innovat │ │ Async Task Mgmt │ │ Phase-based UI  │          │
+│  │Lab Beta v2.1    │ │ (Phase ε)       │ │ (v2.0)          │          │
+│  │                 │ │                 │ │                 │          │
+│  │ • Idea Generate │ │ • Background Fn │ │ • Progress Phase│          │
+│  │ • AI Verification│ │ • Progress Poll │ │ • Complete Phase│          │
+│  │ • Result Display│ │ • Blob Storage  │ │ • Result Phase  │          │
+│  │ • Multi-tier AI │ │ • Phase Polling │ │ • Real-time UI  │          │
+│  └─────────────────┘ └─────────────────┘ └─────────────────┘          │
 └─────────────────────────────────────────────────────────────────────────┘
                                    │ HTTPS API Calls
                                    ▼
@@ -54,6 +64,16 @@ AI技術を活用して日本企業のMission（使命）、Vision（理念）�
 │  │ • Company Info  │ │ • 4-Step Auto   │ │ • JWT Auth      │          │
 │  │ • JSIC Category │ │ • Pipeline      │ │ • API Key Auth  │          │
 │  │ • Location Data │ │ • Progress Track│ │ • Rate Limiting │          │
+│  └─────────────────┘ └─────────────────┘ └─────────────────┘          │
+│                                   │                                     │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐          │
+│  │generate-business│ │verify-business- │ │  Async Task     │          │
+│  │ideas.js         │ │idea.js          │ │ Endpoints       │          │
+│  │                 │ │                 │ │                 │          │
+│  │ • Idea Creation │ │ • AI Verificat  │ │ • task-progress │          │
+│  │ • MVV Integration│ │ • Multi-tier AI │ │ • task-result   │          │
+│  │ • Lean Canvas   │ │ • Industry Spec │ │ • start-async   │          │
+│  │ • OpenAI GPT-4o │ │ • Perplexity AI │ │ • cleanup-blob  │          │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘          │
 │                                   │                                     │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐          │
@@ -248,7 +268,37 @@ interface VisualAnalyticsGallery {
   ];
 }
 
-#### 6. Admin Panel Layer (New)
+#### 6. Business Innovation Lab Layer v2.1 (New)
+```typescript
+// ビジネスアイディア生成・検証システム
+interface BusinessInnovationLab {
+  components: {
+    IdeaGenerator: () => JSX.Element;       // アイディア生成
+    VerificationUI: () => JSX.Element;      // AI検証インターフェース
+    ProgressMonitor: () => JSX.Element;     // フェーズベース進捗監視
+    ResultDisplay: () => JSX.Element;       // 段階的結果表示
+    AsyncTaskManager: () => JSX.Element;    // 非同期タスク管理
+  };
+  features: [
+    'Multi-tier AI Verification (Basic/Comprehensive/Expert)',
+    'Phase-based Result Display v2.0',
+    'Real-time Progress Monitoring (5-second intervals)',
+    'Background Function Support (120-180 seconds)',
+    'Industry-specific Analysis',
+    'Progressive Result Disclosure',
+    'Blob-based State Management',
+    'Error-free Completion Detection'
+  ];
+  apis: [
+    'generate-business-ideas.js',
+    'verify-business-idea.js', 
+    'task-progress.js',
+    'task-result.js',
+    'start-async-task.js'
+  ];
+}
+
+#### 7. Admin Panel Layer (New)
 ```typescript
 // 管理者パネル（隠しメニュー）
 interface AdminPanel {

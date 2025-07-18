@@ -4,15 +4,27 @@ const { validateApiAccess } = require('../../utils/auth');
 const { logger } = require('../../utils/logger');
 
 /**
- * Task Blob Cleanup API
+ * Unified Task Blob Cleanup API
  * 
- * 完了した非同期タスクのNetlify Blobsデータを削除する
+ * 完了した非同期タスクのNetlify Blobsデータを一括削除する
  * フロントエンドがタスク結果を受信・処理完了後に呼び出される
  * 
  * URL Pattern: /.netlify/functions/cleanup-task-blob
  * Method: DELETE
- * Query Params: 
- *   - taskId: 必須、削除するタスクID
+ * Body: {
+ *   taskId: string,              // 必須：タスクID
+ *   cleanup: 'all' | 'result' | 'progress'  // オプション：削除対象（デフォルト: 'all'）
+ * }
+ * 
+ * Response: {
+ *   success: boolean,
+ *   taskId: string,
+ *   deleted: {
+ *     result: { deleted: boolean, size: number },
+ *     progress: { deleted: boolean, size: number }
+ *   },
+ *   summary: { totalDeleted: number, totalSize: number }
+ * }
  */
 
 exports.handler = async (event, context) => {
@@ -38,7 +50,10 @@ exports.handler = async (event, context) => {
         ...corsHeadersObj,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ error: 'Method not allowed' })
+      body: JSON.stringify({ 
+        error: 'Method not allowed. Only DELETE is supported.',
+        usage: 'DELETE with body: {"taskId": "async_12345", "cleanup": "all"}'
+      })
     };
   }
 
@@ -56,9 +71,12 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // クエリパラメータの解析
-    const queryParams = event.queryStringParameters || {};
-    const { taskId } = queryParams;
+    // リクエストボディの解析
+    const requestBody = JSON.parse(event.body || '{}');
+    const { 
+      taskId, 
+      cleanup = 'all'  // デフォルトは全削除
+    } = requestBody;
 
     // 入力検証
     if (!taskId) {
@@ -69,49 +87,126 @@ exports.handler = async (event, context) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          error: 'taskId query parameter is required',
-          example: '/.netlify/functions/cleanup-task-blob?taskId=async_12345'
+          error: 'taskId is required in request body',
+          example: '{"taskId": "async_12345", "cleanup": "all"}',
+          cleanupOptions: ['all', 'result', 'progress']
         })
       };
     }
 
-    logger.info('Task blob cleanup request', { 
-      taskId,
-      user: authResult.user?.username
-    });
-
-    // Netlify Blobsストアから削除
-    const taskStore = getStore('async-task-results');
-    
-    // 削除前に存在確認
-    const existingData = await taskStore.get(taskId);
-    if (!existingData) {
-      logger.warn('Task blob not found for cleanup', { taskId });
+    // cleanup オプションの検証
+    const validCleanupOptions = ['all', 'result', 'progress'];
+    if (!validCleanupOptions.includes(cleanup)) {
       return {
-        statusCode: 404,
+        statusCode: 400,
         headers: {
           ...corsHeadersObj,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          error: 'Task blob not found',
-          taskId,
-          message: 'The specified task blob does not exist or has already been deleted'
+          error: `Invalid cleanup option: ${cleanup}`,
+          validOptions: validCleanupOptions
         })
       };
     }
 
-    // 削除実行
-    await taskStore.delete(taskId);
-    
-    // 削除確認
-    const verifyDeleted = await taskStore.get(taskId);
-    const deleted = !verifyDeleted;
-
-    logger.info('Task blob cleanup completed', { 
+    logger.info('Unified task blob cleanup request', { 
       taskId,
-      deleted,
-      originalDataSize: existingData ? existingData.length : 0,
+      cleanup,
+      user: authResult.user?.username
+    });
+
+    // Netlify Blobsストアを初期化
+    const taskStore = getStore('async-task-results');
+    
+    // 削除対象ブロブの定義
+    const blobTargets = {
+      result: taskId,                    // タスク結果ブロブ
+      progress: `${taskId}_progress`     // 進捗ブロブ
+    };
+
+    // 削除対象を決定
+    let targetsToDelete = [];
+    if (cleanup === 'all') {
+      targetsToDelete = ['result', 'progress'];
+    } else {
+      targetsToDelete = [cleanup];
+    }
+
+    // 削除実行と結果記録
+    const deletionResults = {};
+    let totalDeleted = 0;
+    let totalSize = 0;
+
+    for (const blobType of targetsToDelete) {
+      const blobKey = blobTargets[blobType];
+      
+      try {
+        // 削除前に存在確認
+        const existingData = await taskStore.get(blobKey);
+        const dataExists = !!existingData;
+        const originalSize = dataExists ? existingData.length : 0;
+
+        if (dataExists) {
+          // 削除実行
+          await taskStore.delete(blobKey);
+          
+          // 削除確認
+          const verifyDeleted = await taskStore.get(blobKey);
+          const deleted = !verifyDeleted;
+          
+          deletionResults[blobType] = {
+            deleted,
+            size: originalSize,
+            existed: true
+          };
+          
+          if (deleted) {
+            totalDeleted++;
+            totalSize += originalSize;
+          }
+          
+          logger.info(`${blobType} blob deletion completed`, {
+            taskId,
+            blobKey,
+            deleted,
+            originalSize
+          });
+        } else {
+          // 存在しない場合も成功として扱う
+          deletionResults[blobType] = {
+            deleted: true,
+            size: 0,
+            existed: false
+          };
+          
+          logger.info(`${blobType} blob not found (already deleted or never existed)`, {
+            taskId,
+            blobKey
+          });
+        }
+      } catch (error) {
+        deletionResults[blobType] = {
+          deleted: false,
+          size: 0,
+          existed: false,
+          error: error.message
+        };
+        
+        logger.error(`Failed to delete ${blobType} blob`, {
+          taskId,
+          blobKey,
+          error: error.message
+        });
+      }
+    }
+
+    logger.info('Unified task blob cleanup completed', { 
+      taskId,
+      cleanup,
+      deletionResults,
+      totalDeleted,
+      totalSize,
       user: authResult.user?.username
     });
 
@@ -124,13 +219,15 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         taskId,
-        deleted,
-        message: deleted ? 'Task blob deleted successfully' : 'Task blob may still exist',
-        data: {
-          taskId,
-          deletedAt: Date.now(),
-          originalDataSize: existingData ? existingData.length : 0
-        }
+        cleanup,
+        deleted: deletionResults,
+        summary: {
+          totalDeleted,
+          totalSize,
+          requestedTargets: targetsToDelete,
+          cleanupTime: Date.now()
+        },
+        message: `Task blob cleanup completed: ${totalDeleted} blobs deleted`
       })
     };
 

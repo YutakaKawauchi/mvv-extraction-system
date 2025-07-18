@@ -48,7 +48,9 @@ AI-powered system for extracting Mission, Vision, and Values (MVV) from Japanese
 - ✅ **Comprehensive Async Task System (Phase ε)**
 - ✅ **Real-time Analysis Dashboard** → See `docs/realtime-analysis-system.md`
 - ✅ **Visual Analytics Gallery** → See `docs/visual-analytics-gallery-design.md`
-- ✅ **Business Innovation Lab Beta v2** → See `docs/business-innovation-lab-beta-v2-design.md`
+- ✅ **Business Innovation Lab Beta v2.1** → See `docs/business-innovation-lab-beta-v2-design.md`
+- ✅ **Phase-based Verification Result Display v2.0** → Fixed verification completion auto-save
+- ✅ **Verified Ideas Restoration Fix** → Fixed sidebar restoration displaying verification results
 - ✅ **Comprehensive AI Cache System**
 - 📊 **Next Phase**: Expert verification differentiation and advanced AI insights
 
@@ -65,6 +67,19 @@ cd backend && netlify dev            # Runs on localhost:8888
 # Health check
 curl http://localhost:8888/.netlify/functions/health
 ```
+
+### ⚠️ IMPORTANT: Production Backend Development
+**When developing against production backend (本番バックエンド利用時):**
+- **ALWAYS deploy backend changes BEFORE testing**
+- **Backend changes are NOT reflected until deployed**
+- **Deploy command**: `cd backend && netlify deploy --prod`
+- **Common mistake**: Testing new endpoints without deploying first causes CORS errors
+
+**Development workflow with production backend:**
+1. Make backend changes
+2. **Deploy immediately**: `cd backend && netlify deploy --prod`
+3. Test frontend functionality
+4. If issues found, repeat from step 1
 
 ### WSL2 Development Notes
 - Frontend configured with `host: '0.0.0.0'` for Windows browser access

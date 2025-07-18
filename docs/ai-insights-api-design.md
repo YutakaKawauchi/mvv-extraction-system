@@ -106,7 +106,7 @@ POST /.netlify/functions/verify-business-idea
 - **Error Handling**: Improved variable scope handling in market validation API
 - **Response Reliability**: Enhanced parsing of Perplexity API responses for consistent JSON extraction
 
-### 4. Async Task Endpoints
+### 4. Async Task Endpoints (Phase-based Architecture v2.0)
 
 #### Start Async Task
 ```
@@ -114,18 +114,112 @@ POST /.netlify/functions/start-async-task
 ```
 **Description**: Initiate long-running background tasks
 - **Timeout**: Up to 15 minutes
-- **Storage**: Netlify Blobs
-- **Status**: Polling-based updates
+- **Storage**: Netlify Blobs (progress + result separation)
+- **Status**: Phase-based polling system
 
-#### Get Task Status
+#### Task Progress Monitoring
+```
+GET /.netlify/functions/task-progress?taskId=<task-id>
+```
+**Description**: Monitor real-time task progress (Phase 1)
+- **Purpose**: Progress monitoring only
+- **Response**: Progress percentage, current step, detailed steps
+- **Polling**: 5-second intervals during execution
+- **404 Meaning**: Progress not yet available (task not started)
+
+**Response Format**:
+```json
+{
+  "success": true,
+  "taskId": "async_1234567890",
+  "progress": {
+    "percentage": 65,
+    "currentStep": "Analyzing competitive landscape...",
+    "detailedSteps": [
+      {
+        "stepName": "Industry Analysis",
+        "status": "completed",
+        "duration": 25000,
+        "startTime": 1705234567890
+      },
+      {
+        "stepName": "Business Model Validation", 
+        "status": "processing",
+        "startTime": 1705234592890
+      }
+    ],
+    "estimatedTimeRemaining": 45000,
+    "updatedAt": 1705234598890
+  }
+}
+```
+
+#### Task Completion Detection
+```
+GET /.netlify/functions/task-result?taskId=<task-id>
+```
+**Description**: Detect task completion and retrieve results (Phase 2)
+- **Purpose**: Result retrieval only
+- **Response**: Complete verification results when available
+- **404 Meaning**: Task not completed yet (still running or failed)
+- **200 Response**: Task completed successfully with full results
+
+**Response Format**:
+```json
+{
+  "success": true,
+  "taskId": "async_1234567890",
+  "status": "completed",
+  "result": {
+    "industryAnalysis": { /* detailed analysis */ },
+    "businessModelValidation": { /* validation results */ },
+    "competitiveAnalysis": { /* competitor data */ },
+    "improvementSuggestions": { /* suggestions */ },
+    "overallAssessment": { /* final assessment */ }
+  },
+  "metadata": {
+    "verificationLevel": "comprehensive",
+    "totalTokens": 8542,
+    "totalCost": 0.0234,
+    "model": "gpt-4o-mini",
+    "confidence": 0.92,
+    "version": "2.1"
+  },
+  "timestamps": {
+    "createdAt": 1705234567890,
+    "completedAt": 1705234723890,
+    "processingDuration": 156000
+  }
+}
+```
+
+#### Legacy Task Status (Deprecated)
 ```
 GET /.netlify/functions/task-status?taskId=<task-id>
 ```
-**Description**: Check status of async tasks
-- **States**: queued, processing, completed, failed, cancelled, consumed
-- **Polling**: Enhanced polling system with automatic termination
-- **Improvements**: Fixed timestamp comparison bug, automatic polling stop on completion
-- **Error Handling**: 404 errors handled gracefully for better UX
+**Status**: Deprecated in favor of phase-based approach
+**Migration**: Use task-progress + task-result APIs for new implementations
+
+### Phase-Based Polling Strategy
+
+The new verification result display system uses a three-phase approach:
+
+**Phase 1: Progress Monitoring**
+- API: `task-progress`
+- Purpose: Real-time progress updates
+- Frequency: 5-second intervals
+- Continues until completion detected
+
+**Phase 2: Completion Detection**  
+- API: `task-result`
+- Purpose: Detect when task completes
+- Frequency: 5-second intervals
+- 404 = still running, 200 = completed
+
+**Phase 3: Result Display**
+- Trigger: 200 response from task-result
+- Action: Display complete verification results
+- UI: Progressive disclosure of result sections
 
 ### 5. Authentication Endpoints
 
@@ -292,10 +386,16 @@ curl -X POST "http://localhost:8888/.netlify/functions/generate-business-ideas" 
 }'
 ```
 
-#### Check Task Status
+#### Check Task Progress (Phase 1)
 ```bash
-curl -X GET "http://localhost:8888/.netlify/functions/task-status?taskId=async_123456" \
--H "Authorization: Bearer your-jwt-token"
+curl -X GET "http://localhost:8888/.netlify/functions/task-progress?taskId=async_123456" \
+-H "X-API-Key: your-api-key"
+```
+
+#### Check Task Completion (Phase 2)
+```bash
+curl -X GET "http://localhost:8888/.netlify/functions/task-result?taskId=async_123456" \
+-H "X-API-Key: your-api-key"
 ```
 
 ---
